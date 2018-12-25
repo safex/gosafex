@@ -19,7 +19,6 @@ var safexdRpcCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 
 		fmt.Println("Connecting to host ", daemonHost, " port ", daemonPort)
-
 		fmt.Println("Safex Node Info:", safexdrpc.GetInfo)
 
 	},
