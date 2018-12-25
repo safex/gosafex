@@ -1,7 +1,23 @@
 package safexdrpc
 
-import "log"
+import (
+	"bytes"
+	"io/ioutil"
+	"log"
+	"net/http"
+	"strconv"
+	"time"
 
+	"github.com/tidwall/gjson"
+)
+
+type Client struct {
+	Port uint
+	Host string
+	ID   uint
+}
+
+// must panics in the case of error.
 func must(err error) {
 	if err == nil {
 		return
@@ -14,31 +30,64 @@ func must(err error) {
 //takes host and port as arguments
 func InitClient(host string, port uint) (client *Client) {
 
-	client := &Client{
-		UseHttp: false,
-		UseJson: true,
-		Port:    port,
-		Host:    host,
+	client = &Client{
+		Port: port,
+		Host: host,
+		ID:   0,
 	}
-
-	must(client.Init())
 
 	return client
 }
 
-//CloseClient destroys RPC client
-func CloseClient(client *Client) {
-
-	client.Close()
+type JSONResult struct {
+	count  int    `json:"count"`
+	status string `json:"status"`
 }
 
-//
-func GetBlockCount(client *Client) (count uint) {
+type JSONResponse struct {
+	Id      string     `json:"id"`
+	JSONRpc string     `json:"jsonrpc"`
+	Result  JSONResult `json:"result"`
+}
 
-	response, err := client.Execute("get_block_count")
+//Close destroys RPC client
+func (c *Client) Close() {
+
+}
+
+//GetBlockCount gets current node latest block number
+func (c *Client) GetBlockCount() (count uint64) {
+
+	c.ID++
+	url := "http://" + c.Host + ":" + strconv.Itoa(int(c.Port)) + "/json_rpc"
+	var jsonStr = []byte(`{"jsonrpc": "2.0","id": "` + strconv.Itoa(int(c.ID)) + `","method": "get_block_count"}`)
+
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonStr))
 	must(err)
 
-	log.Println(response)
+	req.Header.Set("Content-Type", "application/json")
 
-	return 0
+	trConfig := &http.Transport{
+		MaxIdleConns:       10,
+		IdleConnTimeout:    30 * time.Second,
+		DisableCompression: true,
+	}
+
+	httpClient := &http.Client{Transport: trConfig}
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		panic(err)
+	}
+	defer resp.Body.Close()
+
+	// fmt.Println("response Status:", resp.Status)
+	// fmt.Println("response Headers:", resp.Header)
+	body, err := ioutil.ReadAll(resp.Body)
+	must(err)
+	//	fmt.Println("response Body:", string(body))
+
+	count, err = strconv.ParseUint(gjson.Get(string(body), "result.count").String(), 10, 32)
+	must(err)
+
+	return count
 }
