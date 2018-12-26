@@ -2,6 +2,7 @@ package safexdrpc
 
 import (
 	"bytes"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -55,12 +56,42 @@ func (c *Client) Close() {
 
 }
 
-//GetBlockCount gets current node latest block number
-func (c *Client) GetBlockCount() (count uint64) {
+//performSafexdCall creates and executes RPC call
+//
+func performSafexdCall(c *Client, remoteFunc string, args ...interface{}) ([]byte, error) {
 
 	c.ID++
 	url := "http://" + c.Host + ":" + strconv.Itoa(int(c.Port)) + "/json_rpc"
-	var jsonStr = []byte(`{"jsonrpc": "2.0","id": "` + strconv.Itoa(int(c.ID)) + `","method": "get_block_count"}`)
+	var jsonStr = []byte(`{"jsonrpc": "2.0","id": "` + strconv.Itoa(int(c.ID)) + `","method": "` + remoteFunc + `"`)
+
+	if len(args) > 0 {
+		jsonStr = append(jsonStr, []byte(`, "params":[`)...)
+
+		for i, par := range args {
+			if i > 0 && i < len(args)-1 {
+				jsonStr = append(jsonStr, []byte(",")...)
+			}
+
+			switch par.(type) {
+			case uint, uint64, int, int64:
+				jsonStr = append(jsonStr, []byte(strconv.FormatUint(par.(uint64), 10))...)
+			case string:
+				jsonStr = append(jsonStr, []byte(`"`)...)
+				jsonStr = append(jsonStr, []byte(par.(string))...)
+				jsonStr = append(jsonStr, []byte(`"`)...)
+			default:
+				jsonStr = append(jsonStr, []byte(par.(string))...)
+			}
+		}
+
+		jsonStr = append(jsonStr, []byte(`]`)...)
+
+	}
+
+	jsonStr = append(jsonStr, []byte("}")...)
+
+	debug := string(jsonStr)
+	fmt.Println(debug)
 
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonStr))
 	must(err)
@@ -75,19 +106,47 @@ func (c *Client) GetBlockCount() (count uint64) {
 
 	httpClient := &http.Client{Transport: trConfig}
 	resp, err := httpClient.Do(req)
-	if err != nil {
-		panic(err)
-	}
+	must(err)
 	defer resp.Body.Close()
 
 	// fmt.Println("response Status:", resp.Status)
 	// fmt.Println("response Headers:", resp.Header)
 	body, err := ioutil.ReadAll(resp.Body)
 	must(err)
+
 	//	fmt.Println("response Body:", string(body))
 
-	count, err = strconv.ParseUint(gjson.Get(string(body), "result.count").String(), 10, 32)
+	return body, err
+}
+
+//GetBlockCount gets current node latest block number
+func (c *Client) GetBlockCount() (count uint64, err error) {
+
+	response, err := performSafexdCall(c, "get_block_count")
+
+	count, err = strconv.ParseUint(gjson.Get(string(response), "result.count").String(), 10, 32)
 	must(err)
 
-	return count
+	return count, err
 }
+
+//OnGetBlockHash returns hash of block with provide height
+func (c *Client) OnGetBlockHash(height uint64) (hash string, err error) {
+
+	response, err := performSafexdCall(c, "on_get_block_hash", height)
+	must(err)
+
+	hash = gjson.Get(string(response), "result").String()
+
+	return hash, err
+}
+
+// func (c *Client) OnLastBlockHeader() (hash string, err error) {
+
+// 	response, err := performSafexdCall(c, "on_get_block_hash", height)
+// 	must(err)
+
+// 	hash = gjson.Get(string(response), "result").String()
+
+// 	return hash, err
+// }

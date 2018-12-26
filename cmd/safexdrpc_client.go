@@ -20,8 +20,14 @@ var safexdRpcCmd = &cobra.Command{
 
 		fmt.Println("Connecting to host ", daemonHost, " port ", daemonPort)
 		safexdClient := safexdrpc.InitClient(daemonHost, daemonPort)
-		count := safexdClient.GetBlockCount()
+
+		count, _ := safexdClient.GetBlockCount()
 		fmt.Println("Retrieved block count is:", count)
+
+		blockNumber := 50000
+		hash, _ := safexdClient.OnGetBlockHash(50000)
+		fmt.Println("Retrieved hash for block ", blockNumber, " is:", hash)
+
 		safexdClient.Close()
 
 	},
