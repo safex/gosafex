@@ -8,7 +8,7 @@ import (
 )
 
 var daemonHost string
-var daemonPort int
+var daemonPort uint
 
 // safexdRpcCmd represents the RPC daemon api test command
 var safexdRpcCmd = &cobra.Command{
@@ -19,14 +19,22 @@ var safexdRpcCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 
 		fmt.Println("Connecting to host ", daemonHost, " port ", daemonPort)
+		safexdClient := safexdrpc.InitClient(daemonHost, daemonPort)
 
-		fmt.Println("Safex Node Info:", safexdrpc.GetInfo)
+		count, _ := safexdClient.GetBlockCount()
+		fmt.Println("Retrieved block count is:", count)
+
+		blockNumber := 50000
+		hash, _ := safexdClient.OnGetBlockHash(50000)
+		fmt.Println("Retrieved hash for block ", blockNumber, " is:", hash)
+
+		safexdClient.Close()
 
 	},
 }
 
 func init() {
 	rootCmd.PersistentFlags().StringVarP(&daemonHost, "daemon_host", "d", "", "Target safex daemon host")
-	rootCmd.PersistentFlags().IntVar(&daemonPort, "daemon_port", 29393, "Target safex daemon port")
+	rootCmd.PersistentFlags().UintVar(&daemonPort, "daemon_port", 29393, "Target safex daemon port")
 	rootCmd.AddCommand(safexdRpcCmd)
 }
