@@ -171,3 +171,13 @@ func (c *Client) GetBlockTemplate(walletAddress string, reserveSize uint64) (blo
 
 	return blockTemplate, err
 }
+
+//SubmitBlock Submit a mined block to the network.
+func (c *Client) SubmitBlock(block []byte) (err error) {
+
+	params := `["` + string(block) + `"]`
+	_, err = performSafexdCall(c, "submit_block", params)
+	Must(err)
+
+	return err
+}

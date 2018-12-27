@@ -35,6 +35,12 @@ var safexdRpcCmd = &cobra.Command{
 		reservedSize := uint64(60)
 		blockTemplate, _ := safexdClient.GetBlockTemplate(walletAddress, reservedSize)
 		fmt.Println("Block template difficulty:", blockTemplate.Difficulty, " expected_reward:", blockTemplate.ExpectedReward, " height:", blockTemplate.Height)
+
+		//Submit mined block
+
+		err := safexdClient.SubmitBlock([]byte(blockTemplate.BlockTemplateBlob))
+		fmt.Println("Submit block result", err)
+
 		safexdClient.Close()
 
 	},
