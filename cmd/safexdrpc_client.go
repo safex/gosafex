@@ -21,13 +21,20 @@ var safexdRpcCmd = &cobra.Command{
 		fmt.Println("Connecting to host ", daemonHost, " port ", daemonPort)
 		safexdClient := safexdrpc.InitClient(daemonHost, daemonPort)
 
+		//Get total block count from node
 		count, _ := safexdClient.GetBlockCount()
 		fmt.Println("Retrieved block count is:", count)
 
-		blockNumber := 50000
-		hash, _ := safexdClient.OnGetBlockHash(50000)
+		//Get hash of particular block from node
+		blockNumber := uint64(50000)
+		hash, _ := safexdClient.OnGetBlockHash(blockNumber)
 		fmt.Println("Retrieved hash for block ", blockNumber, " is:", hash)
 
+		//Get block template from node
+		walletAddress := "SFXtzU6Azx3N61CBXBK2KZBGUw2U3XQXKEZkSvBrfeczNvn6yXeWk4wXkNajNNe7xv1eeuH4rrrFiJMC5Ed1uN3GXt5vuDJkV3B"
+		reservedSize := uint64(60)
+		blockTemplate, _ := safexdClient.GetBlockTemplate(walletAddress, reservedSize)
+		fmt.Println("Block template difficulty:", blockTemplate.Difficulty, " expected_reward:", blockTemplate.ExpectedReward, " height:", blockTemplate.Height)
 		safexdClient.Close()
 
 	},

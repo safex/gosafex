@@ -2,13 +2,16 @@ package safexdrpc
 
 import (
 	"bytes"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"strconv"
 	"time"
 
+	. "github.com/atanmarko/gosafex/pkg/common"
+	"github.com/atanmarko/gosafex/pkg/safex"
 	"github.com/tidwall/gjson"
 )
 
@@ -16,15 +19,6 @@ type Client struct {
 	Port uint
 	Host string
 	ID   uint
-}
-
-// must panics in the case of error.
-func must(err error) {
-	if err == nil {
-		return
-	}
-
-	log.Panicln(err)
 }
 
 //InitClient creates and initializes RPC client and returns client object
@@ -56,35 +50,34 @@ func (c *Client) Close() {
 
 }
 
+//checkRPCResponseForErrors returns false, error if there was error with json request
+func checkRPCResponseForErrors(responseBody []byte) (ok bool, err error) {
+
+	message := gjson.Get(string(responseBody), "error.message").String()
+	errorCode := gjson.Get(string(responseBody), "error.code").String()
+	//fmt.Println("Response error message:", message)
+
+	if message != "" {
+		err = errors.New("RPC ERROR:" + message + " with code " + errorCode)
+		return false, err
+	} else {
+		err = nil
+		return true, err
+	}
+}
+
 //performSafexdCall creates and executes RPC call
-//
-func performSafexdCall(c *Client, remoteFunc string, args ...interface{}) ([]byte, error) {
+// params is optional string with rpc call arguments
+func performSafexdCall(c *Client, remoteFunc string, params string) ([]byte, error) {
 
 	c.ID++
 	url := "http://" + c.Host + ":" + strconv.Itoa(int(c.Port)) + "/json_rpc"
 	var jsonStr = []byte(`{"jsonrpc": "2.0","id": "` + strconv.Itoa(int(c.ID)) + `","method": "` + remoteFunc + `"`)
 
-	if len(args) > 0 {
-		jsonStr = append(jsonStr, []byte(`, "params":[`)...)
+	if len(params) > 0 {
 
-		for i, par := range args {
-			if i > 0 && i < len(args)-1 {
-				jsonStr = append(jsonStr, []byte(",")...)
-			}
-
-			switch par.(type) {
-			case uint, uint64, int, int64:
-				jsonStr = append(jsonStr, []byte(strconv.FormatUint(par.(uint64), 10))...)
-			case string:
-				jsonStr = append(jsonStr, []byte(`"`)...)
-				jsonStr = append(jsonStr, []byte(par.(string))...)
-				jsonStr = append(jsonStr, []byte(`"`)...)
-			default:
-				jsonStr = append(jsonStr, []byte(par.(string))...)
-			}
-		}
-
-		jsonStr = append(jsonStr, []byte(`]`)...)
+		jsonStr = append(jsonStr, []byte(`, "params":`)...)
+		jsonStr = append(jsonStr, []byte(params)...)
 
 	}
 
@@ -94,7 +87,7 @@ func performSafexdCall(c *Client, remoteFunc string, args ...interface{}) ([]byt
 	fmt.Println(debug)
 
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonStr))
-	must(err)
+	Must(err)
 
 	req.Header.Set("Content-Type", "application/json")
 
@@ -106,15 +99,21 @@ func performSafexdCall(c *Client, remoteFunc string, args ...interface{}) ([]byt
 
 	httpClient := &http.Client{Transport: trConfig}
 	resp, err := httpClient.Do(req)
-	must(err)
+	Must(err)
 	defer resp.Body.Close()
 
 	// fmt.Println("response Status:", resp.Status)
 	// fmt.Println("response Headers:", resp.Header)
 	body, err := ioutil.ReadAll(resp.Body)
-	must(err)
+	Must(err)
 
-	//	fmt.Println("response Body:", string(body))
+	//fmt.Println("response Body:", string(body))
+
+	var correct bool
+	if correct, err = checkRPCResponseForErrors(body); correct == false {
+		// fmt.Println("Error happened")
+		return nil, err
+	}
 
 	return body, err
 }
@@ -122,10 +121,11 @@ func performSafexdCall(c *Client, remoteFunc string, args ...interface{}) ([]byt
 //GetBlockCount gets current node latest block number
 func (c *Client) GetBlockCount() (count uint64, err error) {
 
-	response, err := performSafexdCall(c, "get_block_count")
+	params := ""
+	response, err := performSafexdCall(c, "get_block_count", params)
 
 	count, err = strconv.ParseUint(gjson.Get(string(response), "result.count").String(), 10, 32)
-	must(err)
+	Must(err)
 
 	return count, err
 }
@@ -133,20 +133,41 @@ func (c *Client) GetBlockCount() (count uint64, err error) {
 //OnGetBlockHash returns hash of block with provide height
 func (c *Client) OnGetBlockHash(height uint64) (hash string, err error) {
 
-	response, err := performSafexdCall(c, "on_get_block_hash", height)
-	must(err)
+	params := "[" + strconv.FormatUint(height, 10) + "]"
+	response, err := performSafexdCall(c, "on_get_block_hash", params)
+	Must(err)
 
 	hash = gjson.Get(string(response), "result").String()
 
 	return hash, err
 }
 
-// func (c *Client) OnLastBlockHeader() (hash string, err error) {
+//GetBlockTemplate returns newly generated block template from node
+func (c *Client) GetBlockTemplate(walletAddress string, reserveSize uint64) (blockTemplate safex.BlockTemplate, err error) {
 
-// 	response, err := performSafexdCall(c, "on_get_block_hash", height)
-// 	must(err)
+	params := `{"wallet_address":"` + walletAddress + `","reserve_size":` + strconv.FormatUint(reserveSize, 10) + `}`
+	response, err := performSafexdCall(c, "get_block_template", params)
+	Must(err)
 
-// 	hash = gjson.Get(string(response), "result").String()
+	var responseData map[string]interface{}
 
-// 	return hash, err
-// }
+	if err := json.Unmarshal(response, &responseData); err != nil {
+		panic(err)
+	}
+	resultData := responseData["result"].(map[string]interface{})
+	//fmt.Println("DAT IS:", resultData)
+
+	blockTemplate.BlockHasingBlob = resultData["blockhashing_blob"].(string)
+	blockTemplate.BlockTemplateBlob = resultData["blocktemplate_blob"].(string)
+	blockTemplate.Difficulty = uint64(resultData["difficulty"].(float64))
+	blockTemplate.Height = uint64(resultData["height"].(float64))
+	blockTemplate.ExpectedReward = uint64(resultData["expected_reward"].(float64))
+	blockTemplate.PrevHash = resultData["prev_hash"].(string)
+	blockTemplate.ReservedOffset = uint64(resultData["reserved_offset"].(float64))
+	blockTemplate.Status = resultData["status"].(string)
+	blockTemplate.Untrusted = resultData["untrusted"].(bool)
+
+	//fmt.Println(blockTemplate)
+
+	return blockTemplate, err
+}
