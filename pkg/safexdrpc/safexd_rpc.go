@@ -55,7 +55,7 @@ func checkRPCResponseForErrors(responseBody []byte) (ok bool, err error) {
 
 	message := gjson.Get(string(responseBody), "error.message").String()
 	errorCode := gjson.Get(string(responseBody), "error.code").String()
-	//fmt.Println("Response error message:", message)
+	fmt.Println("Response error status:", string(responseBody))
 
 	if message != "" {
 		err = errors.New("RPC ERROR:" + message + " with code " + errorCode)
@@ -150,7 +150,6 @@ func (c *Client) GetBlockTemplate(walletAddress string, reserveSize uint64) (blo
 	Must(err)
 
 	var responseData map[string]interface{}
-
 	if err := json.Unmarshal(response, &responseData); err != nil {
 		panic(err)
 	}
@@ -180,4 +179,39 @@ func (c *Client) SubmitBlock(block []byte) (err error) {
 	Must(err)
 
 	return err
+}
+
+//GetBlockTemplate returns newly generated block template from node
+func (c *Client) GetBlockLastHeader() (blockHeader safex.BlockHeader, err error) {
+
+	response, err := performSafexdCall(c, "get_last_block_header", "")
+	Must(err)
+
+	var responseData map[string]interface{}
+	if err := json.Unmarshal(response, &responseData); err != nil {
+		panic(err)
+	}
+	resultHeader := responseData["result"].(map[string]interface{})
+	resultData := resultHeader["block_header"].(map[string]interface{})
+	fmt.Println("DAT IS:", resultData)
+
+	blockHeader.BlockSize = uint64(resultData["block_size"].(float64))
+	blockHeader.Depth = uint64(resultData["depth"].(float64))
+	blockHeader.Difficulty = uint64(resultData["difficulty"].(float64))
+	blockHeader.Hash = resultData["hash"].(string)
+	blockHeader.Height = uint64(resultData["height"].(float64))
+	blockHeader.MajorVersion = uint64(resultData["major_version"].(float64))
+	blockHeader.MinorVersion = uint64(resultData["minor_version"].(float64))
+	blockHeader.Nonce = uint64(resultData["nonce"].(float64))
+	blockHeader.NumTxes = uint64(resultData["num_txes"].(float64))
+	blockHeader.OrphanStatus = resultData["orphan_status"].(bool)
+	blockHeader.PrevHash = resultData["prev_hash"].(string)
+	blockHeader.Reward = uint64(resultData["reward"].(float64))
+	blockHeader.Timestamp = uint64(resultData["timestamp"].(float64))
+	blockHeader.Status = resultHeader["status"].(string)
+	blockHeader.Untrusted = resultHeader["untrusted"].(bool)
+
+	//fmt.Println(blockTemplate)
+
+	return blockHeader, err
 }

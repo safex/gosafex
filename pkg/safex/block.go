@@ -13,3 +13,22 @@ type BlockTemplate struct {
 	Status            string `json:"status"`
 	Untrusted         bool   `json:"untrusted"`
 }
+
+//BlockHeader blockchain block header
+type BlockHeader struct {
+	BlockSize    uint64 `json:"block_size"`
+	Depth        uint64 `json:"depth"`
+	Difficulty   uint64 `json:"difficulty"`
+	Hash         string `json:"hash"`
+	Height       uint64 `json:"height"`
+	MajorVersion uint64 `json:"major_version"`
+	MinorVersion uint64 `json:"minor_version"`
+	Nonce        uint64 `json:"nonce"`
+	NumTxes      uint64 `json:"num_txes"`
+	OrphanStatus bool   `json:"orphan_status"`
+	PrevHash     string `json:"prev_hash"`
+	Reward       uint64 `json:"reward"`
+	Timestamp    uint64 `json:"timestamp"`
+	Status       string `json:"status"`
+	Untrusted    bool   `json:"untrusted"`
+}

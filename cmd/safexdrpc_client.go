@@ -38,8 +38,13 @@ var safexdRpcCmd = &cobra.Command{
 
 		//Submit mined block
 
-		err := safexdClient.SubmitBlock([]byte(blockTemplate.BlockTemplateBlob))
-		fmt.Println("Submit block result", err)
+		//err := safexdClient.SubmitBlock([]byte(blockTemplate.BlockTemplateBlob))
+		//fmt.Println("Submit block result", err)
+
+		//Get last block header
+
+		blockHeader, _ := safexdClient.GetBlockLastHeader()
+		fmt.Println("Block template hash:", blockHeader.Hash, " block_size:", blockHeader.BlockSize, " height:", blockHeader.Height)
 
 		safexdClient.Close()
 
