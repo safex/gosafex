@@ -3,8 +3,8 @@ package log
 import (
 	"os"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/atanmarko/gosafex/config"
+	"github.com/sirupsen/logrus"
 )
 
 // Logger defines a set of methods for writing application logs. Derived from and
@@ -42,17 +42,14 @@ func init() {
 	defaultLogger = newLogrusLogger(config.Config())
 }
 
-
 func NewLogger(cfg config.Provider) *logrus.Logger {
 	return newLogrusLogger(cfg)
 }
 
-
-
 func newLogrusLogger(cfg config.Provider) *logrus.Logger {
 
 	l := logrus.New()
-	
+
 	if cfg.GetBool("json_logs") {
 		l.Formatter = new(logrus.JSONFormatter)
 	}
@@ -68,7 +65,7 @@ func newLogrusLogger(cfg config.Provider) *logrus.Logger {
 	default:
 		l.Level = logrus.DebugLevel
 	}
-	
+
 	return l
 }
 
