@@ -120,8 +120,6 @@ func decodeBlock(block string) (result []byte, err error) {
 		bigMultiplier.Mul(bigMultiplier, base)
 	}
 
-	// Prepend leading zeroes
-	// TODO: ensure we understand what exactly is happening here
 	decodedBlockLegth := decodedBlockSizeLookup[len(block)]
 	result = append([]byte{0, 0, 0, 0, 0, 0, 0, 0, 0}, bigResult.Bytes()...)
 	return result[len(result)-decodedBlockLegth:], nil
