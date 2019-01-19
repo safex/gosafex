@@ -185,3 +185,8 @@ func Decode(data string) (result []byte, err error) {
 
 	return result, nil
 }
+
+// EncodeByte will encode a single byte value into base 58
+func EncodeByte(val byte) string {
+	return Encode([]byte{val})
+}
