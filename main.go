@@ -1,13 +1,11 @@
 package main
 
 import (
-	
-	"github.com/atanmarko/gosafex/cmd"
+	"github.com/safex/gosafex/cmd"
 )
 
 func main() {
 
-    
-    cmd.Execute()
-	
+	cmd.Execute()
+
 }

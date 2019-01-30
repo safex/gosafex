@@ -3,7 +3,7 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/atanmarko/gosafex/pkg/safexdrpc"
+	"github.com/safex/gosafex/pkg/safexdrpc"
 	"github.com/spf13/cobra"
 )
 

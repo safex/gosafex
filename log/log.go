@@ -3,7 +3,7 @@ package log
 import (
 	"os"
 
-	"github.com/atanmarko/gosafex/config"
+	"github.com/safex/gosafex/config"
 	"github.com/sirupsen/logrus"
 )
 

@@ -21,7 +21,7 @@ help:
 build:
 	@echo "building ${BIN_NAME} ${VERSION}"
 	@echo "GOPATH=${GOPATH}"
-	go build -ldflags "-X github.com/atanmarko/gosafex/version.GitCommit=${GIT_COMMIT}${GIT_DIRTY} -X github.com/atanmarko/gosafex/version.BuildDate=${BUILD_DATE}" -o bin/${BIN_NAME}
+	go build -ldflags "-X ./version.GitCommit=${GIT_COMMIT}${GIT_DIRTY} -X ./version.BuildDate=${BUILD_DATE}" -o bin/${BIN_NAME}
 
 clean:
 	@test ! -e bin/${BIN_NAME} || rm bin/${BIN_NAME}
