@@ -1,2 +1,6 @@
+# Golang ignore
 bin
 vendor
+
+# Configuration
+config*.json
