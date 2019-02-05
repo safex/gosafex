@@ -3,7 +3,7 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/atanmarko/gosafex/version"
+	"github.com/safex/gosafex/version"
 	"github.com/spf13/cobra"
 )
 

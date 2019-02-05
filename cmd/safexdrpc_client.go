@@ -3,15 +3,15 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/atanmarko/gosafex/pkg/safexdrpc"
+	"github.com/safex/gosafex/pkg/safexdrpc"
 	"github.com/spf13/cobra"
 )
 
 var daemonHost string
 var daemonPort uint
 
-// safexdRpcCmd represents the RPC daemon api test command
-var safexdRpcCmd = &cobra.Command{
+// safexdRPCCmd represents the RPC daemon api test command
+var safexdRPCCmd = &cobra.Command{
 	Use:   "safexdrpc",
 	Short: "Test cmd rpc client for safex daemon",
 	Long:  `Cmd that talks to safexd rpc daemon and prints basic info about daemon`,
@@ -36,5 +36,5 @@ var safexdRpcCmd = &cobra.Command{
 func init() {
 	rootCmd.PersistentFlags().StringVarP(&daemonHost, "daemon_host", "d", "", "Target safex daemon host")
 	rootCmd.PersistentFlags().UintVar(&daemonPort, "daemon_port", 29393, "Target safex daemon port")
-	rootCmd.AddCommand(safexdRpcCmd)
+	rootCmd.AddCommand(safexdRPCCmd)
 }

@@ -139,14 +139,4 @@ func (c *Client) OnGetBlockHash(height uint64) (hash string, err error) {
 	hash = gjson.Get(string(response), "result").String()
 
 	return hash, err
-}
-
-// func (c *Client) OnLastBlockHeader() (hash string, err error) {
-
-// 	response, err := performSafexdCall(c, "on_get_block_hash", height)
-// 	must(err)
-
-// 	hash = gjson.Get(string(response), "result").String()
-
-// 	return hash, err
-// }
+} 

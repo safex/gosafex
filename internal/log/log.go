@@ -3,8 +3,8 @@ package log
 import (
 	"os"
 
-	"github.com/Sirupsen/logrus"
-	"github.com/atanmarko/gosafex/config"
+	"github.com/safex/gosafex/pkg/config"
+	"github.com/sirupsen/logrus"
 )
 
 // Logger defines a set of methods for writing application logs. Derived from and
@@ -36,23 +36,23 @@ type Logger interface {
 	Warnln(args ...interface{})
 }
 
+// defaultLogger is the instance of the default logger
 var defaultLogger *logrus.Logger
 
-func init() {
-	defaultLogger = newLogrusLogger(config.Config())
+// LoadDefault will set up the default logger based on default config
+func LoadDefault() {
+	defaultLogger = newLogrusLogger(config.Default)
 }
 
-
+// NewLogger will construct a new logger. Config is read from the given config Provider
 func NewLogger(cfg config.Provider) *logrus.Logger {
 	return newLogrusLogger(cfg)
 }
 
-
-
 func newLogrusLogger(cfg config.Provider) *logrus.Logger {
 
 	l := logrus.New()
-	
+
 	if cfg.GetBool("json_logs") {
 		l.Formatter = new(logrus.JSONFormatter)
 	}
@@ -68,24 +68,28 @@ func newLogrusLogger(cfg config.Provider) *logrus.Logger {
 	default:
 		l.Level = logrus.DebugLevel
 	}
-	
+
 	return l
 }
 
+// Fields type, used to pass to `WithFields`
 type Fields map[string]interface{}
 
+// With adds a single key-value pair to a FIeld
 func (f Fields) With(k string, v interface{}) Fields {
 	f[k] = v
 	return f
 }
 
-func (f Fields) WithFields(f2 Fields) Fields {
-	for k, v := range f2 {
+// WithFields copies all key-value pairs from a given field
+func (f Fields) WithFields(src Fields) Fields {
+	for k, v := range src {
 		f[k] = v
 	}
 	return f
 }
 
+// WithFields creates an entry from the standard logger and adds multiple fields to it. This is simply a helper for `WithField`, invoking it once for each field.
 func WithFields(fields Fields) Logger {
 	return defaultLogger.WithFields(logrus.Fields(fields))
 }

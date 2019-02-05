@@ -1,13 +1,16 @@
 package main
 
 import (
-	
-	"github.com/atanmarko/gosafex/cmd"
+	"github.com/safex/gosafex/cmd"
+	"github.com/safex/gosafex/internal/log"
+	"github.com/safex/gosafex/pkg/config"
 )
 
-func main() {
+func init() {
+	config.LoadDefault("GOSAFEX")
+	log.LoadDefault()
+}
 
-    
-    cmd.Execute()
-	
+func main() {
+	cmd.Execute()
 }
