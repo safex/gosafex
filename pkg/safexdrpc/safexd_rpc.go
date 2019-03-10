@@ -1,21 +1,29 @@
 package safexdrpc
 
 import (
+	"github.com/safex/gosafex/pkg/safex"
+	"github.com/golang/protobuf/proto"
 	"bytes"
+	"encoding/json"
+	"errors"
 	"fmt"
+	"github.com/tidwall/gjson"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"strconv"
 	"time"
-
-	"github.com/tidwall/gjson"
 )
+
+// Type declarations for building JSON-like object
+type JSONElement = map[string]interface{}
+type JSONArray = []interface{}
 
 type Client struct {
 	Port uint
 	Host string
 	ID   uint
+	httpClient http.Client
 }
 
 // must panics in the case of error.
@@ -37,6 +45,14 @@ func InitClient(host string, port uint) (client *Client) {
 		ID:   0,
 	}
 
+	// Create config
+	trConfig := &http.Transport{
+		MaxIdleConns:       10,
+		IdleConnTimeout:    30 * time.Second,
+		DisableCompression: true,
+	}
+
+	client.httpClient = http.Client{Transport: trConfig}
 	return client
 }
 
@@ -56,87 +72,120 @@ func (c *Client) Close() {
 
 }
 
-//performSafexdCall creates and executes RPC call
-//
-func performSafexdCall(c *Client, remoteFunc string, args ...interface{}) ([]byte, error) {
-
-	c.ID++
+func (c Client) JSONSafexdCall(method string, params interface{}) ([]byte, error) {
+	body := map[string]interface{} {"jsonrpc":"2.0", "id":1, "method":method, "params":params}
 	url := "http://" + c.Host + ":" + strconv.Itoa(int(c.Port)) + "/json_rpc"
-	var jsonStr = []byte(`{"jsonrpc": "2.0","id": "` + strconv.Itoa(int(c.ID)) + `","method": "` + remoteFunc + `"`)
 
-	if len(args) > 0 {
-		jsonStr = append(jsonStr, []byte(`, "params":[`)...)
+	jsonBuff, _ := json.Marshal(body)
 
-		for i, par := range args {
-			if i > 0 && i < len(args)-1 {
-				jsonStr = append(jsonStr, []byte(",")...)
-			}
+	fmt.Println(string(jsonBuff))
 
-			switch par.(type) {
-			case uint, uint64, int, int64:
-				jsonStr = append(jsonStr, []byte(strconv.FormatUint(par.(uint64), 10))...)
-			case string:
-				jsonStr = append(jsonStr, []byte(`"`)...)
-				jsonStr = append(jsonStr, []byte(par.(string))...)
-				jsonStr = append(jsonStr, []byte(`"`)...)
-			default:
-				jsonStr = append(jsonStr, []byte(par.(string))...)
-			}
-		}
-
-		jsonStr = append(jsonStr, []byte(`]`)...)
-
-	}
-
-	jsonStr = append(jsonStr, []byte("}")...)
-
-	debug := string(jsonStr)
-	fmt.Println(debug)
-
-	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonStr))
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonBuff))
 	must(err)
 
 	req.Header.Set("Content-Type", "application/json")
 
-	trConfig := &http.Transport{
-		MaxIdleConns:       10,
-		IdleConnTimeout:    30 * time.Second,
-		DisableCompression: true,
-	}
-
-	httpClient := &http.Client{Transport: trConfig}
-	resp, err := httpClient.Do(req)
+	resp, err := c.httpClient.Do(req)
 	must(err)
 	defer resp.Body.Close()
 
-	// fmt.Println("response Status:", resp.Status)
-	// fmt.Println("response Headers:", resp.Header)
-	body, err := ioutil.ReadAll(resp.Body)
+	resBody, err := ioutil.ReadAll(resp.Body)
 	must(err)
 
-	//	fmt.Println("response Body:", string(body))
+	errorJson := gjson.Get(string(resBody), "error.message")
+	if errorJson.Str != "" {
+		err = errors.New(errorJson.Str)
+		return nil, err
+	}
+	return resBody, err
+}
 
-	return body, err
+func (c Client) SafexdCall(method string, params interface{}, httpMethod string) ([]byte,error) {
+	var body []byte
+	var err error
+	if params == nil {
+		body = []byte("")
+	} else {
+		body, err = json.Marshal(params)
+	}
+
+	must(err)
+	url := "http://" + c.Host + ":" + strconv.Itoa(int(c.Port)) + "/" + method
+
+	fmt.Println(string(body))
+
+	req, err := http.NewRequest(httpMethod, url, bytes.NewBuffer(body))
+	must(err)
+
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	must(err)
+	defer resp.Body.Close()
+
+	resBody, err := ioutil.ReadAll(resp.Body)
+	must(err)
+
+	errorJson := gjson.Get(string(resBody), "error.message")
+	if errorJson.Str != "" {
+		err = errors.New(errorJson.Str)
+		return nil, err
+	}
+	return resBody, err
+
 }
 
 //GetBlockCount gets current node latest block number
-func (c *Client) GetBlockCount() (count uint64, err error) {
+func (c Client) GetBlockCount() (count uint64, err error) {
 
-	response, err := performSafexdCall(c, "get_block_count")
-
-	count, err = strconv.ParseUint(gjson.Get(string(response), "result.count").String(), 10, 32)
+	result, err := c.JSONSafexdCall("get_block_count", JSONElement{})
 	must(err)
-
+	count = uint64(gjson.GetBytes(result, "result.count").Num)
 	return count, err
 }
 
 //OnGetBlockHash returns hash of block with provide height
-func (c *Client) OnGetBlockHash(height uint64) (hash string, err error) {
+func (c Client) OnGetBlockHash(height uint64) (hash string, err error) {
 
-	response, err := performSafexdCall(c, "on_get_block_hash", height)
+	result, err := c.JSONSafexdCall("on_get_block_hash", JSONArray{height})
+	must(err)
+	var jsonObj interface{}
+	json.Unmarshal(result, &jsonObj)
+	return jsonObj.(JSONElement)["result"].(string), err
+}
+
+func getSliceForPath(input []byte, path string) []byte {
+	temp := gjson.GetBytes(input,path)
+	return input[temp.Index:temp.Index+len(temp.Raw)]
+}
+
+func (c Client) GetDaemonInfo() (info safex.DaemonInfo, err error) {
+	result, err := c.SafexdCall("get_info", nil, "POST")
+	must(err)
+	err = json.Unmarshal(result,&info)
+	must(err)
+	return info, err
+}
+
+func (c Client) GetHardForkInfo() (info safex.HardForkInfo, err error) {
+	result, err := c.JSONSafexdCall("hard_fork_info", JSONElement{})
 	must(err)
 
-	hash = gjson.Get(string(response), "result").String()
+	err = json.Unmarshal(getSliceForPath(result, "result"), &info)
+	must(err)
+	return info, err
+}
 
-	return hash, err
-} 
+func (c Client) GetTransactions(hashes []string) (txs safex.Transactions, err error) {
+	result, err := c.SafexdCall("proto/get_transactions", JSONElement{"txs_hashes":hashes}, "POST")
+	err = proto.Unmarshal(result, &txs)
+	must(err)
+	return txs, err
+}
+
+func (c Client) GetBlocks(start uint64, end uint64) (blcks safex.Blocks, err error) {
+	result, err := c.SafexdCall("proto/get_blocks", JSONElement{"start_height":start, "end_height" : end}, "POST")
+	err = proto.Unmarshal(result, &blcks)
+	must(err)
+	return blcks, err
+}

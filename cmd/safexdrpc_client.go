@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/safex/gosafex/pkg/safexdrpc"
+	"github.com/safex/gosafex/pkg/safex"
 	"github.com/spf13/cobra"
 )
 
@@ -19,7 +20,7 @@ var safexdRPCCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 
 		fmt.Println("Connecting to host ", daemonHost, " port ", daemonPort)
-		safexdClient := safexdrpc.InitClient(daemonHost, daemonPort)
+		safexdClient := safexdrpc.InitClient("127.0.0.1", 29393)
 
 		count, _ := safexdClient.GetBlockCount()
 		fmt.Println("Retrieved block count is:", count)
@@ -28,8 +29,24 @@ var safexdRPCCmd = &cobra.Command{
 		hash, _ := safexdClient.OnGetBlockHash(50000)
 		fmt.Println("Retrieved hash for block ", blockNumber, " is:", hash)
 
-		safexdClient.Close()
+		var gInfo safex.DaemonInfo
+		var hInfo safex.HardForkInfo
 
+		gInfo, _ = safexdClient.GetDaemonInfo()
+		fmt.Println(gInfo)
+
+		hInfo, _ = safexdClient.GetHardForkInfo()
+		fmt.Println(hInfo)
+
+		var txs safex.Transactions
+		txs, _ = safexdClient.GetTransactions([]string{"7fdae840fa22793df69d197048b439c1d0b69711a31edd97701b9072e6c0c9fe"})
+		fmt.Println(txs)
+
+		var blocks safex.Blocks
+		blocks, _ = safexdClient.GetBlocks(1,4)
+		fmt.Println(blocks)
+
+		safexdClient.Close()
 	},
 }
 

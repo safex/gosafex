@@ -4,6 +4,7 @@ replace github.com/safex/gosafex => ./
 
 require (
 	github.com/BurntSushi/toml v0.3.1 // indirect
+	github.com/golang/protobuf v1.2.0
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
 	github.com/onsi/ginkgo v1.7.0 // indirect
 	github.com/onsi/gomega v1.4.3 // indirect
