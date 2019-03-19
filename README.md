@@ -1,2 +1,2 @@
 # gosafex
-go lang project for safex core functionality
+go lang project for safex core functionality..
