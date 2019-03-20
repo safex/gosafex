@@ -10,7 +10,6 @@ var (
 		"4495qPNxDGA",
 	}
 	testValidAddr = []string{
-		"SFXtzWyxNDn8XKLiCGRuKUYRKNKoHN3tWXWDnkmspgDxbnMQtmQRhUMKErxoDJu5ReDdSJC4J3GeWg1Ux9FZZqd7299uqZM3KXW",
 		"4495qPNxDGAT241zya1WdwG5YU6RQ6s7ZgGeQryFtooAMMxoqx2N2oNTjP5NTqDf9GMaZ52iS2Q6xhnWyW16cdi47MCsVRg",
 		"47Mov77LGqgRoRh6K6XVheSagWVRS7jkQLCR9jPQxTa8g2SrnwbWuMzKWRLyyBFsxn7gHJv15987MDMkYXCXGGvhKA7Qsx4",
 		"48fj5P3zky9FETVG144GWh2oxnEdBc45VFHLKgKQfZ7UdyJ5M7mDFxuEA12eBuD55RAwgX2jzFYfwjhukHavcLHW9vKn1VG",
@@ -47,23 +46,24 @@ func TestBackAndForth(t *testing.T) {
 		wantErr bool
 	}{
 		{"passes, empty", "", false},
-		{"passes, valid Safex addr #1", testValidAddr[0], false},
-		{"passes, valid Monero addr #2", testValidAddr[1], false},
-		{"passes, valid Monero addr #3", testValidAddr[2], false},
-		{"passes, valid Monero addr #4", testValidAddr[3], false},
-		{"passes, valid Monero addr #5", testValidAddr[4], false},
-		{"passes, valid Monero addr #5", testValidAddr[4], false},
+		{"passes, valid addr #1", testValidAddr[0], false},
+		{"passes, valid addr #2", testValidAddr[1], false},
+		{"passes, valid addr #3", testValidAddr[2], false},
+		{"passes, valid addr #4", testValidAddr[3], false},
+		{"passes, valid addr #5", testValidAddr[4], false},
 		{"fails, encoded value too short", testMalformedBase58Encoding, true},
 		{"fails, illegal symbol", testIllegalBase58SymbolEncoding, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
 			decoded, err := Decode(tt.data)
-			if (err != nil) && !tt.wantErr {
-				t.Errorf("Error in back-and-forth encoding/decoding, err = %v", err)
+			if err != nil {
+				if !tt.wantErr {
+					t.Errorf("Error in back-and-forth encoding/decoding, err = %v", err)
+				}
 				return
 			}
-			if gotResult := Encode(decoded); gotResult != tt.data && !tt.wantErr {
+			if gotResult := Encode(decoded); gotResult != tt.data {
 				t.Errorf("Failed back-and-forth encoding/decoding, got = %v should equal %v", gotResult, tt.data)
 			}
 		})
