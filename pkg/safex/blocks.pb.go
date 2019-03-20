@@ -24,6 +24,9 @@ type BlockHeader struct {
 	MajorVersion         uint32   `protobuf:"varint,3,opt,name=major_version,json=majorVersion,proto3" json:"major_version,omitempty"`
 	MinorVersion         uint32   `protobuf:"varint,4,opt,name=minor_version,json=minorVersion,proto3" json:"minor_version,omitempty"`
 	PrevHash             string   `protobuf:"bytes,5,opt,name=prev_hash,json=prevHash,proto3" json:"prev_hash,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
 func (m *BlockHeader) Reset()         { *m = BlockHeader{} }
@@ -89,6 +92,9 @@ type Block struct {
 	Header               *BlockHeader   `protobuf:"bytes,1,opt,name=header,proto3" json:"header,omitempty"`
 	Txs                  []*Transaction `protobuf:"bytes,2,rep,name=txs,proto3" json:"txs,omitempty"`
 	MinerTx              *Transaction   `protobuf:"bytes,3,opt,name=miner_tx,json=minerTx,proto3" json:"miner_tx,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}       `json:"-"`
+	XXX_unrecognized     []byte         `json:"-"`
+	XXX_sizecache        int32          `json:"-"`
 }
 
 func (m *Block) Reset()         { *m = Block{} }
@@ -141,6 +147,9 @@ type Blocks struct {
 	Status               bool     `protobuf:"varint,2,opt,name=status,proto3" json:"status,omitempty"`
 	Untrusted            bool     `protobuf:"varint,3,opt,name=untrusted,proto3" json:"untrusted,omitempty"`
 	Error                string   `protobuf:"bytes,4,opt,name=error,proto3" json:"error,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
 func (m *Blocks) Reset()         { *m = Blocks{} }
