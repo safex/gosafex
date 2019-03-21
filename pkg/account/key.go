@@ -1,4 +1,4 @@
-package address
+package account
 
 import "golang.org/x/crypto/ed25519"
 
