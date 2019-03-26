@@ -1,6 +1,7 @@
 package balance
 
 import (
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"time"
@@ -17,9 +18,11 @@ type Balance struct {
 	TokenLocked   uint64
 }
 
+type KeyType = []byte
+
 type Key struct {
-	Public  string
-	Private string
+	Public  []byte
+	Private []byte
 }
 
 type Address struct {
@@ -31,6 +34,7 @@ type Address struct {
 type Wallet struct {
 	balance Balance
 	Address Address
+	client  *safexdrpc.Client
 }
 
 // Struct for partial results during transaction scan.
@@ -48,30 +52,56 @@ type TxScanInfoType struct {
 // @todo:  Move this to some config, or recalculate based on response time
 const blockInterval = 100
 
+func generateKeyDerivation() {
+
+}
+
 func (w *Wallet) ProcessTransaction(tx *safex.Transaction) {
 	// @todo Process Unconfirmed.
-
+	txScanInfo := make([]TxScanInfoType, len(tx.Vout))
+	var totalReceived1 uint64
+	var totalTokenReceived1 uint64
 	// Process outputs
-	numOfOutputs := len(tx.Vout)
-	txScanInfo := make([]TxScanInfoType, numOfOutputs)
+	if len(tx.Vout) != 0 {
+		var numVoutsReceived uint32
 
-	for numOfOutputs > 0 {
+		// Get public tx key
+		pubTxKey := extractTxPubKey(tx.Extra)
+		viewPrivateKey := w.Address.ViewKey.Private
 
-		// Process
 	}
 
+	// Process outputs
+	fmt.Println(tx.TxHash)
+	fmt.Println(" " + hex.EncodeToString(extractTxPubKey(tx.Extra)))
 	// Process inputs
 
 }
 
-func (w *Wallet) ProcessBlock(block *safex.Block) {
+func (w *Wallet) ProcessBlockRange(blocks safex.Blocks) bool {
 	// @todo Here handle block metadata.
 
-	// Process miner transaction
-	w.ProcessTransaction(block.MinerTx)
-	for _, tx := range block.Txs {
+	// @todo This must be refactored due new discoveries regarding get_tx_hash
+	// Get transaction hashes
+	var txs []string
+	for _, blck := range blocks.Block {
+		txs = append(txs, blck.Txs...)
+		txs = append(txs, blck.MinerTx)
+	}
+
+	// Get transaction data and process.
+	loadedTxs, err := w.client.GetTransactions(txs)
+	if err != nil {
+		return false
+	}
+
+	for _, tx := range loadedTxs.Tx {
 		w.ProcessTransaction(tx)
 	}
+
+	// Process transactions
+	fmt.Println(txs)
+	return true
 }
 
 func extractTxPubKey(extra []byte) (pubTxKey []byte) {
@@ -83,9 +113,9 @@ func extractTxPubKey(extra []byte) (pubTxKey []byte) {
 
 func (w *Wallet) GetBalance() (b Balance, err error) {
 	// Connect to node.
-	safexdClient := safexdrpc.InitClient("127.0.0.1", 29393)
+	w.client = safexdrpc.InitClient("127.0.0.1", 38001)
 
-	info, err := safexdClient.GetDaemonInfo()
+	info, err := w.client.GetDaemonInfo()
 
 	if err != nil {
 		return b, errors.New("Cant get daemon info!")
@@ -99,16 +129,18 @@ func (w *Wallet) GetBalance() (b Balance, err error) {
 	var blocks safex.Blocks
 	var end uint64
 
+	// @todo Here exists some error during overlaping block ranges. Deal with it later.
 	for curr < (bcHeight - 1) {
 		// Calculate end of interval for loading
 		if curr+blockInterval > bcHeight {
-			end = bcHeight
+			end = bcHeight - 1
 		} else {
 			end = curr + blockInterval
 		}
 		start := time.Now()
-		blocks, err = safexdClient.GetBlocks(curr, end) // Load blocks from daemon
+		blocks, err = w.client.GetBlocks(curr, end) // Load blocks from daemon
 		fmt.Println(time.Since(start))
+
 		// If there was error during loading of blocks return err.
 		if err != nil {
 			return b, err
@@ -116,10 +148,9 @@ func (w *Wallet) GetBalance() (b Balance, err error) {
 
 		fmt.Println(len(blocks.Block))
 		// Process block
-		for _, block := range blocks.Block {
-			w.ProcessBlock(block)
-		}
+		w.ProcessBlockRange(blocks)
 
+		fmt.Println("---------------------------------------------------------------------------------------------")
 		curr = end
 	}
 
