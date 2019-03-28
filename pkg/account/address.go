@@ -114,17 +114,29 @@ func (adr *Address) encodeBase58() string {
 	return base58.Encode(raw)
 }
 
-// New constructs an empty address
+// New constructs an empty address.
 func New() *Address { return &Address{} }
 
-// FromKeys forms an address with given keys, network ID and payment ID
-func FromKeys(nid NetworkID, spendKey PublicKey, viewKey PublicKey, paymentID PaymentID) *Address {
+// NewAddress forms an Address with given keys, network ID and payment ID.
+func NewAddress(nid NetworkID, spendKey, viewKey PublicKey, paymentID PaymentID) *Address {
 	return &Address{
 		NetworkID: nid,
 		SpendKey:  spendKey,
 		ViewKey:   viewKey,
 		PaymentID: paymentID,
 	}
+}
+
+// NewRegularTestnetAddress forms a regular testnet address.
+// Payment ID is not set at this point.
+func NewRegularTestnetAddress(spendKey, viewKey PublicKey) *Address {
+	return NewAddress(*TestnetRegularNetworkID, spendKey, viewKey, nil)
+}
+
+// NewRegularMainnetAdress forms a regular mainnet address.
+// Payment ID is not set at this point.
+func NewRegularMainnetAdress(spendKey, viewKey PublicKey) *Address {
+	return NewAddress(*MainnetRegularNetworkID, spendKey, viewKey, nil)
 }
 
 // FromBase58 will decode an address from a raw base 58 format. Returns an error if the address size is too short or if the network/payment ID's are not matching up

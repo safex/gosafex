@@ -4,19 +4,19 @@ import (
 	"encoding/binary"
 )
 
-// NetworkID is the varint network identifier
+// NetworkID is the varint network identifier.
 type NetworkID struct {
 	Val  uint64
 	Size int
 }
 
-// NetworkType is the network identifier
+// NetworkType is the network identifier.
 type NetworkType uint8
 
-// Type is the type of the address: regular, integrated, subaddress
+// Type is the type of the address: regular, integrated, subaddress.
 type Type uint8
 
-// Address Type:
+// Address Types:
 const (
 	RegularAddressType    = 0
 	IntegratedAddressType = iota
@@ -24,7 +24,7 @@ const (
 	UndefinedAddressType  = 255
 )
 
-// Network Type:
+// Network Types:
 const (
 	MainnetNetworkType   = 0
 	TestnetNetworkType   = iota
@@ -49,8 +49,22 @@ const (
 	StageSubadressPrefix        = 0x18c57b16 // should map to "SFXss" in base58
 )
 
-// MinNetworkIDSize is the minimal size of the NetworkID (in bytes)
+// MinNetworkIDSize is the minimal size of the NetworkID (in bytes).
 const MinNetworkIDSize = 1
+
+// TODO: store this as constants?
+
+// Precomputed network IDs:
+var (
+	MainnetRegularNetworkID, _ = uint64ToNetworkID(MainnetRegularAddressPrefix)
+	TestnetRegularNetworkID, _ = uint64ToNetworkID(TestnetRegularAddressPrefix)
+)
+
+func uint64ToNetworkID(rawInt uint64) (result *NetworkID, err error) {
+	buf := make([]byte, binary.MaxVarintLen64)
+	binary.LittleEndian.PutUint64(buf, rawInt)
+	return bytesToNetworkID(buf)
+}
 
 func bytesToNetworkID(raw []byte) (result *NetworkID, err error) {
 	val, size := binary.Uvarint(raw)

@@ -80,7 +80,6 @@ func Test_AddressFromBase58(t *testing.T) {
 				if !tt.wantErr {
 					t.Fatalf("FromBase58 error = %v, wantErr = %v", err, tt.wantErr)
 				}
-
 				return
 			}
 

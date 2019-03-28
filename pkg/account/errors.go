@@ -8,4 +8,5 @@ var (
 	ErrInvalidChecksum    = errors.New("Invalid address checkusm")
 	ErrInvalidNetworkID   = errors.New("Invalid network ID")
 	ErrInvalidPaymentID   = errors.New("Invalid payment ID")
+	ErrGenerateKey        = errors.New("Failed to generate key")
 )
