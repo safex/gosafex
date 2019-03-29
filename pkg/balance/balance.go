@@ -1,11 +1,11 @@
 package balance
 
 import (
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"time"
 
+	"github.com/safex/gosafex/internal/crypto/derivation"
 	"github.com/safex/gosafex/pkg/safex"
 	"github.com/safex/gosafex/pkg/safexdrpc"
 )
@@ -21,8 +21,8 @@ type Balance struct {
 type KeyType = []byte
 
 type Key struct {
-	Public  []byte
-	Private []byte
+	Public  [32]byte
+	Private [32]byte
 }
 
 type Address struct {
@@ -35,48 +35,11 @@ type Wallet struct {
 	balance Balance
 	Address Address
 	client  *safexdrpc.Client
-}
-
-// Struct for partial results during transaction scan.
-type TxScanInfoType struct {
-	Ki              string
-	Mask            string
-	Amount          uint64
-	TokenAmount     uint64
-	MoneyTransfered uint64
-	TokenTransfered uint64
-	Error           bool
-	TokenTransfer   bool
+	outputs map[derivation.Key]*safex.Txout // Save output keys.
 }
 
 // @todo:  Move this to some config, or recalculate based on response time
 const blockInterval = 100
-
-func generateKeyDerivation() {
-
-}
-
-func (w *Wallet) ProcessTransaction(tx *safex.Transaction) {
-	// @todo Process Unconfirmed.
-	txScanInfo := make([]TxScanInfoType, len(tx.Vout))
-	var totalReceived1 uint64
-	var totalTokenReceived1 uint64
-	// Process outputs
-	if len(tx.Vout) != 0 {
-		var numVoutsReceived uint32
-
-		// Get public tx key
-		pubTxKey := extractTxPubKey(tx.Extra)
-		viewPrivateKey := w.Address.ViewKey.Private
-
-	}
-
-	// Process outputs
-	fmt.Println(tx.TxHash)
-	fmt.Println(" " + hex.EncodeToString(extractTxPubKey(tx.Extra)))
-	// Process inputs
-
-}
 
 func (w *Wallet) ProcessBlockRange(blocks safex.Blocks) bool {
 	// @todo Here handle block metadata.
@@ -99,19 +62,11 @@ func (w *Wallet) ProcessBlockRange(blocks safex.Blocks) bool {
 		w.ProcessTransaction(tx)
 	}
 
-	// Process transactions
-	fmt.Println(txs)
 	return true
 }
 
-func extractTxPubKey(extra []byte) (pubTxKey []byte) {
-	// @todo Check if this works actually. Very possible of by 1 error.
-	// @todo Also if serialization is ok
-	pubTxKey = extra[1:33]
-	return pubTxKey
-}
-
 func (w *Wallet) GetBalance() (b Balance, err error) {
+	w.outputs = make(map[derivation.Key]*safex.Txout)
 	// Connect to node.
 	w.client = safexdrpc.InitClient("127.0.0.1", 38001)
 
@@ -146,7 +101,6 @@ func (w *Wallet) GetBalance() (b Balance, err error) {
 			return b, err
 		}
 
-		fmt.Println(len(blocks.Block))
 		// Process block
 		w.ProcessBlockRange(blocks)
 
@@ -154,7 +108,5 @@ func (w *Wallet) GetBalance() (b Balance, err error) {
 		curr = end
 	}
 
-	fmt.Println(bcHeight)
-
-	return b, nil
+	return w.balance, nil
 }
