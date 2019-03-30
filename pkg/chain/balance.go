@@ -1,4 +1,4 @@
-package balance
+package chain
 
 import (
 	"errors"
@@ -10,37 +10,10 @@ import (
 	"github.com/safex/gosafex/pkg/safexdrpc"
 )
 
-// Containing balance status
-type Balance struct {
-	CashUnlocked  uint64
-	CashLocked    uint64
-	TokenUnlocked uint64
-	TokenLocked   uint64
-}
-
-type KeyType = []byte
-
-type Key struct {
-	Public  [32]byte
-	Private [32]byte
-}
-
-type Address struct {
-	SpendKey Key
-	ViewKey  Key
-	Address  string
-}
-
-type Wallet struct {
-	balance Balance
-	Address Address
-	client  *safexdrpc.Client
-	outputs map[derivation.Key]*safex.Txout // Save output keys.
-}
-
 // @todo:  Move this to some config, or recalculate based on response time
 const blockInterval = 100
 
+// ProcessBlockRange processes all transactions in a range of blocks.
 func (w *Wallet) ProcessBlockRange(blocks safex.Blocks) bool {
 	// @todo Here handle block metadata.
 

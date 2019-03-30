@@ -1,4 +1,4 @@
-package balance
+package chain
 
 import (
 	"github.com/safex/gosafex/internal/crypto/derivation"
@@ -12,28 +12,6 @@ HINT: additional tx pub keys in extra and derivations.
 -
 
 */
-
-// Must be implemented at some point.
-const TX_EXTRA_PADDING_MAX_COUNT = 255
-const TX_EXTRA_NONCE_MAX_COUNT = 255
-const TX_EXTRA_TAG_PADDING = 0x00
-const TX_EXTRA_TAG_PUBKEY = 0x01
-const TX_EXTRA_NONCE = 0x02
-const TX_EXTRA_MERGE_MINING_TAG = 0x03
-const TX_EXTRA_TAG_ADDITIONAL_PUBKEYS = 0x04
-const TX_EXTRA_MYSTERIOUS_MINERGATE_TAG = 0xDE
-const TX_EXTRA_BITCOIN_HASH = 0x10
-const TX_EXTRA_MIGRATION_PUBKEYS = 0x11
-const TX_EXTRA_NONCE_PAYMENT_ID = 0x00
-const TX_EXTRA_NONCE_ENCRYPTED_PAYMENT_ID = 0x01
-
-func extractTxPubKey(extra []byte) (pubTxKey [32]byte) {
-	// @todo Also if serialization is ok
-	if extra[0] == TX_EXTRA_TAG_PUBKEY {
-		copy(pubTxKey[:], extra[1:33])
-	}
-	return pubTxKey
-}
 
 func (w *Wallet) matchOutput(txOut *safex.Txout, index uint64, der [32]byte, outputKey *[32]byte) bool {
 	derivatedPubKey := derivation.KeyDerivation_To_PublicKey(index, derivation.Key(der), w.Address.SpendKey.Public)
@@ -97,6 +75,5 @@ func (w *Wallet) ProcessTransaction(tx *safex.Transaction) {
 			}
 		}
 	}
-	// Process inputs
 
 }

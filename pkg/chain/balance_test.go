@@ -1,4 +1,4 @@
-package balance
+package chain
 
 import (
 	"encoding/hex"

@@ -17,9 +17,8 @@ require (
 	github.com/stretchr/testify v1.3.0 // indirect
 	github.com/tidwall/gjson v1.1.3
 	github.com/tidwall/match v1.0.1 // indirect
-	golang.org/x/arch v0.0.0-20190312162104-788fe5ffcd8c // indirect
 	golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2
-	golang.org/x/tools v0.0.0-20190328030505-8f05a32dce9f // indirect
+	golang.org/x/net v0.0.0-20190311183353-d8887717615a // indirect
 	gopkg.in/airbrake/gobrake.v2 v2.0.9 // indirect
 	gopkg.in/gemnasium/logrus-airbrake-hook.v2 v2.1.2 // indirect
 )
