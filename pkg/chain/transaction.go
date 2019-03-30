@@ -9,12 +9,14 @@ import (
 - There are possible multiple TxPublicKey in transaction, if transaction has outputs
 for more than one address. This is omitted in current implementation, to be added in the future.
 HINT: additional tx pub keys in extra and derivations.
--
-
 */
 
-func (w *Wallet) matchOutput(txOut *safex.Txout, index uint64, der [32]byte, outputKey *[32]byte) bool {
-	derivatedPubKey := crypto.KeyDerivation_To_PublicKey(index, derivation.Key(der), w.Address.SpendKey.Public)
+func matchOutput(output TransactionOutput, idx uint64, derivation Key) (result Key, err error) {
+	panic("not implemented")
+}
+
+func matchOutput(txOut *safex.Txout, index uint64, der [32]byte, outputKey *[32]byte) bool {
+	derivatedPubKey := crypto.KeyDerivation_To_PublicKey(index, crypto.Key(der), w.Address.SpendKey.Public)
 	var outKeyTemp []byte
 	if txOut.Target.TxoutToKey != nil {
 		copy(outputKey[:], txOut.Target.TxoutToKey.Key[0:32])
