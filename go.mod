@@ -5,7 +5,7 @@ replace github.com/safex/gosafex => ./
 require (
 	github.com/BurntSushi/toml v0.3.1 // indirect
 	github.com/ebfe/keccak v0.0.0-20150115210727-5cc570678d1b
-	github.com/golang/protobuf v1.2.0
+	github.com/golang/protobuf v1.3.1
 	github.com/google/pprof v0.0.0-20190108002400-985cf9b4fdd2 // indirect
 	github.com/ianlancetaylor/demangle v0.0.0-20181102032728-5e5cf60278f6 // indirect
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
