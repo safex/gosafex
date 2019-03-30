@@ -1,11 +1,11 @@
 package account
 
 import (
-	"github.com/safex/gosafex/internal/crypto/derivation"
+	"github.com/safex/gosafex/internal/crypto"
 )
 
-func toKeyPtr(b []byte) *derivation.Key {
-	var result derivation.Key
+func toKeyPtr(b []byte) *crypto.Key {
+	var result crypto.Key
 	copy(result[:], b)
 	return &result
 }
@@ -14,7 +14,7 @@ func toKeyPtr(b []byte) *derivation.Key {
 // and a secret.
 // The implementation is a thin wrapper around the derivation package.
 func DeriveKey(pubKey PublicKey, secret PrivateKey) PrivateKey {
-	resKey := derivation.DeriveKey(
+	resKey := crypto.DeriveKey(
 		toKeyPtr(pubKey),
 		toKeyPtr(secret),
 	)

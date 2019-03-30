@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/safex/gosafex/internal/crypto/derivation"
+	"github.com/safex/gosafex/internal/crypto"
 	"github.com/safex/gosafex/pkg/safex"
 	"github.com/safex/gosafex/pkg/safexdrpc"
 )
@@ -39,7 +39,7 @@ func (w *Wallet) ProcessBlockRange(blocks safex.Blocks) bool {
 }
 
 func (w *Wallet) GetBalance() (b Balance, err error) {
-	w.outputs = make(map[derivation.Key]*safex.Txout)
+	w.outputs = make(map[crypto.Key]*safex.Txout)
 	// Connect to node.
 	w.client = safexdrpc.InitClient("127.0.0.1", 38001)
 

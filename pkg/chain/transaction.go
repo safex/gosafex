@@ -1,7 +1,7 @@
 package chain
 
 import (
-	"github.com/safex/gosafex/internal/crypto/derivation"
+	"github.com/safex/gosafex/internal/crypto"
 	"github.com/safex/gosafex/pkg/safex"
 )
 
@@ -14,7 +14,8 @@ HINT: additional tx pub keys in extra and derivations.
 */
 
 func (w *Wallet) matchOutput(txOut *safex.Txout, index uint64, der [32]byte, outputKey *[32]byte) bool {
-	derivatedPubKey := derivation.KeyDerivation_To_PublicKey(index, derivation.Key(der), w.Address.SpendKey.Public)
+	derivatedPubKey := crypto.KeyDerivation_To_PublicKey(index, derivation.Key(der), w.Address.SpendKey.Public)
+	var outKeyTemp []byte
 	if txOut.Target.TxoutToKey != nil {
 		copy(outputKey[:], txOut.Target.TxoutToKey.Key[0:32])
 	} else {
