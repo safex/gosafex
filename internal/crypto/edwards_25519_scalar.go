@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package derivation
+package crypto
 
 // The scalars are GF(2^252 + 27742317777372353535851937790883648493).
 

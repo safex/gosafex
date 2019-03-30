@@ -19,6 +19,9 @@ type KeccakHash []byte
 // KeySize is the length of ed25519 keys (in bytes).
 const KeySize = 32
 
+// Key is the base key type. Deprecated.
+type Key [KeySize]byte
+
 // PrivateKey is the alias of the ed25519 PrivateKey.
 type PrivateKey = ed25519.PrivateKey
 

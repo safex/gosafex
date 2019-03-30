@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package derivation
+package crypto
 
 // Group elements are members of the elliptic curve -x^2 + y^2 = 1 + d * x^2 *
 // y^2 where d = -121665/121666.

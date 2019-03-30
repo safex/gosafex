@@ -1,10 +1,8 @@
-package derivation
+package crypto
 
 import (
 	"bytes"
 	"encoding/binary"
-
-	"github.com/safex/gosafex/internal/crypto"
 )
 
 // DeriveKey derives a new private key derivation from a given public key
@@ -66,7 +64,7 @@ func KeyDerivationToScalar(outputIndex uint64, derivation Key) (scalar *Key) {
 
 func HashToScalar(data ...[]byte) (result *Key) {
 	result = new(Key)
-	temp := crypto.Keccak256(data...)
+	temp := Keccak256(data...)
 	copy(result[:], temp[:32])
 	ScReduce32(result)
 	return
@@ -95,7 +93,7 @@ func HashToEC(p Key) (result *ExtendedGroupElement) {
 	result = new(ExtendedGroupElement)
 	var p1 ProjectiveGroupElement
 	var p2 CompletedGroupElement
-	temp := crypto.Keccak256(p[:])
+	temp := Keccak256(p[:])
 
 	var h Key
 	copy(h[:], temp[:32])
