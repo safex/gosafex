@@ -1,8 +1,6 @@
 package balance
 
 import (
-	"encoding/hex"
-
 	"github.com/safex/gosafex/internal/crypto/derivation"
 	"github.com/safex/gosafex/pkg/safex"
 )
@@ -39,15 +37,13 @@ func extractTxPubKey(extra []byte) (pubTxKey [32]byte) {
 
 func (w *Wallet) matchOutput(txOut *safex.Txout, index uint64, der [32]byte, outputKey *[32]byte) bool {
 	derivatedPubKey := derivation.KeyDerivation_To_PublicKey(index, derivation.Key(der), w.Address.SpendKey.Public)
-	var outKeyTemp []byte
 	if txOut.Target.TxoutToKey != nil {
-		outKeyTemp, _ = hex.DecodeString(txOut.Target.TxoutToKey.Key)
+		copy(outputKey[:], txOut.Target.TxoutToKey.Key[0:32])
 	} else {
-		outKeyTemp, _ = hex.DecodeString(txOut.Target.TxoutTokenToKey.Key)
+		copy(outputKey[:], txOut.Target.TxoutTokenToKey.Key[0:32])
 	}
 
 	// Return also outputkey
-	copy(outputKey[:], outKeyTemp[:32])
 	return *outputKey == [32]byte(derivatedPubKey)
 }
 
@@ -81,22 +77,20 @@ func (w *Wallet) ProcessTransaction(tx *safex.Transaction) {
 
 	if len(tx.Vin) != 0 {
 		for _, input := range tx.Vin {
+			var kImage [32]byte
 			if input.TxinGen != nil {
 				continue
 			}
 			if input.TxinToKey != nil {
-				temp, _ := hex.DecodeString(input.TxinToKey.KImage)
-				var kimage [32]byte
-				copy(kimage[:], temp[:32])
-				if val, ok := w.outputs[derivation.Key(kimage)]; ok {
+				copy(kImage[:], input.TxinToKey.KImage[0:32])
+
+				if val, ok := w.outputs[derivation.Key(kImage)]; ok {
 					w.balance.CashLocked -= val.Amount
 				}
 			} else {
 				if input.TxinTokenToKey != nil {
-					temp, _ := hex.DecodeString(input.TxinTokenToKey.KImage)
-					var kimage [32]byte
-					copy(kimage[:], temp[:32])
-					if val, ok := w.outputs[derivation.Key(kimage)]; ok {
+					copy(kImage[:], input.TxinTokenToKey.KImage[0:32])
+					if val, ok := w.outputs[derivation.Key(kImage)]; ok {
 						w.balance.TokenLocked -= val.TokenAmount
 					}
 				}
