@@ -7,17 +7,17 @@ import (
 
 // Type aliases:
 
-// KeySize is the size of the key in bytes
-const KeySize = crypto.KeySize
+// KeySize is the alias for crypto.BaseKeySize.
+const KeySize = crypto.BaseKeySize
 
-// Seed is the alias for crypto.Seed
+// Seed is the alias for crypto.Seed.
 type Seed = crypto.Seed
 
-// PublicKey is the alias for crypto.PublicKey
+// PublicKey is the alias for crypto.PublicKey.
 type PublicKey = crypto.PublicKey
 
-// PrivateKey is the alias for crypto.PrivateKey
+// PrivateKey is the alias for crypto.PrivateKey.
 type PrivateKey = crypto.PrivateKey
 
-// Mnemonic is the alias for mnemonic.Mnemonic
+// Mnemonic is the alias for mnemonic.Mnemonic.
 type Mnemonic = mnemonic.Mnemonic

@@ -7,8 +7,14 @@ import (
 	"github.com/safex/gosafex/pkg/safexdrpc"
 )
 
+// DigestType is the alias fto crypto.KeccakHash.
+const DigestType = crypto.KeccakHash
+
 // KeySize is the size of public/private keys (in bytes).
 const KeySize = crypto.KeySize
+
+// Key is the alias to crypto.Key
+type Key = crypto.Key
 
 // PublicKey is an alias to crypto.PublicKey.
 type PublicKey = crypto.PublicKey
@@ -19,11 +25,11 @@ type PrivateKey = crypto.PrivateKey
 // Account is an alias to account.Account
 type Account = account.Account
 
-// Txout is an alias to safex.Txout
-type Txout = safex.Txout
+// TransactionOutput is an alias to safex.Txout
+type TransactionOutput = safex.Txout
 
 // OutputMap is the map of key derivation => txout.
-type OutputMap map[PublicKey]*Txout
+type OutputMap map[DigestType]*TransactionOutput
 
 // Client is an alias to safexdrpc.Client.
 type Client = safexdrpc.Client
@@ -37,12 +43,4 @@ type Balance struct {
 	CashLocked    uint64
 	TokenUnlocked uint64
 	TokenLocked   uint64
-}
-
-// Wallet is a structure containing an Account, its Balance and tx Outputs.
-type Wallet struct {
-	balance Balance
-	account Account
-	client  *Client
-	outputs OutputMap
 }
