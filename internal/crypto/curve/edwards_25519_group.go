@@ -1,52 +1,47 @@
-// Copyright 2016 The Go Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style
-// license that can be found in the LICENSE file.
-
-package crypto
+package curve
 
 // Group elements are members of the elliptic curve -x^2 + y^2 = 1 + d * x^2 *
 // y^2 where d = -121665/121666.
-//
-// Several representations are used:
-//   ProjectiveGroupElement: (X:Y:Z) satisfying x=X/Z, y=Y/Z
-//   ExtendedGroupElement: (X:Y:Z:T) satisfying x=X/Z, y=Y/Z, XY=ZT
-//   CompletedGroupElement: ((X:Z),(Y:T)) satisfying x=X/Z, y=Y/T
-//   PreComputedGroupElement: (y+x,y-x,2dxy)
 
+// ProjectiveGroupElement is (X:Y:Z) satisfying x=X/Z, y=Y/Z
 type ProjectiveGroupElement struct {
 	X, Y, Z FieldElement
 }
 
+// ExtendedGroupElement is (X:Y:Z:T) satisfying x=X/Z, y=Y/Z, XY=ZT
 type ExtendedGroupElement struct {
 	X, Y, Z, T FieldElement
 }
 
+// CompletedGroupElement is ((X:Z),(Y:T)) satisfying x=X/Z, y=Y/T
 type CompletedGroupElement struct {
 	X, Y, Z, T FieldElement
 }
 
+// PreComputedGroupElement is (y+x,y-x,2dxy)
 type PreComputedGroupElement struct {
 	yPlusX, yMinusX, xy2d FieldElement
 }
 
+// CachedGroupElement a acached group of field elements.
 type CachedGroupElement struct {
 	yPlusX, yMinusX, Z, T2d FieldElement
 }
 
-func (c *CachedGroupElement) Zero() {
-	FeOne(&c.yPlusX)  //c.yPlusX.One()
-	FeOne(&c.yMinusX) //c.yMinusX.One()
-	FeOne(&c.Z)       //c.Z.One()
-	FeZero(&c.T2d)    //c.T2d.Zero()
+func (c *CachedGroupElement) zero() {
+	FeOne(&c.yPlusX)  //c.yPlusX.one()
+	FeOne(&c.yMinusX) //c.yMinusX.one()
+	FeOne(&c.Z)       //c.Z.one()
+	FeZero(&c.T2d)    //c.T2d.zero()
 }
 
-func (p *ProjectiveGroupElement) Zero() {
+func (p *ProjectiveGroupElement) zero() {
 	FeZero(&p.X)
 	FeOne(&p.Y)
 	FeOne(&p.Z)
 }
 
-func (p *ProjectiveGroupElement) Double(r *CompletedGroupElement) {
+func (p *ProjectiveGroupElement) double(r *CompletedGroupElement) {
 	var t0 FieldElement
 
 	FeSquare(&r.X, &p.X)
@@ -60,7 +55,7 @@ func (p *ProjectiveGroupElement) Double(r *CompletedGroupElement) {
 	FeSub(&r.T, &r.T, &r.Z)
 }
 
-func (p *ProjectiveGroupElement) ToBytes(s *Key) {
+func (p *ProjectiveGroupElement) toBytes(s *Key) {
 	var recip, x, y FieldElement
 
 	FeInvert(&recip, &p.Z)
@@ -70,41 +65,40 @@ func (p *ProjectiveGroupElement) ToBytes(s *Key) {
 	s[31] ^= FeIsNegative(&x) << 7
 }
 
-func (p *ExtendedGroupElement) Zero() {
+func (p *ExtendedGroupElement) zero() {
 	FeZero(&p.X)
 	FeOne(&p.Y)
 	FeOne(&p.Z)
 	FeZero(&p.T)
 }
 
-func (p *ExtendedGroupElement) Double(r *CompletedGroupElement) {
+func (p *ExtendedGroupElement) double(r *CompletedGroupElement) {
 	var q ProjectiveGroupElement
-	p.ToProjective(&q)
-	q.Double(r)
+	p.toProjective(&q)
+	q.double(r)
 }
 
-func (p *ExtendedGroupElement) ToCached(r *CachedGroupElement) {
+func (p *ExtendedGroupElement) toCached(r *CachedGroupElement) {
 	FeAdd(&r.yPlusX, &p.Y, &p.X)
 	FeSub(&r.yMinusX, &p.Y, &p.X)
 	FeCopy(&r.Z, &p.Z)
 	FeMul(&r.T2d, &p.T, &d2)
 }
 
-// build precomputed element for
-func (p *ExtendedGroupElement) ToPreComputed(r *PreComputedGroupElement) {
+func (p *ExtendedGroupElement) toPreComputed(r *PreComputedGroupElement) {
 	FeAdd(&r.yPlusX, &p.Y, &p.X)
 	FeSub(&r.yMinusX, &p.Y, &p.X)
 	FeMul(&r.xy2d, &p.X, &p.Y)
 	FeMul(&r.xy2d, &r.xy2d, &d2)
 }
 
-func (p *ExtendedGroupElement) ToProjective(r *ProjectiveGroupElement) {
+func (p *ExtendedGroupElement) toProjective(r *ProjectiveGroupElement) {
 	FeCopy(&r.X, &p.X)
 	FeCopy(&r.Y, &p.Y)
 	FeCopy(&r.Z, &p.Z)
 }
 
-func (p *ExtendedGroupElement) ToBytes(s *Key) {
+func (p *ExtendedGroupElement) toBytes(s *Key) {
 	var recip, x, y FieldElement
 
 	FeInvert(&recip, &p.Z)
@@ -114,7 +108,7 @@ func (p *ExtendedGroupElement) ToBytes(s *Key) {
 	s[31] ^= FeIsNegative(&x) << 7
 }
 
-func (p *ExtendedGroupElement) FromBytes(s *Key) bool {
+func (p *ExtendedGroupElement) fromBytes(s *Key) bool {
 	var u, v, v3, vxx, check FieldElement
 
 	// expanded FeFromBytes (with canonical check)
@@ -163,7 +157,7 @@ func (p *ExtendedGroupElement) FromBytes(s *Key) bool {
 		if FeIsNonZero(&check) == 1 {
 			return false
 		}
-		FeMul(&p.X, &p.X, &SqrtM1)
+		FeMul(&p.X, &p.X, &sqrtM1)
 
 		FeToBytes(&tmpX, &p.X)
 		for i, v := range tmpX {
@@ -183,7 +177,7 @@ func (p *ExtendedGroupElement) FromBytes(s *Key) bool {
 	return true
 }
 
-func FeDivPowM1(out, u, v *FieldElement) {
+func feDivPowM1(out, u, v *FieldElement) {
 	var v3, uv7, t0 FieldElement
 
 	FeSquare(&v3, v)
@@ -197,7 +191,7 @@ func FeDivPowM1(out, u, v *FieldElement) {
 	FeMul(&t0, &t0, &v3)
 	FeMul(out, &t0, u) /* u^(m+1)v^(-(m+1)) */
 }
-func (p *ProjectiveGroupElement) FromBytes(s *Key) {
+func (p *ProjectiveGroupElement) fromBytes(s *Key) {
 
 	// the original code processes it in a different way
 	// so we do it in 2 steps
@@ -261,15 +255,15 @@ func (p *ProjectiveGroupElement) FromBytes(s *Key) {
 		u[8] = int32(h8)
 		u[9] = int32(h9)
 
-		FeToBytes32(&tmps, &u)
+		feToBytes32(&tmps, &u)
 
 	}
 	var u, v, w, x, y, z FieldElement
 
 	// the preprocessed key is stored in tmps
-	var tmp_key Key
-	copy(tmp_key[:], tmps[:])
-	FeFromBytes(&u, &tmp_key)
+	var tmpKey Key
+	copy(tmpKey[:], tmps[:])
+	FeFromBytes(&u, &tmpKey)
 
 	FeSquare2(&v, &u) /* 2 * u^2 */
 	FeOne(&w)
@@ -278,7 +272,7 @@ func (p *ProjectiveGroupElement) FromBytes(s *Key) {
 
 	FeMul(&y, &FeMa2, &v)    /* -2 * A^2 * u^2 */
 	FeAdd(&x, &x, &y)        /* x = w^2 - 2 * A^2 * u^2 */
-	FeDivPowM1(&p.X, &w, &x) /* (w / x)^(m + 1) */
+	feDivPowM1(&p.X, &w, &x) /* (w / x)^(m + 1) */
 	FeSquare(&y, &p.X)
 	FeMul(&x, &y, &x)
 	FeSub(&y, &w, &x)
@@ -321,26 +315,26 @@ func (p *ProjectiveGroupElement) FromBytes(s *Key) {
 
 }
 
-func (p *CompletedGroupElement) ToProjective(r *ProjectiveGroupElement) {
+func (p *CompletedGroupElement) toProjective(r *ProjectiveGroupElement) {
 	FeMul(&r.X, &p.X, &p.T)
 	FeMul(&r.Y, &p.Y, &p.Z)
 	FeMul(&r.Z, &p.Z, &p.T)
 }
 
-func (p *CompletedGroupElement) ToExtended(r *ExtendedGroupElement) {
+func (p *CompletedGroupElement) toExtended(r *ExtendedGroupElement) {
 	FeMul(&r.X, &p.X, &p.T)
 	FeMul(&r.Y, &p.Y, &p.Z)
 	FeMul(&r.Z, &p.Z, &p.T)
 	FeMul(&r.T, &p.X, &p.Y)
 }
 
-func (p *PreComputedGroupElement) Zero() {
+func (p *PreComputedGroupElement) zero() {
 	FeOne(&p.yPlusX)
 	FeOne(&p.yMinusX)
 	FeZero(&p.xy2d)
 }
 
-// exported version for ringct
+// GeAdd is the exported version (for ringct).
 func GeAdd(r *CompletedGroupElement, p *ExtendedGroupElement, q *CachedGroupElement) {
 	geAdd(r, p, q)
 }
@@ -437,10 +431,10 @@ func slide(r *[256]int8, a *Key) {
 
 // sets r = a*A + b*G
 // this is an optimised version, unoptimised version is 4 lines below
-func GeDoubleScalarMultVartime(r *ProjectiveGroupElement, a *Key, A *ExtendedGroupElement, b *Key) {
+func geDoubleScalarMultVartimer(r *ProjectiveGroupElement, a *Key, A *ExtendedGroupElement, b *Key) {
 	var Ai [8]CachedGroupElement // A,3A,5A,7A,9A,11A,13A,15A
 	GePrecompute(&Ai, A)
-	GeDoubleScalarMultPrecompVartime2(r, a, &Ai, b, &GBASE_Cached)
+	GeDoubleScalarMultPrecompVartime2(r, a, &Ai, b, &gbaseCached)
 }
 
 // GeDoubleScalarMultVartime sets r = a*A + b*B
@@ -448,7 +442,7 @@ func GeDoubleScalarMultVartime(r *ProjectiveGroupElement, a *Key, A *ExtendedGro
 // and b = b[0]+256*b[1]+...+256^31 b[31].
 // B is the Ed25519 base point (x,4/5) with x positive.
 /*
-func GeDoubleScalarMultVartime(r *ProjectiveGroupElement, a *Key, A *ExtendedGroupElement, b *Key) {
+func geDoubleScalarMultVartimer( *ProjectiveGroupElement, a *Key, A *ExtendedGroupElement, b *Key) {
 	var aSlide, bSlide [256]int8
 	var Ai [8]CachedGroupElement // A,3A,5A,7A,9A,11A,13A,15A
 	var t CompletedGroupElement
@@ -458,17 +452,17 @@ func GeDoubleScalarMultVartime(r *ProjectiveGroupElement, a *Key, A *ExtendedGro
 	slide(&aSlide, a)
 	slide(&bSlide, b)
 
-	A.ToCached(&Ai[0])
-	A.Double(&t)
-	t.ToExtended(&A2)
+	A.toCached(&Ai[0])
+	A.double(&t)
+	t.toExtended(&A2)
 
 	for i := 0; i < 7; i++ {
 		geAdd(&t, &A2, &Ai[i])
-		t.ToExtended(&u)
-		u.ToCached(&Ai[i+1])
+		t.toExtended(&u)
+		u.toCached(&Ai[i+1])
 	}
 
-	r.Zero()
+	r.zero()
 
 	for i = 255; i >= 0; i-- {
 		if aSlide[i] != 0 || bSlide[i] != 0 {
@@ -477,25 +471,25 @@ func GeDoubleScalarMultVartime(r *ProjectiveGroupElement, a *Key, A *ExtendedGro
 	}
 
 	for ; i >= 0; i-- {
-		r.Double(&t)
+		r.double(&t)
 
 		if aSlide[i] > 0 {
-			t.ToExtended(&u)
+			t.toExtended(&u)
 			geAdd(&t, &u, &Ai[aSlide[i]/2])
 		} else if aSlide[i] < 0 {
-			t.ToExtended(&u)
+			t.toExtended(&u)
 			geSub(&t, &u, &Ai[(-aSlide[i])/2])
 		}
 
 		if bSlide[i] > 0 {
-			t.ToExtended(&u)
+			t.toExtended(&u)
 			geMixedAdd(&t, &u, &bi[bSlide[i]/2])
 		} else if bSlide[i] < 0 {
-			t.ToExtended(&u)
+			t.toExtended(&u)
 			geMixedSub(&t, &u, &bi[(-bSlide[i])/2])
 		}
 
-		t.ToProjective(r)
+		t.toProjective(r)
 	}
 }
 */
@@ -513,7 +507,7 @@ func negative(b int32) int32 {
 	return (b >> 31) & 1
 }
 
-func PreComputedGroupElementCMove(t, u *PreComputedGroupElement, b int32) {
+func preComputedGroupElementCMove(t, u *PreComputedGroupElement, b int32) {
 	FeCMove(&t.yPlusX, &u.yPlusX, b)
 	FeCMove(&t.yMinusX, &u.yMinusX, b)
 	FeCMove(&t.xy2d, &u.xy2d, b)
@@ -524,14 +518,14 @@ func selectPoint(t *PreComputedGroupElement, pos int32, b int32) {
 	bNegative := negative(b)
 	bAbs := b - (((-bNegative) & b) << 1)
 
-	t.Zero()
+	t.zero()
 	for i := int32(0); i < 8; i++ {
-		PreComputedGroupElementCMove(t, &base[pos][i], equal(bAbs, i+1))
+		preComputedGroupElementCMove(t, &base[pos][i], equal(bAbs, i+1))
 	}
 	FeCopy(&minusT.yPlusX, &t.yMinusX)
 	FeCopy(&minusT.yMinusX, &t.yPlusX)
 	FeNeg(&minusT.xy2d, &t.xy2d)
-	PreComputedGroupElementCMove(t, &minusT, bNegative)
+	preComputedGroupElementCMove(t, &minusT, bNegative)
 }
 
 // GeScalarMultBase computes h = a*B, where
@@ -559,58 +553,59 @@ func GeScalarMultBase(h *ExtendedGroupElement, a *Key) {
 	e[63] += carry
 	// each e[i] is between -8 and 8.
 
-	h.Zero()
+	h.zero()
 	var t PreComputedGroupElement
 	var r CompletedGroupElement
 	for i := int32(1); i < 64; i += 2 {
 		selectPoint(&t, i/2, int32(e[i]))
 		geMixedAdd(&r, h, &t)
-		r.ToExtended(h)
+		r.toExtended(h)
 	}
 
 	var s ProjectiveGroupElement
 
-	h.Double(&r)
-	r.ToProjective(&s)
-	s.Double(&r)
-	r.ToProjective(&s)
-	s.Double(&r)
-	r.ToProjective(&s)
-	s.Double(&r)
-	r.ToExtended(h)
+	h.double(&r)
+	r.toProjective(&s)
+	s.double(&r)
+	r.toProjective(&s)
+	s.double(&r)
+	r.toProjective(&s)
+	s.double(&r)
+	r.toExtended(h)
 
 	for i := int32(0); i < 64; i += 2 {
 		selectPoint(&t, i/2, int32(e[i]))
 		geMixedAdd(&r, h, &t)
-		r.ToExtended(h)
+		r.toExtended(h)
 	}
 }
 
-// r = 8 * t
+// GeMul8 computes r = 8 * t.
 func GeMul8(r *CompletedGroupElement, t *ProjectiveGroupElement) {
 	var u ProjectiveGroupElement
-	t.Double(r)
-	r.ToProjective(&u)
-	u.Double(r)
-	r.ToProjective(&u)
-	u.Double(r)
+	t.double(r)
+	r.toProjective(&u)
+	u.double(r)
+	r.toProjective(&u)
+	u.double(r)
 }
 
-// caches s into an array of CachedGroupElements for scalar multiplication later
+// GePrecompute caches s into an array of CachedGroupElements for scalar
+// multiplication later.
 func GePrecompute(r *[8]CachedGroupElement, s *ExtendedGroupElement) {
 	var t CompletedGroupElement
 	var s2, u ExtendedGroupElement
-	s.ToCached(&r[0])
-	s.Double(&t)
-	t.ToExtended(&s2)
+	s.toCached(&r[0])
+	s.double(&t)
+	t.toExtended(&s2)
 	for i := 0; i < 7; i++ {
 		geAdd(&t, &s2, &r[i])
-		t.ToExtended(&u)
-		u.ToCached(&r[i+1])
+		t.toExtended(&u)
+		u.toCached(&r[i+1])
 	}
 }
 
-// sets r = a*A + b*B
+// GeDoubleScalarMultPrecompVartime2 sets r = a*A + b*B
 // where Bi is the [8]CachedGroupElement consisting of
 // B,3B,5B,7B,9B,11B,13B,15B
 func GeDoubleScalarMultPrecompVartime2(r *ProjectiveGroupElement, a *Key, Ai *[8]CachedGroupElement, b *Key, Bi *[8]CachedGroupElement) {
@@ -622,34 +617,34 @@ func GeDoubleScalarMultPrecompVartime2(r *ProjectiveGroupElement, a *Key, Ai *[8
 	slide(&aSlide, a)
 	slide(&bSlide, b)
 	//GePrecompute(&Ai, A)
-	r.Zero()
+	r.zero()
 	for i = 255; i >= 0; i-- {
 		if aSlide[i] != 0 || bSlide[i] != 0 {
 			break
 		}
 	}
 	for ; i >= 0; i-- {
-		r.Double(&t)
+		r.double(&t)
 		if aSlide[i] > 0 {
-			t.ToExtended(&u)
+			t.toExtended(&u)
 			geAdd(&t, &u, &Ai[aSlide[i]/2])
 		} else if aSlide[i] < 0 {
-			t.ToExtended(&u)
+			t.toExtended(&u)
 			geSub(&t, &u, &Ai[(-aSlide[i])/2])
 		}
 		if bSlide[i] > 0 {
-			t.ToExtended(&u)
+			t.toExtended(&u)
 			geAdd(&t, &u, &Bi[bSlide[i]/2])
 		} else if bSlide[i] < 0 {
-			t.ToExtended(&u)
+			t.toExtended(&u)
 			geSub(&t, &u, &Bi[(-bSlide[i])/2])
 		}
-		t.ToProjective(r)
+		t.toProjective(r)
 	}
 	return
 }
 
-// sets r = a*A + b*B
+// GeDoubleScalarMultPrecompVartime sets r = a*A + b*B
 // where Bi is the [8]CachedGroupElement consisting of
 // B,3B,5B,7B,9B,11B,13B,15B
 func GeDoubleScalarMultPrecompVartime(r *ProjectiveGroupElement, a *Key, A *ExtendedGroupElement, b *Key, Bi *[8]CachedGroupElement) {
@@ -658,7 +653,7 @@ func GeDoubleScalarMultPrecompVartime(r *ProjectiveGroupElement, a *Key, A *Exte
 	GeDoubleScalarMultPrecompVartime2(r, a, &Ai, b, Bi)
 }
 
-func CachedGroupElementCMove(t, u *CachedGroupElement, b int32) {
+func cachedGroupElementCMove(t, u *CachedGroupElement, b int32) {
 	if b == 0 {
 		return
 	}

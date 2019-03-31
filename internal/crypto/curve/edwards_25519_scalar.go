@@ -1,19 +1,23 @@
-// Copyright 2016 The Go Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style
-// license that can be found in the LICENSE file.
-
-package crypto
+package curve
 
 // The scalars are GF(2^252 + 27742317777372353535851937790883648493).
 
+// ScMulAdd applies the following transformation:
+//
 // Input:
+//
 //   a[0]+256*a[1]+...+256^31*a[31] = a
+//
 //   b[0]+256*b[1]+...+256^31*b[31] = b
+//
 //   c[0]+256*c[1]+...+256^31*c[31] = c
 //
 // Output:
 //   s[0]+256*s[1]+...+256^31*s[31] = (ab+c) mod l
-//   where l = 2^252 + 27742317777372353535851937790883648493.
+//
+//   where:
+//
+//l = 2^252 + 27742317777372353535851937790883648493.
 func ScMulAdd(s, a, b, c *Key) {
 	a0 := 2097151 & load3(a[:])
 	a1 := 2097151 & (load4(a[2:]) >> 5)
@@ -439,12 +443,19 @@ func ScMulAdd(s, a, b, c *Key) {
 	s[31] = byte(s11 >> 17)
 }
 
+// ScReduce applies the following transformation:
+//
 // Input:
+//
 //   s[0]+256*s[1]+...+256^63*s[63] = s
 //
 // Output:
+//
 //   s[0]+256*s[1]+...+256^31*s[31] = s mod l
-//   where l = 2^252 + 27742317777372353535851937790883648493.
+//
+//   where
+//
+// l = 2^252 + 27742317777372353535851937790883648493.
 func ScReduce(out *Key, s *[64]byte) {
 	s0 := 2097151 & load3(s[:])
 	s1 := 2097151 & (load4(s[2:]) >> 5)
@@ -763,6 +774,7 @@ func ScReduce(out *Key, s *[64]byte) {
 	out[31] = byte(s11 >> 17)
 }
 
+// ScReduce32 TODO: comment this function
 func ScReduce32(s *Key) {
 	s0 := 2097151 & load3(s[:])
 	s1 := 2097151 & (load4(s[2:]) >> 5)
@@ -939,11 +951,11 @@ func signum(a int64) int64 {
 	return a>>63 - ((-a) >> 63)
 }
 
-// equivalent to sc_check
-func Sc_check(s *Key) bool {
-	return ScValid(s)
+// ScCheck is equivalent to sc_check.
+func ScCheck(s *Key) bool {
+	return scValid(s)
 }
-func ScValid(s *Key) bool {
+func scValid(s *Key) bool {
 	s0 := load4(s[:])
 	s1 := load4(s[4:])
 	s2 := load4(s[8:])
@@ -956,11 +968,15 @@ func ScValid(s *Key) bool {
 
 }
 
-// GeScalarMult computes h = a*A, where
-//   a = a[0]+256*a[1]+...+256^31 a[31]
+// GeScalarMult computes h = a*A
+//
+// where:
+//
+//   a = a[0]+256*a[1]+...+256^31 a[31],
 //   A is a point on the curve
 //
 // Preconditions:
+//
 //   a[31] <= 127
 func GeScalarMult(r *ProjectiveGroupElement, a *Key, A *ExtendedGroupElement) {
 	// Break the exponent into 4-bit nybbles.
@@ -969,8 +985,7 @@ func GeScalarMult(r *ProjectiveGroupElement, a *Key, A *ExtendedGroupElement) {
 		e[2*i] = int8(v & 15)
 		e[2*i+1] = int8((v >> 4) & 15)
 	}
-	// each e[i] is between 0 and 15 and e[63] is between 0 and 7.
-
+	// Each e[i] is between 0 and 15 and e[63] is between 0 and 7.
 	carry := int8(0)
 	for i := 0; i < 63; i++ {
 		e[i] += carry
@@ -982,32 +997,32 @@ func GeScalarMult(r *ProjectiveGroupElement, a *Key, A *ExtendedGroupElement) {
 	var Ai [8]CachedGroupElement // A,2A,3A,4A,5A,6A,7A,8A
 	t := new(CompletedGroupElement)
 	u := new(ExtendedGroupElement)
-	A.ToCached(&Ai[0])
+	A.toCached(&Ai[0])
 	for i := 0; i < 7; i++ {
 		geAdd(t, A, &Ai[i])
-		t.ToExtended(u)
-		u.ToCached(&Ai[i+1])
+		t.toExtended(u)
+		u.toCached(&Ai[i+1])
 	}
-	r.Zero()
+	r.zero()
 	cur := new(CachedGroupElement)
 	minusCur := new(CachedGroupElement)
 	for i := 63; i >= 0; i-- {
 		b := e[i]
 		bNegative := int8(negative(int32(b)))
 		bAbs := b - (((-bNegative) & b) << 1)
-		r.Double(t)
-		t.ToProjective(r)
-		r.Double(t)
-		t.ToProjective(r)
-		r.Double(t)
-		t.ToProjective(r)
-		r.Double(t)
-		t.ToExtended(u)
+		r.double(t)
+		t.toProjective(r)
+		r.double(t)
+		t.toProjective(r)
+		r.double(t)
+		t.toProjective(r)
+		r.double(t)
+		t.toExtended(u)
 
-		cur.Zero()
+		cur.zero()
 		for j := int32(0); j < 8; j++ {
 			if equal(int32(bAbs), j+1) == 1 { // optimisation
-				CachedGroupElementCMove(cur, &Ai[j], equal(int32(bAbs), j+1))
+				cachedGroupElementCMove(cur, &Ai[j], equal(int32(bAbs), j+1))
 			}
 		}
 
@@ -1016,14 +1031,15 @@ func GeScalarMult(r *ProjectiveGroupElement, a *Key, A *ExtendedGroupElement) {
 		FeCopy(&minusCur.Z, &cur.Z)
 		FeNeg(&minusCur.T2d, &cur.T2d)
 
-		CachedGroupElementCMove(cur, minusCur, int32(bNegative))
+		cachedGroupElementCMove(cur, minusCur, int32(bNegative))
 
 		geAdd(t, u, cur)
-		t.ToProjective(r)
+		t.toProjective(r)
 
 	}
 }
 
+// ScAdd TODO: comment this function
 func ScAdd(s, a, b *Key) {
 	a0 := 2097151 & load3(a[:])
 	a1 := 2097151 & (load4(a[2:]) >> 5)
@@ -1222,6 +1238,7 @@ func ScAdd(s, a, b *Key) {
 	s[31] = byte(s11 >> 17)
 }
 
+// ScSub TODO: comment this function
 func ScSub(s, a, b *Key) {
 	a0 := 2097151 & load3(a[:])
 	a1 := 2097151 & (load4(a[2:]) >> 5)
@@ -1420,14 +1437,23 @@ func ScSub(s, a, b *Key) {
 	s[31] = byte(s11 >> 17)
 }
 
+// ScMulSub applies the following transformation:
+//
 // Input:
-//   a[0]+256*a[1]+...+256^31*a[31] = a
-//   b[0]+256*b[1]+...+256^31*b[31] = b
-//   c[0]+256*c[1]+...+256^31*c[31] = c
+//
+// a[0]+256*a[1]+...+256^31*a[31] = a
+//
+// b[0]+256*b[1]+...+256^31*b[31] = b
+//
+// c[0]+256*c[1]+...+256^31*c[31] = c
 //
 // Output:
-//   s[0]+256*s[1]+...+256^31*s[31] = (c-ab) mod l
-//   where l = 2^252 + 27742317777372353535851937790883648493.
+//
+// s[0]+256*s[1]+...+256^31*s[31] = (c-ab) mod l
+//
+// where
+//
+// 	l = 2^252 + 27742317777372353535851937790883648493.
 func ScMulSub(s, a, b, c *Key) {
 	a0 := 2097151 & load3(a[:])
 	a1 := 2097151 & (load4(a[2:]) >> 5)
@@ -1853,15 +1879,19 @@ func ScMulSub(s, a, b, c *Key) {
 	s[31] = byte(s11 >> 17)
 }
 
-//copied from above and modified
-/*Input:
-  a[0]+256*a[1]+...+256^31*a[31] = a
-  b[0]+256*b[1]+...+256^31*b[31] = b
-
-Output:
-  s[0]+256*s[1]+...+256^31*s[31] = (ab) mod l
-  where l = 2^252 + 27742317777372353535851937790883648493.
-*/
+// ScMul is a modified version of ScMulSub(s, a, b, c *Key)
+// Input:
+//
+// a[0]+256*a[1]+...+256^31*a[31] = a
+//
+// b[0]+256*b[1]+...+256^31*b[31] = b
+//
+// Output:
+// s[0]+256*s[1]+...+256^31*s[31] = (ab) mod l
+//
+// where
+//
+// l = 2^252 + 27742317777372353535851937790883648493.
 func ScMul(s, a, b *Key) {
 	a0 := 2097151 & load3(a[:])
 	a1 := 2097151 & (load4(a[2:]) >> 5)
@@ -2277,6 +2307,7 @@ func ScMul(s, a, b *Key) {
 
 }
 
+// ScIsZero returns true if the given value is equal to zero.
 func ScIsZero(s *Key) bool {
 	return ((int(s[0]|s[1]|s[2]|s[3]|s[4]|s[5]|s[6]|s[7]|s[8]|
 		s[9]|s[10]|s[11]|s[12]|s[13]|s[14]|s[15]|s[16]|s[17]|

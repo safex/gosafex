@@ -1,30 +1,4 @@
-// Copyright 2017-2018 DERO Project. All rights reserved.
-// Use of this source code in any form is governed by RESEARCH license.
-// license can be found in the LICENSE file.
-// GPG: 0F39 E425 8C65 3947 702A  8234 08B2 0360 A03A 9DE8
-//
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
-// MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL
-// THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-// PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
-// INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-// STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
-// THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-// Copyright 2013 The Go Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style
-// license that can be found in the LICENSE-BSD file.
-
-// Most of this is from the golang x/crypto package
-
-// Package edwards25519 implements operations in GF(2**255-19) and on an
-// Edwards curve that is isomorphic to curve25519. See
-// http://ed25519.cr.yp.to/.
-
-package crypto
+package curve
 
 // This code is a port of the public domain, "ref10" implementation of ed25519
 // from SUPERCOP.
@@ -35,28 +9,34 @@ package crypto
 // context.
 type FieldElement [10]int32
 
-var FeMa = FieldElement{-486662, 0, 0, 0, 0, 0, 0, 0, 0, 0}                                                                        /* -A */
-var FeMa2 = FieldElement{-12721188, -3529, 0, 0, 0, 0, 0, 0, 0, 0}                                                                 /* -A^2 */
-var FeFffb1 = FieldElement{-31702527, -2466483, -26106795, -12203692, -12169197, -321052, 14850977, -10296299, -16929438, -407568} /* sqrt(-2 * A * (A + 2)) */
-var FeFffb2 = FieldElement{8166131, -6741800, -17040804, 3154616, 21461005, 1466302, -30876704, -6368709, 10503587, -13363080}     /* sqrt(2 * A * (A + 2)) */
-var FeFffb3 = FieldElement{-13620103, 14639558, 4532995, 7679154, 16815101, -15883539, -22863840, -14813421, 13716513, -6477756}   /* sqrt(-sqrt(-1) * A * (A + 2)) */
-var FeFffb4 = FieldElement{-21786234, -12173074, 21573800, 4524538, -4645904, 16204591, 8012863, -8444712, 3212926, 6885324}       /* sqrt(sqrt(-1) * A * (A + 2)) */
-var FeSqrtM1 = FieldElement{-32595792, -7943725, 9377950, 3500415, 12389472, -272473, -25146209, -2005654, 326686, 11406482}       /* sqrt(-1) */
+// Exported field elements:
+var (
+	FeMa     = FieldElement{-486662, 0, 0, 0, 0, 0, 0, 0, 0, 0}                                                                     /* -A */
+	FeMa2    = FieldElement{-12721188, -3529, 0, 0, 0, 0, 0, 0, 0, 0}                                                               /* -A^2 */
+	FeFffb1  = FieldElement{-31702527, -2466483, -26106795, -12203692, -12169197, -321052, 14850977, -10296299, -16929438, -407568} /* sqrt(-2 * A * (A + 2)) */
+	FeFffb2  = FieldElement{8166131, -6741800, -17040804, 3154616, 21461005, 1466302, -30876704, -6368709, 10503587, -13363080}     /* sqrt(2 * A * (A + 2)) */
+	FeFffb3  = FieldElement{-13620103, 14639558, 4532995, 7679154, 16815101, -15883539, -22863840, -14813421, 13716513, -6477756}   /* sqrt(-sqrt(-1) * A * (A + 2)) */
+	FeFffb4  = FieldElement{-21786234, -12173074, 21573800, 4524538, -4645904, 16204591, 8012863, -8444712, 3212926, 6885324}       /* sqrt(sqrt(-1) * A * (A + 2)) */
+	FeSqrtM1 = FieldElement{-32595792, -7943725, 9377950, 3500415, 12389472, -272473, -25146209, -2005654, 326686, 11406482}        /* sqrt(-1) */
+)
 
-var one FieldElement
+var oneFE FieldElement
 
 func init() {
-	one[0] = 1
+	oneFE[0] = 1
 }
 
+// Zero sets the field element to zero value.
 func (f *FieldElement) Zero() {
-	copy(f[:], zero[:])
+	copy(f[:], zeroFE[:])
 }
 
+// One sets the field element to value 1.
 func (f *FieldElement) One() {
-	copy(f[:], one[:])
+	copy(f[:], oneFE[:])
 }
 
+// FeAdd returns the sum of field elements a and b.
 func FeAdd(dst, a, b *FieldElement) {
 	dst[0] = a[0] + b[0]
 	dst[1] = a[1] + b[1]
@@ -70,6 +50,7 @@ func FeAdd(dst, a, b *FieldElement) {
 	dst[9] = a[9] + b[9]
 }
 
+// FeSub returns the substraction of field elements a and b.
 func FeSub(dst, a, b *FieldElement) {
 	dst[0] = a[0] - b[0]
 	dst[1] = a[1] - b[1]
@@ -83,8 +64,11 @@ func FeSub(dst, a, b *FieldElement) {
 	dst[9] = a[9] - b[9]
 }
 
+// FeCMove applies the following transformation:
+//
 // Replace (f,g) with (g,g) if b == 1;
-// replace (f,g) with (f,g) if b == 0.
+//
+// Replace (f,g) with (f,g) if b == 0.
 //
 // Preconditions: b in {0,1}.
 func FeCMove(f, g *FieldElement, b int32) {
@@ -101,6 +85,8 @@ func FeCMove(f, g *FieldElement, b int32) {
 	f[9] ^= b & (f[9] ^ g[9])
 }
 
+// FeFromBytes loads a field element dst from
+// src key bytes.
 func FeFromBytes(dst *FieldElement, src *Key) {
 	h0 := load4(src[:])
 	h1 := load3(src[4:]) << 6
@@ -117,7 +103,9 @@ func FeFromBytes(dst *FieldElement, src *Key) {
 }
 
 // FeToBytes marshals h to s.
+//
 // Preconditions:
+//
 //   |h| bounded by 1.1*2^25,1.1*2^24,1.1*2^25,1.1*2^24,etc.
 //
 // Write p=2^255-19; q=floor(h/p).
@@ -228,12 +216,14 @@ func FeToBytes(s *Key, h *FieldElement) {
 	s[31] = byte(h[9] >> 18)
 }
 
+// IsNegative returns true if the field element is negative.
 func (f *FieldElement) IsNegative() byte {
 	var s Key
 	FeToBytes(&s, f)
 	return s[0] & 1
 }
 
+// IsNonZero returns the non zero bytes of a field element as int32.
 func (f *FieldElement) IsNonZero() int32 {
 	var s Key
 	FeToBytes(&s, f)
@@ -267,6 +257,7 @@ func FeNeg(h, f *FieldElement) {
 	h[9] = -f[9]
 }
 
+// FeCombine TODO: comment this function
 func FeCombine(h *FieldElement, h0, h1, h2, h3, h4, h5, h6, h7, h8, h9 int64) {
 	var c0, c1, c2, c3, c4, c5, c6, c7, c8, c9 int64
 

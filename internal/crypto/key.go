@@ -1,6 +1,7 @@
 package crypto
 
 import (
+	"github.com/safex/gosafex/internal/crypto/curve"
 	"golang.org/x/crypto/ed25519"
 )
 
@@ -10,11 +11,8 @@ const SeedLength = 32
 // Seed is a (usually random) seqence of bytes.
 type Seed []byte
 
-// BaseKeySize is the length of ed25519 keys (in bytes).
-const BaseKeySize = 32
-
-// Key is the base key type. Deprecated.
-type Key [BaseKeySize]byte
+// Key is the base key type for the crypto/curve package
+type Key curve.Key
 
 // PrivateKey is the alias of the ed25519 PrivateKey.
 type PrivateKey ed25519.PrivateKey

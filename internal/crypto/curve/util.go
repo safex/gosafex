@@ -1,8 +1,8 @@
-package crypto
+package curve
 
 import "encoding/hex"
 
-func HexToKey(h string) (result Key) {
+func hexToKey(h string) (result Key) {
 	byteSlice, _ := hex.DecodeString(h)
 	if len(byteSlice) != 32 {
 		panic("Incorrect key size")

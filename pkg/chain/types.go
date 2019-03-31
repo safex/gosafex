@@ -8,10 +8,10 @@ import (
 )
 
 // DigestType is the alias fto crypto.KeccakHash.
-const DigestType = crypto.KeccakHash
+type DigestType = crypto.KeccakHash
 
 // KeySize is the size of public/private keys (in bytes).
-const KeySize = crypto.KeySize
+const KeySize = crypto.BaseKeySize
 
 // Key is the alias to crypto.Key
 type Key = crypto.Key
@@ -25,11 +25,8 @@ type PrivateKey = crypto.PrivateKey
 // Account is an alias to account.Account
 type Account = account.Account
 
-// TransactionOutput is an alias to safex.Txout
-type TransactionOutput = safex.Txout
-
 // OutputMap is the map of key derivation => txout.
-type OutputMap map[DigestType]*TransactionOutput
+// type OutputMap map[DigestType]*TxOutput
 
 // Client is an alias to safexdrpc.Client.
 type Client = safexdrpc.Client

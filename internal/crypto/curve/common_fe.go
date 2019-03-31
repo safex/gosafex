@@ -1,4 +1,4 @@
-package crypto
+package curve
 
 // FieldElement32 represents an element of the field GF(2^255 - 19). An element
 // t, entries t[0]...t[9], represents the integer t[0]+2^26 t[1]+2^51 t[2]+2^77
@@ -11,7 +11,7 @@ type FieldElement32 [10]int32
 // t[4]*2^204.
 type FieldElement64 [5]uint64
 
-func FeFromBytes32(dst *FieldElement32, src *[32]byte) {
+func feFromBytes32(dst *FieldElement32, src *[32]byte) {
 	h0 := load4(src[:])
 	h1 := load3(src[4:]) << 6
 	h2 := load3(src[7:]) << 5
@@ -26,7 +26,7 @@ func FeFromBytes32(dst *FieldElement32, src *[32]byte) {
 	feCombine(dst, h0, h1, h2, h3, h4, h5, h6, h7, h8, h9)
 }
 
-func FeToBytes32(s *[32]byte, h *FieldElement32) {
+func feToBytes32(s *[32]byte, h *FieldElement32) {
 	var carry [10]int32
 
 	q := (19*h[9] + (1 << 24)) >> 25
@@ -204,7 +204,7 @@ func feCombine(h *FieldElement32, h0, h1, h2, h3, h4, h5, h6, h7, h8, h9 int64) 
 	h[9] = int32(h9)
 }
 
-func FeFromBytes64(v *FieldElement64, x *[32]byte) {
+func feFromBytes64(v *FieldElement64, x *[32]byte) {
 	v[0] = uint64(x[0])
 	v[0] |= uint64(x[1]) << 8
 	v[0] |= uint64(x[2]) << 16
@@ -247,7 +247,7 @@ func FeFromBytes64(v *FieldElement64, x *[32]byte) {
 	v[4] |= uint64(x[31]&127) << 44
 }
 
-func FeToBytes64(r *[32]byte, v *FieldElement64) {
+func feToBytes64(r *[32]byte, v *FieldElement64) {
 	var t FieldElement64
 	feReduce64(&t, v)
 

@@ -10,9 +10,9 @@ var (
 	testPubKeyStr     = "5195ac8b6933ca20d1f09114cffc89b61c6531b7c2228d03ea84dc5b944cbe8a"
 	testPrivKeyStr    = "9fde8d863a3040ff67ccc07c49b55ee4746d4db410fb18bdde7dbd7ccba4180e"
 	testDerivationStr = "9a1bdc439bb8446b5a7cfbbc3279bee5777336d98ba70f5c5a6f6bbbfb07d1b0"
-	testPubKey        = HexToKey(testPubKeyStr)
-	testPrivKey       = HexToKey(testPrivKeyStr)
-	testDerivation    = HexToKey(testDerivationStr)
+	testPubKey        = curve.HexToKey(testPubKeyStr)
+	testPrivKey       = curve.HexToKey(testPrivKeyStr)
+	testDerivation    = curve.HexToKey(testDerivationStr)
 )
 
 func TestDeriveKey(t *testing.T) {

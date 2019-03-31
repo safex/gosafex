@@ -1,13 +1,9 @@
-// Copyright 2016 The Go Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style
-// license that can be found in the LICENSE file.
-
-package crypto
+package curve
 
 // This file contains field element logic that is independent of the
 // representation.
 
-var zero FieldElement
+var zeroFE FieldElement
 
 func load3(in []byte) int64 {
 	var r int64
@@ -26,25 +22,31 @@ func load4(in []byte) int64 {
 	return r
 }
 
+// FeZero sets the field element to zero value.
 func FeZero(fe *FieldElement) {
-	copy(fe[:], zero[:])
+	copy(fe[:], zeroFE[:])
 }
 
+// FeOne sets the field element to value 1.
 func FeOne(fe *FieldElement) {
 	FeZero(fe)
 	fe[0] = 1
 }
 
+// FeCopy copies the field element from src into dst.
 func FeCopy(dst, src *FieldElement) {
 	copy(dst[:], src[:])
 }
 
+// FeIsNegative returns true if the field element value
+// is negative.
 func FeIsNegative(f *FieldElement) byte {
 	var s Key
 	FeToBytes(&s, f)
 	return s[0] & 1
 }
 
+// FeIsNonZero returns non zero bytes of a field element as an int32.
 func FeIsNonZero(f *FieldElement) int32 {
 	var s Key
 	FeToBytes(&s, f)
@@ -58,6 +60,7 @@ func FeIsNonZero(f *FieldElement) int32 {
 	return int32(x & 1)
 }
 
+// FeInvert returns inverts the field element z.
 func FeInvert(out, z *FieldElement) {
 	var t0, t1, t2, t3 FieldElement
 	var i int

@@ -1,23 +1,7 @@
-// Copyright 2017-2018 DERO Project. All rights reserved.
-// Use of this source code in any form is governed by RESEARCH license.
-// license can be found in the LICENSE file.
-// GPG: 0F39 E425 8C65 3947 702A  8234 08B2 0360 A03A 9DE8
-//
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
-// MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL
-// THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-// PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
-// INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-// STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
-// THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+package curve
 
-package crypto
-
-// constants of same name, used for translation
-// d is a constant in the Edwards curve equation.
+// Constants of same name, used for translation.
+// Ie. d is a constant in the Edwards curve equation.
 var d = FieldElement{
 	-10913610, 13857413, -15372611, 6949391, 114729, -8787816, -6275908, -3247719, -18696448, -12055116,
 }
@@ -29,15 +13,15 @@ var d2 = FieldElement{
 }
 var edD2 = d2
 
-var SqrtM1 = FieldElement{
+var sqrtM1 = FieldElement{
 	-32595792, -7943725, 9377950, 3500415, 12389472, -272473, -25146209, -2005654, 326686, 11406482,
 }
-var edSqrtM1 = SqrtM1
+var edSqrtM1 = sqrtM1
 
-var A = FieldElement{
+var a = FieldElement{
 	486662, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 }
-var edA = A
+var edA = a
 
 // precomputed elements for speeding up computations
 var bi = [8]PreComputedGroupElement{
