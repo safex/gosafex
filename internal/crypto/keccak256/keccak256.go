@@ -1,6 +1,8 @@
-package crypto
+package keccak256
 
-import "github.com/ebfe/keccak"
+import (
+	"github.com/ebfe/keccak"
+)
 
 // KeccakHashLength is the length of the keccak hash (in bytes).
 const KeccakHashLength = 32
@@ -8,8 +10,8 @@ const KeccakHashLength = 32
 // KeccakHash are keccak256 digest bytes.
 type KeccakHash []byte
 
-// Keccak256Hasher is can return a keccak256 hash of itself.
-type Keccak256Hasher interface {
+// Hasher is can return a keccak256 hash of itself.
+type Hasher interface {
 	Keccak256(data ...[]byte) (result KeccakHash)
 }
 

@@ -4,4 +4,4 @@ package curve
 const BaseKeySize = 32
 
 // Key is the base key type. Deprecated.
-type Key [BaseKeySize]byte
+type Key = [BaseKeySize]byte

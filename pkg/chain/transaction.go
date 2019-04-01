@@ -59,7 +59,7 @@ func (out *TxOutput) Process() {
 	// 				continue
 	// 			}
 
-	// 			ephermal_secret := derivation.KeyDerivation_To_PrivateKey(uint64(index), w.Address.SpendKey.Private, derivation.Key(txPubKeyDerivation))
+	// 			ephermal_secret := derivation.DerivationToPrivateKey(uint64(index), w.Address.SpendKey.Private, derivation.Key(txPubKeyDerivation))
 	// 			ephermal_public := derivation.KeyDerivation_To_PublicKey(uint64(index), derivation.Key(txPubKeyDerivation), w.Address.SpendKey.Public)
 	// 			keyimage := derivation.GenerateKeyImage(ephermal_public, ephermal_secret)
 
@@ -130,7 +130,7 @@ func matchOutput(txOut *safex.Txout, index uint64, der [32]byte, outputKey *[32]
 // 				continue
 // 			}
 
-// 			ephermal_secret := derivation.KeyDerivation_To_PrivateKey(uint64(index), w.Address.SpendKey.Private, derivation.Key(txPubKeyDerivation))
+// 			ephermal_secret := derivation.DerivationToPrivateKey(uint64(index), w.Address.SpendKey.Private, derivation.Key(txPubKeyDerivation))
 // 			ephermal_public := derivation.KeyDerivation_To_PublicKey(uint64(index), derivation.Key(txPubKeyDerivation), w.Address.SpendKey.Public)
 // 			keyimage := derivation.GenerateKeyImage(ephermal_public, ephermal_secret)
 

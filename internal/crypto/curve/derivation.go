@@ -1,5 +1,12 @@
 package curve
 
+import (
+	"bytes"
+	"encoding/binary"
+
+	"github.com/safex/gosafex/internal/crypto/keccak256"
+)
+
 // DeriveKey derives a new private key derivation from a given public key
 // and a secret.
 func DeriveKey(pub Key, priv Key) Key {
@@ -24,6 +31,7 @@ func DeriveKey(pub Key, priv Key) Key {
 	return tmp
 }
 
+// DerivationToPublicKey TODO: comment function
 func DerivationToPublicKey(idx uint64, derivation Key, baseKey Key) Key {
 	var point1, point2 ExtendedGroupElement
 	var point3 CachedGroupElement
@@ -43,7 +51,8 @@ func DerivationToPublicKey(idx uint64, derivation Key, baseKey Key) Key {
 	return tmp
 }
 
-func KeyDerivation_To_PrivateKey(outputIndex uint64, baseKey Key, kd Key) Key {
+// DerivationToPrivateKey TODO: comment function
+func DerivationToPrivateKey(outputIndex uint64, baseKey Key, kd Key) Key {
 	scalar := KeyDerivationToScalar(outputIndex, kd)
 
 	tmp := baseKey
@@ -51,10 +60,11 @@ func KeyDerivation_To_PrivateKey(outputIndex uint64, baseKey Key, kd Key) Key {
 	return tmp
 }
 
-func GenerateKeyImage(pub Key, private Key) Key {
+// GenerateKeyImage returns a key image.
+func GenerateKeyImage(pub, private Key) Key {
 	var proj ProjectiveGroupElement
 
-	ext := HashToEC(pub)
+	ext := HashToEC(pub[:])
 	GeScalarMult(&proj, &private, ext)
 
 	var ki Key
@@ -62,6 +72,7 @@ func GenerateKeyImage(pub Key, private Key) Key {
 	return ki
 }
 
+// HashToEC returns an extended group element from a given hash.
 func HashToEC(data []byte) (result *ExtendedGroupElement) {
 	result = new(ExtendedGroupElement)
 	var p1 ProjectiveGroupElement
@@ -75,5 +86,30 @@ func HashToEC(data []byte) (result *ExtendedGroupElement) {
 	// fmt.Printf("p1 %+v\n", p1)
 	GeMul8(&p2, &p1)
 	p2.toExtended(result)
+	return
+}
+
+// KeyDerivationToScalar converts a key derivation
+// into a scalar key representation.
+func KeyDerivationToScalar(outputIndex uint64, derivation Key) (scalar *Key) {
+	tmp := make([]byte, 12, 12)
+
+	length := binary.PutUvarint(tmp, outputIndex)
+	tmp = tmp[:length]
+
+	var buf bytes.Buffer
+	buf.Write(derivation[:])
+	buf.Write(tmp)
+	scalar = HashToScalar(buf.Bytes())
+	return
+}
+
+// HashToScalar hashes data bytes using keccak256
+// and transfoms it into a key point.
+func HashToScalar(data ...[]byte) (result *Key) {
+	result = new(Key)
+	temp := keccak256.Keccak256(data...)
+	copy(result[:], temp[:32])
+	ScReduce32(result)
 	return
 }

@@ -55,11 +55,11 @@ func getPaymentID(nid *NetworkID, raw []byte) (PaymentID, error) {
 
 func computeChecksum(raw []byte) []byte {
 	// Return the first ChecksumSize bytes of the Keccak hash as checksum
-	return crypto.Keccak256(raw)[:ChecksumSize]
+	return crypto.Digest(raw)[:ChecksumSize]
 }
 
 func verifyChecksum(raw []byte) error {
-	checksum := crypto.Keccak256(raw[:len(raw)-ChecksumSize])
+	checksum := crypto.Digest(raw[:len(raw)-ChecksumSize])
 	if bytes.Compare(checksum, raw[len(raw)-ChecksumSize:]) != 0 {
 		return ErrInvalidChecksum
 	}
