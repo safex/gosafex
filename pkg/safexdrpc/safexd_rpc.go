@@ -1,18 +1,19 @@
 package safexdrpc
 
 import (
-	"github.com/safex/gosafex/pkg/safex"
-	"github.com/golang/protobuf/proto"
 	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/tidwall/gjson"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"strconv"
 	"time"
+
+	"github.com/golang/protobuf/proto"
+	"github.com/safex/gosafex/pkg/safex"
+	"github.com/tidwall/gjson"
 )
 
 // Type declarations for building JSON-like object
@@ -20,9 +21,9 @@ type JSONElement = map[string]interface{}
 type JSONArray = []interface{}
 
 type Client struct {
-	Port uint
-	Host string
-	ID   uint
+	Port       uint
+	Host       string
+	ID         uint
 	httpClient http.Client
 }
 
@@ -73,7 +74,7 @@ func (c *Client) Close() {
 }
 
 func (c Client) JSONSafexdCall(method string, params interface{}) ([]byte, error) {
-	body := map[string]interface{} {"jsonrpc":"2.0", "id":1, "method":method, "params":params}
+	body := map[string]interface{}{"jsonrpc": "2.0", "id": 1, "method": method, "params": params}
 	url := "http://" + c.Host + ":" + strconv.Itoa(int(c.Port)) + "/json_rpc"
 
 	jsonBuff, _ := json.Marshal(body)
@@ -100,7 +101,7 @@ func (c Client) JSONSafexdCall(method string, params interface{}) ([]byte, error
 	return resBody, err
 }
 
-func (c Client) SafexdCall(method string, params interface{}, httpMethod string) ([]byte,error) {
+func (c Client) SafexdCall(method string, params interface{}, httpMethod string) ([]byte, error) {
 	var body []byte
 	var err error
 	if params == nil {
@@ -155,20 +156,20 @@ func (c Client) OnGetBlockHash(height uint64) (hash string, err error) {
 }
 
 func getSliceForPath(input []byte, path string) []byte {
-	temp := gjson.GetBytes(input,path)
-	return input[temp.Index:temp.Index+len(temp.Raw)]
+	temp := gjson.GetBytes(input, path)
+	return input[temp.Index : temp.Index+len(temp.Raw)]
 }
 
 func (c Client) GetDaemonInfo() (info safex.DaemonInfo, err error) {
 	result, err := c.SafexdCall("get_info", nil, "POST")
 	must(err)
-	err = json.Unmarshal(result,&info)
+	err = json.Unmarshal(result, &info)
 	must(err)
 	return info, err
 }
 
-func (c Client) GetHardForkInfo() (info safex.HardForkInfo, err error) {
-	result, err := c.JSONSafexdCall("hard_fork_info", JSONElement{})
+func (c Client) GetHardForkInfo(version uint32) (info safex.HardForkInfo, err error) {
+	result, err := c.JSONSafexdCall("hard_fork_info", JSONElement{"version": version})
 	must(err)
 
 	err = json.Unmarshal(getSliceForPath(result, "result"), &info)
@@ -177,15 +178,23 @@ func (c Client) GetHardForkInfo() (info safex.HardForkInfo, err error) {
 }
 
 func (c Client) GetTransactions(hashes []string) (txs safex.Transactions, err error) {
-	result, err := c.SafexdCall("proto/get_transactions", JSONElement{"txs_hashes":hashes}, "POST")
+	result, err := c.SafexdCall("proto/get_transactions", JSONElement{"txs_hashes": hashes}, "POST")
 	err = proto.Unmarshal(result, &txs)
 	must(err)
 	return txs, err
 }
 
 func (c Client) GetBlocks(start uint64, end uint64) (blcks safex.Blocks, err error) {
-	result, err := c.SafexdCall("proto/get_blocks", JSONElement{"start_height":start, "end_height" : end}, "POST")
+	result, err := c.SafexdCall("proto/get_blocks", JSONElement{"start_height": start, "end_height": end}, "POST")
 	err = proto.Unmarshal(result, &blcks)
 	must(err)
 	return blcks, err
+}
+
+func (c Client) GetDynamicFeeEstimate() (fee uint64, err error) {
+	result, err := c.JSONSafexdCall("get_fee_estimate", JSONElement{})
+	must(err)
+	fee = uint64(gjson.GetBytes(result, "result.fee").Num)
+
+	return fee, err
 }

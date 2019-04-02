@@ -18,8 +18,6 @@ type Balance struct {
 	TokenLocked   uint64
 }
 
-type KeyType = []byte
-
 type Key struct {
 	Public  [32]byte
 	Private [32]byte
