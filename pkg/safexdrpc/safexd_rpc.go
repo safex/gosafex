@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -79,7 +78,7 @@ func (c Client) JSONSafexdCall(method string, params interface{}) ([]byte, error
 
 	jsonBuff, _ := json.Marshal(body)
 
-	fmt.Println(string(jsonBuff))
+	//fmt.Println(string(jsonBuff))
 
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonBuff))
 	must(err)
@@ -113,7 +112,7 @@ func (c Client) SafexdCall(method string, params interface{}, httpMethod string)
 	must(err)
 	url := "http://" + c.Host + ":" + strconv.Itoa(int(c.Port)) + "/" + method
 
-	fmt.Println(string(body))
+	//fmt.Println(string(body))
 
 	req, err := http.NewRequest(httpMethod, url, bytes.NewBuffer(body))
 	must(err)

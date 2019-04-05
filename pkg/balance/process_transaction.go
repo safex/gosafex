@@ -47,7 +47,7 @@ func (w *Wallet) matchOutput(txOut *safex.Txout, index uint64, der [32]byte, out
 	return *outputKey == [32]byte(derivatedPubKey)
 }
 
-func (w *Wallet) ProcessTransaction(tx *safex.Transaction) {
+func (w *Wallet) ProcessTransaction(tx *safex.Transaction, minerTx bool) {
 	// @todo Process Unconfirmed.
 	// Process outputs
 	if len(tx.Vout) != 0 {
@@ -67,7 +67,7 @@ func (w *Wallet) ProcessTransaction(tx *safex.Transaction) {
 			keyimage := derivation.GenerateKeyImage(ephermal_public, ephermal_secret)
 
 			if _, ok := w.outputs[keyimage]; !ok {
-				w.outputs[keyimage] = output
+				w.outputs[keyimage] = Transfer{output, false, minerTx, tx.BlockHeight}
 				w.balance.CashLocked += output.Amount
 				w.balance.TokenLocked += output.TokenAmount
 			}
@@ -85,13 +85,15 @@ func (w *Wallet) ProcessTransaction(tx *safex.Transaction) {
 				copy(kImage[:], input.TxinToKey.KImage[0:32])
 
 				if val, ok := w.outputs[derivation.Key(kImage)]; ok {
-					w.balance.CashLocked -= val.Amount
+					w.balance.CashLocked -= val.Output.Amount
+					val.Spent = true
 				}
 			} else {
 				if input.TxinTokenToKey != nil {
 					copy(kImage[:], input.TxinTokenToKey.KImage[0:32])
 					if val, ok := w.outputs[derivation.Key(kImage)]; ok {
-						w.balance.TokenLocked -= val.TokenAmount
+						w.balance.TokenLocked -= val.Output.TokenAmount
+						val.Spent = true
 					}
 				}
 			}

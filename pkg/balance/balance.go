@@ -29,11 +29,27 @@ type Address struct {
 	Address  string
 }
 
+// Data structure for storing outputs.
+type Transfer struct {
+	Output  *safex.Txout
+	Spent   bool
+	MinerTx bool
+	Height  uint64
+}
+
 type Wallet struct {
 	balance Balance
 	Address Address
 	client  *safexdrpc.Client
-	outputs map[derivation.Key]*safex.Txout // Save output keys.
+	outputs map[derivation.Key]Transfer // Save output keys.
+}
+
+func (t Transfer) IsUnlocked(height uint64) bool {
+	if t.MinerTx {
+		return height-t.Height > 60
+	} else {
+		return height-t.Height > 10
+	}
 }
 
 // @todo:  Move this to some config, or recalculate based on response time
@@ -45,9 +61,10 @@ func (w *Wallet) ProcessBlockRange(blocks safex.Blocks) bool {
 	// @todo This must be refactored due new discoveries regarding get_tx_hash
 	// Get transaction hashes
 	var txs []string
+	var minerTxs []string
 	for _, blck := range blocks.Block {
 		txs = append(txs, blck.Txs...)
-		txs = append(txs, blck.MinerTx)
+		minerTxs = append(minerTxs, blck.MinerTx)
 	}
 
 	// Get transaction data and process.
@@ -57,14 +74,26 @@ func (w *Wallet) ProcessBlockRange(blocks safex.Blocks) bool {
 	}
 
 	for _, tx := range loadedTxs.Tx {
-		w.ProcessTransaction(tx)
+		w.ProcessTransaction(tx, false)
+	}
+
+	mloadedTxs, err := w.client.GetTransactions(minerTxs)
+	if err != nil {
+		return false
+	}
+
+	fmt.Println("Len of minerTxs: ", len(minerTxs))
+	fmt.Println("Len of mloadedTxs: ", len(mloadedTxs.Tx))
+
+	for _, tx := range mloadedTxs.Tx {
+		w.ProcessTransaction(tx, true)
 	}
 
 	return true
 }
 
 func (w *Wallet) GetBalance() (b Balance, err error) {
-	w.outputs = make(map[derivation.Key]*safex.Txout)
+	w.outputs = make(map[derivation.Key]Transfer)
 	// Connect to node.
 	w.client = safexdrpc.InitClient("127.0.0.1", 38001)
 
@@ -102,7 +131,6 @@ func (w *Wallet) GetBalance() (b Balance, err error) {
 		// Process block
 		w.ProcessBlockRange(blocks)
 
-		fmt.Println("---------------------------------------------------------------------------------------------")
 		curr = end
 	}
 
