@@ -1,13 +1,13 @@
 package chain
 
-import "github.com/safex/gosafex/internal/crypto"
+// TODO: figure out where to place the wallet struct.
 
 // Wallet is a structure containing an Account, its Balance and tx Outputs.
 type Wallet struct {
 	balance Balance
 	account Account
 	client  *Client
-	outputs OutputMap
+	// outputs OutputMap
 }
 
 // BlockFetchCnt is the the nubmer of blocks to fetch at once.
@@ -27,9 +27,3 @@ const BlockFetchCnt = 100
 // 	copy(outputKey[:], outKeyTemp[:32])
 // 	return *outputKey == [32]byte(derivatedPubKey)
 // }
-
-func (w *Wallet) outputToKey(output TransactionOutput, idx uint64, derivation Key) (result Key, err error) {
-	spendPub := w.account.PublicSpendKey()
-	derPub := crypto.DerivationToPublicKey(idx, derivation, spendPub)
-	panic("not implemented")
-}

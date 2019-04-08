@@ -1,5 +1,13 @@
 package chain
 
+// Balance contains token and cash locked/unlocked balances.
+type Balance struct {
+	CashUnlocked  uint64
+	CashLocked    uint64
+	TokenUnlocked uint64
+	TokenLocked   uint64
+}
+
 // // ProcessBlockRange processes all transactions in a range of blocks.
 // func (w *Wallet) ProcessBlockRange(blocks safex.Blocks) bool {
 // 	// @todo Here handle block metadata.

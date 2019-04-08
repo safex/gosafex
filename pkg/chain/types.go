@@ -3,18 +3,19 @@ package chain
 import (
 	"github.com/safex/gosafex/internal/crypto"
 	"github.com/safex/gosafex/pkg/account"
+	"github.com/safex/gosafex/pkg/key"
 	"github.com/safex/gosafex/pkg/safex"
 	"github.com/safex/gosafex/pkg/safexdrpc"
 )
 
-// DigestType is the alias fto crypto.KeccakHash.
-type DigestType = crypto.KeccakHash
+// Digest is the alias to crypto.Digest.
+type Digest = crypto.Digest
 
 // KeySize is the size of public/private keys (in bytes).
-const KeySize = crypto.BaseKeySize
+const KeySize = crypto.KeySize
 
-// Key is the alias to crypto.Key
-type Key = crypto.Key
+// Key is the alias to key.CurveKey.
+type Key = key.CurveKey
 
 // PublicKey is an alias to crypto.PublicKey.
 type PublicKey = crypto.PublicKey
@@ -31,13 +32,8 @@ type Account = account.Account
 // Client is an alias to safexdrpc.Client.
 type Client = safexdrpc.Client
 
-// Transaction is an alias to safex.Transaction
-type Transaction = safex.Transaction
+// TxInputV is the alias to safex.TxinV.
+type TxInputV = safex.TxinV
 
-// Balance contains token and cash locked/unlocked balances.
-type Balance struct {
-	CashUnlocked  uint64
-	CashLocked    uint64
-	TokenUnlocked uint64
-	TokenLocked   uint64
-}
+// TxOut is the alias to safex.Txout.
+type TxOut = safex.Txout
