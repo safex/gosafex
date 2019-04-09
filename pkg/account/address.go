@@ -168,3 +168,8 @@ func (adr *Address) IsTestnet() bool {
 func (adr *Address) IsIntegrated() bool {
 	return adr.NetworkID.AddressType() == IntegratedAddressType
 }
+
+// IsSameNetwork will return true if the given address has the exact same network type.
+func (adr *Address) IsSameNetwork(b *Address) bool {
+	return adr.NetworkID.NetworkType() == b.NetworkID.NetworkType()
+}
