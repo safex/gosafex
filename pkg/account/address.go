@@ -173,3 +173,23 @@ func (adr *Address) IsIntegrated() bool {
 func (adr *Address) IsSameNetwork(b *Address) bool {
 	return adr.NetworkID.NetworkType() == b.NetworkID.NetworkType()
 }
+
+func equalPaymentIDs(a, b PaymentID) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i, v := range a {
+		if v != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
+// Equals will return true if the Address is the same.
+func (adr *Address) Equals(other *Address) bool {
+	return adr.NetworkID == other.NetworkID &&
+		EqualPubKeys(adr.SpendKey, adr.SpendKey) &&
+		EqualPubKeys(adr.ViewKey, adr.ViewKey) &&
+		equalPaymentIDs(adr.PaymentID, other.PaymentID)
+}
