@@ -30,7 +30,7 @@ var (
 		prefix:         MainnetRegularAddressPrefix,
 		addressType:    RegularAddressType,
 		networkType:    MainnetNetworkType,
-		spendingKeyHex: "d645dd142d38c950d5d38c7d81c3fff2ff9c8e267169dc1c896ed9b84509ca84",
+		spendingKeyHex: "d645dd142d38c950d5d38c7d81c3fff2ff9c8e267169dc2c896ed9b84509ca84",
 		viewKeyHex:     "0fadcae4d1c82d3cd3f62c5c27ce036cc2c7617cb19f4bcef17cf4650d949ff6",
 		adrStr:         "Safex616cpc4NjrBS34ciXMzaJL6y8fUZ7RwqYVuUjdJXpeWbNXcr2ufGqTHWjiMKZGR2NcMFPap8Mrgp6z9Ndb9HuLnfUQMs2R11",
 	}
@@ -102,6 +102,31 @@ func Test_AddressFromBase58(t *testing.T) {
 			// Convert address back to base58
 			if res := adr.String(); (res != tt.tVec.adrStr) != tt.wantErr {
 				t.Errorf("Address.String() = %v, want %v", res, tt.tVec.adrStr)
+			}
+		})
+	}
+}
+
+func TestAddress_Equals(t *testing.T) {
+	tests := []struct {
+		name string
+		a    string
+		b    string
+		want bool
+	}{
+		{
+			name: "passes, true",
+			a:    validMainnet.adrStr,
+			b:    validMainnet.adrStr,
+			want: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			a, _ := FromBase58(tt.a)
+			b, _ := FromBase58(tt.b)
+			if got := a.Equals(b); got != tt.want {
+				t.Errorf("Address.Equals() = %v, want %v", got, tt.want)
 			}
 		})
 	}

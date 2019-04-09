@@ -72,3 +72,29 @@ func KeySetFromSeed(seed Seed) *KeySet {
 	view := KeyPairFromSeed(viewSeed)
 	return NewKeySet(view, spend)
 }
+
+// EqualPubKeys will return true if given public keys are equal.
+func EqualPubKeys(a, b PublicKey) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i, v := range a {
+		if v != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
+// EqualPrivKeys will return true if given private keys are equal.
+func EqualPrivKeys(a, b PrivateKey) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i, v := range a {
+		if v != b[i] {
+			return false
+		}
+	}
+	return true
+}
