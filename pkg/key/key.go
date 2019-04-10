@@ -3,7 +3,7 @@ package key
 import (
 	"github.com/safex/gosafex/internal/crypto"
 	"golang.org/x/crypto/ed25519"
-)
+)``
 
 func fromSeed(seed Seed) (PublicKey, PrivateKey) {
 	privKey := ed25519.NewKeyFromSeed(seed)
