@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 
-	"github.com/safex/gosafex/internal/crypto/keccak256"
+	"github.com/safex/gosafex/internal/crypto/hash"
 )
 
 // DeriveKey derives a new private key derivation from a given public key
@@ -108,7 +108,7 @@ func KeyDerivationToScalar(outputIndex uint64, derivation Key) (scalar *Key) {
 // and transfoms it into a key point.
 func HashToScalar(data ...[]byte) (result *Key) {
 	result = new(Key)
-	temp := keccak256.Keccak256(data...)
+	temp := hash.Keccak256(data...)
 	copy(result[:], temp[:32])
 	ScReduce32(result)
 	return
