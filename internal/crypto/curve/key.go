@@ -2,6 +2,7 @@ package curve
 
 import (
 	"crypto/sha512"
+	"encoding/hex"
 	"fmt"
 
 	"github.com/safex/gosafex/internal/random"
@@ -42,6 +43,16 @@ func NewFromBytes(data []byte) (result *Key, err error) {
 	result = new(Key)
 	copy(result[:], data)
 	return
+}
+
+// NewFromString will create a new Key
+// from its hexadecimal string representation.
+func NewFromString(raw string) (result *Key, err error) {
+	buf, err := hex.DecodeString(raw)
+	if err != nil {
+		return nil, err
+	}
+	return NewFromBytes(buf)
 }
 
 // NewKeyFromSeed calculates a private key from a given seed.
