@@ -33,6 +33,17 @@ func NewRandomScalar() (result *Key) {
 	return
 }
 
+// NewFromBytes will create a new Key from data bytes.
+// Returns an error if sequence length is invalid.
+func NewFromBytes(data []byte) (result *Key, err error) {
+	if len(data) != KeyLength {
+		return nil, ErrKeyLength
+	}
+	result = new(Key)
+	copy(result[:], data)
+	return
+}
+
 // NewKeyFromSeed calculates a private key from a given seed.
 // This function is provided for interoperability
 // with RFC 8032. RFC 8032's private keys correspond to seeds in this
@@ -55,4 +66,9 @@ func NewKeyFromSeed(seed Seed) (pub, priv *Key) {
 // Returns a hex string representation of the key.
 func (key Key) String() string {
 	return fmt.Sprintf("%x", key[:])
+}
+
+// ToBytes implements ByteMarshaller.
+func (key Key) ToBytes() []byte {
+	return key[:]
 }
