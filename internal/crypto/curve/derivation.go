@@ -7,28 +7,32 @@ import (
 	"github.com/safex/gosafex/internal/crypto/hash"
 )
 
-// DeriveKey derives a new private key derivation from a given public key
-// and a secret.
-func DeriveKey(pub Key, priv Key) Key {
-	var point ExtendedGroupElement
-	var point2 ProjectiveGroupElement
-	var point3 CompletedGroupElement
+// DeriveKey derives a new private key derivation
+// from a given public key and a secret (private key).
+// Returns ErrInvalidPrivKey if the given private key (secret)
+// is invalid.
+// Returns ErrInvalidPubKey if the given public key is invalid.
+func DeriveKey(pub, priv *Key) (result *Key, err error) {
+	point := new(ExtendedGroupElement)
+	point2 := new(ProjectiveGroupElement)
+	point3 := new(CompletedGroupElement)
+	keyBuf := new(Key)
 
-	if !ScCheck(&priv) {
-		panic("Invalid private key.")
+	if ok := ScCheck(priv); !ok {
+		return nil, ErrInvalidPrivKey
 	}
-	tmp := pub
-	if !point.fromBytes(&tmp) {
-		panic("Invalid public key.")
+	copy(keyBuf[:], pub[:]) // TODO: remove key copying.
+	if ok := point.fromBytes(keyBuf); !ok {
+		return nil, ErrInvalidPubKey
 	}
 
-	tmp = priv
-	GeScalarMult(&point2, &tmp, &point)
-	GeMul8(&point3, &point2)
-	point3.toProjective(&point2)
+	copy(keyBuf[:], priv[:])
+	GeScalarMult(point2, keyBuf, point)
+	GeMul8(point3, point2)
+	point3.toProjective(point2)
 
-	point2.toBytes(&tmp)
-	return tmp
+	point2.toBytes(keyBuf)
+	return keyBuf, nil
 }
 
 // DerivationToPublicKey TODO: comment function
