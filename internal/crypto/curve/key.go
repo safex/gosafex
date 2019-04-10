@@ -73,6 +73,21 @@ func NewKeyFromSeed(seed Seed) (pub, priv *Key) {
 	return pub, priv
 }
 
+// ToPublic will return the computed public key of
+// a private key.
+func (key *Key) ToPublic() (result *Key) {
+	point := new(ExtendedGroupElement)
+	GeScalarMultBase(point, key)
+	result = new(Key)
+	point.toBytes(result)
+	return
+}
+
+// ValidPublic returns true if the key is a valid public key.
+func (key *Key) ValidPublic() bool {
+	return new(ExtendedGroupElement).fromBytes(key)
+}
+
 // String implements the Stringer interface.
 // Returns a hex string representation of the key.
 func (key Key) String() string {
