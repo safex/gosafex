@@ -4,7 +4,7 @@ package random
 const SequenceLength = 64
 
 // Sequence is an array of bytes.
-type Sequence [SequenceLength]byte
+type Sequence = [SequenceLength]byte
 
 // SequenceCache is a cache of sequence ptrs.
 type SequenceCache []*Sequence
