@@ -1,6 +1,6 @@
 package common
 
-// ToByteSerializer can serialize itself as []byte.
-type ToByteSerializer interface {
+// ByteMarshaller can serialize itself as []byte.
+type ByteMarshaller interface {
 	ToBytes() []byte
 }
