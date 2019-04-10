@@ -36,8 +36,8 @@ func NewGenerator(isCaching bool, cacheSize int) (result *Generator) {
 	return result
 }
 
-func (g *Generator) cacheSequence(seq Sequence) {
-	g.cache = append(g.cache, &seq)
+func (g *Generator) cacheSequence(seq *Sequence) {
+	g.cache = append(g.cache, seq)
 	if len(g.cache) > g.cacheSize {
 		g.cache = g.cache[1:] // TODO: test this
 	}
@@ -47,9 +47,10 @@ func (g *Generator) cacheSequence(seq Sequence) {
 // This sequence MUST be of SequenceLength.
 // Panics if the sequence of exact size could not be generated.
 // This implementation uses 'crypto/rand'.
-func (g *Generator) NewSequence() (result Sequence) {
+func (g *Generator) NewSequence() (result *Sequence) {
+	result = new(Sequence)
 	buf := make([]byte, SequenceLength)
-	n, err := rand.Read(buf)
+	n, err := rand.Read(buf[:])
 	if err != nil || n != SequenceLength {
 		panic("Failed to generate random sequence")
 	}

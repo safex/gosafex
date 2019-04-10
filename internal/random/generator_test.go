@@ -99,20 +99,21 @@ func TestGenerator_NewSequence(t *testing.T) {
 		cache     SequenceCache
 	}
 	tests := []struct {
-		name           string
-		fields         fields
-		wantResultSize int
-		wantCacheSize  int
+		name          string
+		fields        fields
+		wantCacheSize int
 	}{
 		{
-			name:           "passes, generates a valid length sequence without caching",
-			wantResultSize: SequenceLength,
+			name:          "passes, generates a valid length sequence without caching",
+			wantCacheSize: 0,
 		},
 		{
-			name:           "passes, generate and caches a valid length sequence",
-			fields:         fields{cacheSize: 1},
-			wantResultSize: SequenceLength,
-			wantCacheSize:  1,
+			name: "passes, generate and caches a valid length sequence",
+			fields: fields{
+				cacheSize: 12,
+				cache:     newCacheFromStr("TEST1", "TEST2"),
+			},
+			wantCacheSize: 3,
 		},
 	}
 	for _, tt := range tests {
@@ -121,12 +122,7 @@ func TestGenerator_NewSequence(t *testing.T) {
 				cacheSize: tt.fields.cacheSize,
 				cache:     tt.fields.cache,
 			}
-			gotResult := g.NewSequence()
-			gotResultSize := len(gotResult)
-			if gotResultSize != tt.wantResultSize {
-				t.Errorf("Generator.NewSequence() sequence length = %v, want %v",
-					gotResultSize, tt.wantResultSize)
-			}
+			g.NewSequence()
 			postCacheSize := len(g.cache)
 			if !reflect.DeepEqual(postCacheSize, tt.wantCacheSize) {
 				t.Errorf("Generator.NewSequence() bad cache size: got = %v, want = %v",
