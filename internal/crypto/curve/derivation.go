@@ -27,6 +27,20 @@ func derivationToScalar(outIdx uint64, der *Key) (result *Key) {
 	return hashToScalar(buf.Bytes())
 }
 
+func hashToEC(data []byte) (result *ExtendedGroupElement) {
+	result = new(ExtendedGroupElement)
+	p1 := new(ProjectiveGroupElement)
+	p2 := new(CompletedGroupElement)
+	keyBuf := new(Key)
+
+	copy(keyBuf[:], data[:KeyLength]) // TODO: remove key copying.
+	p1.fromBytes(keyBuf)
+	GeMul8(p2, p1)
+
+	p2.toExtended(result)
+	return
+}
+
 // DeriveKey derives a new private key derivation
 // from a given public key and a secret (private key).
 // Returns ErrInvalidPrivKey if the given private key (secret)
@@ -88,31 +102,14 @@ func DerivationToPublicKey(idx uint64, der, base *Key) (result *Key, err error) 
 	return keyBuf, nil
 }
 
-// GenerateKeyImage returns a key image.
-func GenerateKeyImage(pub, private Key) Key {
-	var proj ProjectiveGroupElement
+// KeyImage will return a key image generated from
+// a public/private key pair.
+func KeyImage(pub, priv *Key) (result *Key) {
+	result = new(Key)
+	proj := new(ProjectiveGroupElement)
 
-	ext := HashToEC(pub[:])
-	GeScalarMult(&proj, &private, ext)
-
-	var ki Key
-	proj.toBytes(&ki)
-	return ki
-}
-
-// HashToEC returns an extended group element from a given hash.
-func HashToEC(data []byte) (result *ExtendedGroupElement) {
-	result = new(ExtendedGroupElement)
-	var p1 ProjectiveGroupElement
-	var p2 CompletedGroupElement
-
-	var h Key
-	copy(h[:], data[:32])
-
-	p1.fromBytes(&h)
-
-	// fmt.Printf("p1 %+v\n", p1)
-	GeMul8(&p2, &p1)
-	p2.toExtended(result)
+	ext := pub.toECPoint()
+	GeScalarMult(proj, pub, ext)
+	proj.toBytes(result)
 	return
 }

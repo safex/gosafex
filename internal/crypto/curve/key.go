@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 
+	"github.com/safex/gosafex/internal/crypto/hash"
 	"github.com/safex/gosafex/internal/random"
 )
 
@@ -23,6 +24,12 @@ type Key [KeyLength]byte
 
 // Seed is a random sequence used a seed for generating keys.
 type Seed = [SeedLength]byte
+
+// New will construct a new key with the given data.
+func New(data [KeyLength]byte) *Key {
+	key := Key(data)
+	return &key
+}
 
 // NewRandomScalar generates a new random key as a scalar point on the
 // ed25519 curve.
@@ -71,6 +78,18 @@ func NewKeyFromSeed(seed Seed) (pub, priv *Key) {
 	GeScalarMultBase(A, hashBuf)
 
 	return pub, priv
+}
+
+func (key *Key) toECPoint() (result *ExtendedGroupElement) {
+	result = new(ExtendedGroupElement)
+	p1 := new(ProjectiveGroupElement)
+	p2 := new(CompletedGroupElement)
+
+	hashedKey := New(hash.Keccak256(key[:])) // TODO: prevent copying.
+	p1.fromBytes(hashedKey)
+	GeMul8(p2, p1)
+	p2.toExtended(result)
+	return
 }
 
 // ToPublic will return the computed public key of
