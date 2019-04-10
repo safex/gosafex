@@ -88,6 +88,11 @@ func (key *Key) ValidPublic() bool {
 	return new(ExtendedGroupElement).fromBytes(key)
 }
 
+// ValidPrivate returns true if the key is a valid private key.
+func (key *Key) ValidPrivate() bool {
+	return ScCheck(key)
+}
+
 // String implements the Stringer interface.
 // Returns a hex string representation of the key.
 func (key Key) String() string {
