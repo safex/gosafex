@@ -7,6 +7,26 @@ import (
 	"github.com/safex/gosafex/internal/crypto/hash"
 )
 
+func hashToScalar(data ...[]byte) (result *Key) {
+	result = new(Key)
+	buf := hash.Keccak256(data...)
+	copy(result[:], buf[:32])
+	ScReduce32(result)
+	return
+}
+
+func idxToVarint(idx uint64) (result []byte) {
+	result = make([]byte, 12, 12) // TODO: understand why 12 bytes.
+	length := binary.PutUvarint(result, idx)
+	return result[:length]
+}
+
+func derivationToScalar(outIdx uint64, der *Key) (result *Key) {
+	buf := bytes.NewBuffer(der[:])
+	buf.Write(idxToVarint(outIdx))
+	return hashToScalar(buf.Bytes())
+}
+
 // DeriveKey derives a new private key derivation
 // from a given public key and a secret (private key).
 // Returns ErrInvalidPrivKey if the given private key (secret)
@@ -35,33 +55,37 @@ func DeriveKey(pub, priv *Key) (result *Key, err error) {
 	return keyBuf, nil
 }
 
-// DerivationToPublicKey TODO: comment function
-func DerivationToPublicKey(idx uint64, derivation Key, baseKey Key) Key {
-	var point1, point2 ExtendedGroupElement
-	var point3 CachedGroupElement
-	var point4 CompletedGroupElement
-	var point5 ProjectiveGroupElement
-
-	tmp := baseKey
-	if !point1.fromBytes(&tmp) {
-		panic("Invalid public key.")
-	}
-	scalar := KeyDerivationToScalar(idx, derivation)
-	GeScalarMultBase(&point2, scalar)
-	point2.toCached(&point3)
-	geAdd(&point4, &point1, &point3)
-	point4.toProjective(&point5)
-	point5.toBytes(&tmp)
-	return tmp
+// DerivationToPrivateKey will compute an ephemereal private key based on
+// the key derivation, the given output index and the given private spend.
+func DerivationToPrivateKey(idx uint64, base, der *Key) (result *Key) {
+	keyBuf := new(Key)
+	scalar := derivationToScalar(idx, der)
+	copy(keyBuf[:], base[:])
+	ScAdd(keyBuf, keyBuf, scalar)
+	return keyBuf
 }
 
-// DerivationToPrivateKey TODO: comment function
-func DerivationToPrivateKey(outputIndex uint64, baseKey Key, kd Key) Key {
-	scalar := KeyDerivationToScalar(outputIndex, kd)
+// DerivationToPublicKey TODO: comment function
+func DerivationToPublicKey(idx uint64, der, base *Key) (result *Key, err error) {
+	point1 := new(ExtendedGroupElement)
+	point2 := new(ExtendedGroupElement)
+	point3 := new(CachedGroupElement)
+	point4 := new(CompletedGroupElement)
+	point5 := new(ProjectiveGroupElement)
+	keyBuf := new(Key)
 
-	tmp := baseKey
-	ScAdd(&tmp, &tmp, scalar)
-	return tmp
+	copy(keyBuf[:], base[:]) // TODO: prevent copying.
+	if !point1.fromBytes(keyBuf) {
+		return nil, ErrInvalidPubKey
+	}
+
+	scalar := derivationToScalar(idx, der)
+	GeScalarMultBase(point2, scalar)
+	point2.toCached(point3)
+	geAdd(point4, point1, point3)
+	point4.toProjective(point5)
+	point5.toBytes(keyBuf)
+	return keyBuf, nil
 }
 
 // GenerateKeyImage returns a key image.
@@ -90,30 +114,5 @@ func HashToEC(data []byte) (result *ExtendedGroupElement) {
 	// fmt.Printf("p1 %+v\n", p1)
 	GeMul8(&p2, &p1)
 	p2.toExtended(result)
-	return
-}
-
-// KeyDerivationToScalar converts a key derivation
-// into a scalar key representation.
-func KeyDerivationToScalar(outputIndex uint64, derivation Key) (scalar *Key) {
-	tmp := make([]byte, 12, 12)
-
-	length := binary.PutUvarint(tmp, outputIndex)
-	tmp = tmp[:length]
-
-	var buf bytes.Buffer
-	buf.Write(derivation[:])
-	buf.Write(tmp)
-	scalar = HashToScalar(buf.Bytes())
-	return
-}
-
-// HashToScalar hashes data bytes using keccak256
-// and transfoms it into a key point.
-func HashToScalar(data ...[]byte) (result *Key) {
-	result = new(Key)
-	temp := hash.Keccak256(data...)
-	copy(result[:], temp[:32])
-	ScReduce32(result)
 	return
 }
