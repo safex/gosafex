@@ -5,6 +5,24 @@ import (
 	"testing"
 )
 
+func newSequenceStr(raw string) *Sequence {
+	buf := []byte(raw)
+	var res Sequence
+	copy(res[:], buf)
+	return &res
+}
+
+func newCache(size int) SequenceCache {
+	return make(SequenceCache, size)
+}
+
+func newCacheFromStr(strs ...string) (result SequenceCache) {
+	for _, str := range strs {
+		result = append(result, newSequenceStr(str))
+	}
+	return
+}
+
 func setUp(wantPanic bool, t *testing.T) func() {
 	t.Helper()
 	return func() {
@@ -61,7 +79,7 @@ func TestNewGenerator(t *testing.T) {
 			},
 			wantResult: &Generator{
 				cacheSize: 64,
-				cache:     make([][]byte, 64),
+				cache:     make([]*Sequence, 64),
 			},
 		},
 	}
@@ -78,7 +96,7 @@ func TestNewGenerator(t *testing.T) {
 func TestGenerator_NewSequence(t *testing.T) {
 	type fields struct {
 		cacheSize int
-		cache     [][]byte
+		cache     SequenceCache
 	}
 	tests := []struct {
 		name           string
@@ -88,12 +106,12 @@ func TestGenerator_NewSequence(t *testing.T) {
 	}{
 		{
 			name:           "passes, generates a valid length sequence without caching",
-			wantResultSize: RandomSliceByteSize,
+			wantResultSize: SequenceLength,
 		},
 		{
 			name:           "passes, generate and caches a valid length sequence",
 			fields:         fields{cacheSize: 1},
-			wantResultSize: RandomSliceByteSize,
+			wantResultSize: SequenceLength,
 			wantCacheSize:  1,
 		},
 	}
@@ -121,7 +139,7 @@ func TestGenerator_NewSequence(t *testing.T) {
 func TestGenerator_GetCachedSequence(t *testing.T) {
 	type fields struct {
 		cacheSize int
-		cache     [][]byte
+		cache     SequenceCache
 	}
 	type args struct {
 		idx int
@@ -130,19 +148,19 @@ func TestGenerator_GetCachedSequence(t *testing.T) {
 		name       string
 		fields     fields
 		args       args
-		wantResult []byte
+		wantResult *Sequence
 		wantErr    bool
 	}{
 		{
 			name: "passes, returns cached entry",
 			fields: fields{
 				cacheSize: 1,
-				cache:     [][]byte{[]byte("TESTDATA")},
+				cache:     newCacheFromStr("TEST1", "TEST2"),
 			},
 			args: args{
 				idx: 0,
 			},
-			wantResult: []byte("TESTDATA"),
+			wantResult: newSequenceStr("TEST1"),
 		},
 		{
 			name: "fails, out of cache range",
@@ -150,8 +168,8 @@ func TestGenerator_GetCachedSequence(t *testing.T) {
 				idx: 999,
 			},
 			fields: fields{
-				cacheSize: 1,
-				cache:     [][]byte{[]byte("TESTDATA")},
+				cacheSize: 2,
+				cache:     newCacheFromStr("TEST1", "TEST2"),
 			},
 			wantErr: true,
 		},
@@ -177,17 +195,20 @@ func TestGenerator_GetCachedSequence(t *testing.T) {
 func TestGenerator_Flush(t *testing.T) {
 	type fields struct {
 		cacheSize int
-		cache     [][]byte
+		cache     SequenceCache
 	}
 	tests := []struct {
 		name      string
 		fields    fields
-		wantCache [][]byte
+		wantCache SequenceCache
 	}{
 		{
-			name:      "passes, cache flushed",
-			fields:    fields{cacheSize: 12},
-			wantCache: make([][]byte, 12),
+			name: "passes, cache flushed",
+			fields: fields{
+				cacheSize: 12,
+				cache:     newCache(12),
+			},
+			wantCache: newCache(12),
 		},
 	}
 	for _, tt := range tests {

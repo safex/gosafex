@@ -4,12 +4,6 @@ import (
 	"crypto/rand"
 )
 
-// SequenceSize is the size of the sequence (in bytes).
-const SequenceSize = 32
-
-// Sequence is an array of bytes.
-type Sequence [SequenceSize]byte
-
 // MaxGeneratorCacheSize is the maximum number of cached entries.
 const MaxGeneratorCacheSize = 4096
 
@@ -25,19 +19,19 @@ type SequenceCacher interface {
 // Generator implements a sequence generator.
 type Generator struct {
 	cacheSize int
-	cache     []*Sequence
+	cache     SequenceCache
 }
 
 // NewGenerator creates a new Generator
-// The generator can optionally cache up to maxCache generated entries.
-func NewGenerator(isCaching bool, maxCache int) (result *Generator) {
+// The generator can optionally cache up to cacheSize generated entries.
+func NewGenerator(isCaching bool, cacheSize int) (result *Generator) {
 	result = new(Generator)
 	if isCaching {
-		if maxCache > MaxGeneratorCacheSize {
+		if cacheSize > MaxGeneratorCacheSize {
 			panic("Cache size exceeds max")
 		}
-		result.cacheSize = maxCache
-		result.cache = make([]*Sequence, maxCache)
+		result.cacheSize = cacheSize
+		result.cache = make(SequenceCache, cacheSize)
 	}
 	return result
 }
@@ -50,13 +44,13 @@ func (g *Generator) cacheSequence(seq Sequence) {
 }
 
 // NewSequence implements Sequencer. It returns a random sequence.
-// This size of the sequence MUST BE RandomSliceByteSize.
+// This sequence MUST be of SequenceLength.
 // Panics if the sequence of exact size could not be generated.
 // This implementation uses 'crypto/rand'.
 func (g *Generator) NewSequence() (result Sequence) {
-	buf := make([]byte, RandomSliceByteSize)
+	buf := make([]byte, SequenceLength)
 	n, err := rand.Read(buf)
-	if err != nil || n != RandomSliceByteSize {
+	if err != nil || n != SequenceLength {
 		panic("Failed to generate random sequence")
 	}
 	if g.cacheSize != 0 {
@@ -88,5 +82,5 @@ func (g *Generator) GetCache() []*Sequence { return g.cache }
 
 // Flush implements SequenceCacher. It flushes the sequence cache.
 func (g *Generator) Flush() {
-	g.cache = make([]*Sequence, g.cacheSize)
+	g.cache = make(SequenceCache, g.cacheSize)
 }
