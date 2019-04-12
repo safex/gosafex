@@ -2,12 +2,16 @@ package balance
 
 import (
 	"fmt"
+	"math/rand"
 	"sort"
+	"time"
 
 	"github.com/safex/gosafex/internal/consensus"
 	"github.com/safex/gosafex/pkg/account"
 	"github.com/safex/gosafex/pkg/safex"
 )
+
+const APPROXIMATE_INPUT_BYTES int = 80
 
 var decomposedValues = []uint64{
 	uint64(1), uint64(2), uint64(3), uint64(4), uint64(5), uint64(6), uint64(7), uint64(8), uint64(9), // 1 piconero
@@ -35,14 +39,7 @@ func isTokenOutput(txout *safex.Txout) bool {
 	return txout.Target.TxoutTokenToKey != nil
 }
 
-func IsDecomposedOutputValue(txout *safex.Txout) bool {
-	var value uint64 = 0
-	if isTokenOutput(txout) {
-		value = txout.TokenAmount
-	} else {
-		value = txout.Amount
-	}
-
+func IsDecomposedOutputValue(value uint64) bool {
 	i := sort.Search(len(decomposedValues), func(i int) bool { return decomposedValues[i] >= value })
 	if i < len(decomposedValues) && decomposedValues[i] == value {
 		return true
@@ -94,18 +91,91 @@ type PendingTx struct {
 }
 
 type TX struct {
-	SelectedTransfers []*safex.Txout
+	SelectedTransfers []Transfer
 	Dsts              []DestinationEntry
 	Tx                safex.Transaction
 	PendingTx         PendingTx
 	bytes             uint64
 }
 
-func unlocked(val *Transfer) bool {
-	return true
+func (tx *TX) findDst(acc account.Address) int {
+	for index, addr := range tx.Dsts {
+		if addr.Address.Equals(&acc) {
+			return index
+		}
+	}
+	return -1
 }
 
-func (w *Wallet) TxCreateCash(dsts []DestinationEntry, fakeOutsCount uint64, unlockTime uint64, priority uint32, extra []byte, trustedDaemon bool) []PendingTx {
+func (tx *TX) Add(acc account.Address, amount uint64, originalOutputIndex int, mergeDestinations bool) {
+	if mergeDestinations {
+		i := tx.findDst(acc)
+		if i == -1 {
+			tx.Dsts = append(tx.Dsts, DestinationEntry{0, 0, acc, false, false})
+			i = 0
+		}
+		tx.Dsts[i].Amount += amount
+	} else {
+		if originalOutputIndex == len(tx.Dsts) {
+			tx.Dsts = append(tx.Dsts, DestinationEntry{0, 0, acc, false, false})
+		}
+		tx.Dsts[originalOutputIndex].Amount += amount
+	}
+}
+
+// @todo add token_transfer support
+func PopBestValueFrom(unusedIndices, selectedTransfers *[]Transfer, smallest bool) int {
+	var candidates []int
+	var bestRelatedness float32 = 1.0
+	for index, candidate := range *unusedIndices {
+		var relatedness float32 = 0.0
+		for _, selected := range *selectedTransfers {
+			r := candidate.getRelatedness(&selected)
+			if r > relatedness {
+				relatedness = r
+				if relatedness == 1.0 {
+					break
+				}
+			}
+		}
+
+		if relatedness < bestRelatedness {
+			bestRelatedness = relatedness
+			candidates = nil
+		}
+
+		if relatedness == bestRelatedness {
+			candidates = append(candidates, index)
+		}
+	}
+
+	var idx int = 0
+	if smallest {
+		for index, val := range candidates {
+			if (*unusedIndices)[val].Output.Amount < (*unusedIndices)[idx].Output.Amount {
+				idx = index
+			}
+		}
+	} else {
+		s := rand.NewSource(time.Now().UnixNano())
+		r := rand.New(s)
+		idx = r.Int() % len(candidates)
+	}
+
+	ret := candidates[idx]
+	*unusedIndices = append((*unusedIndices)[:idx], (*unusedIndices)[idx+1:]...)
+	return ret
+}
+
+func estimateTxSize(nInputs, mixin, nOutputs, extraSize int) int {
+	return nInputs*(mixin+1)*APPROXIMATE_INPUT_BYTES + extraSize
+}
+
+func txSizeTarget(input int) int {
+	return input * 3 / 2
+}
+
+func (w *Wallet) TxCreateCash(dsts []DestinationEntry, fakeOutsCount int, unlockTime uint64, priority uint32, extra []byte, trustedDaemon bool) []PendingTx {
 
 	// @todo error handling
 	info, _ := w.client.GetDaemonInfo()
@@ -114,7 +184,6 @@ func (w *Wallet) TxCreateCash(dsts []DestinationEntry, fakeOutsCount uint64, unl
 	var neededMoney uint64 = 0
 	fmt.Println("Dummy: ", neededMoney)
 	upperTxSizeLimit := consensus.GetUpperTransactionSizeLimit(2, 10)
-	fmt.Println("Dummy: ", upperTxSizeLimit)
 	feePerKb := consensus.GetPerKBFee()
 	fmt.Println("Dummy: ", feePerKb)
 	feeMultiplier := consensus.GetFeeMultiplier(priority, consensus.GetFeeAlgorithm())
@@ -148,16 +217,17 @@ func (w *Wallet) TxCreateCash(dsts []DestinationEntry, fakeOutsCount uint64, unl
 		panic("Not enough unlocked cash!")
 	}
 
-	var unusedOutputs []*safex.Txout
-	var dustOutputs []*safex.Txout
+	var unusedOutputs []Transfer
+	var dustOutputs []Transfer
 
 	// Find unused outputs
 	for _, val := range w.outputs {
 		if !val.Spent && !isTokenOutput(val.Output) && val.IsUnlocked(height) {
-			if IsDecomposedOutputValue(val.Output) {
-				unusedOutputs = append(unusedOutputs, val.Output)
+			fmt.Println("	Output value: ", val.Output.Amount)
+			if IsDecomposedOutputValue(val.Output.Amount) {
+				unusedOutputs = append(unusedOutputs, val)
 			} else {
-				dustOutputs = append(dustOutputs, val.Output)
+				dustOutputs = append(dustOutputs, val)
 			}
 		}
 	}
@@ -170,19 +240,107 @@ func (w *Wallet) TxCreateCash(dsts []DestinationEntry, fakeOutsCount uint64, unl
 	// @todo Check mismatch in dust output numbers.
 	// If empty, put dummy entry so that the front can be referenced later in the loop
 	if len(unusedOutputs) == 0 {
-		unusedOutputs = append(unusedOutputs, &safex.Txout{})
+		unusedOutputs = append(unusedOutputs, Transfer{})
 	}
 	if len(dustOutputs) == 0 {
-		dustOutputs = append(dustOutputs, &safex.Txout{})
+		dustOutputs = append(dustOutputs, Transfer{})
 	}
 
 	//@NOTE This part have good results so far in comparsion with cli wallet. There is slight mismatch in number of detected dust outputs.
 	fmt.Println("Lenght of unusedOutputs: ", len(unusedOutputs))
 	fmt.Println("Lenght of dustOutputs:", len(dustOutputs))
 
+	var txes []TX
+	txes = append(txes, TX{})
 	var accumulatedFee, accumulatedOutputs, accumulatedChange, availableForFee, neededFee uint64 = 0, 0, 0, 0, 0
 
+	var outs [][]OutsEntry
+
+	var originalOutputIndex int = 0
+	var addingFee bool = false
+
 	fmt.Println(accumulatedFee, accumulatedOutputs, accumulatedChange, availableForFee, neededFee)
+
+	var idx int = 0
+	// basic loop for getting outputs
+	for (dsts != nil && dsts[0].Amount != 0) || addingFee {
+		tx := &txes[len(txes)-1]
+
+		if len(unusedOutputs) == 0 && len(dustOutputs) == 0 {
+			panic("Not enough money")
+		}
+
+		if (dsts == nil || dsts[0].Amount == 0) && !addingFee {
+			if unusedOutputs == nil {
+				idx = PopBestValueFrom(&unusedOutputs, &(tx.SelectedTransfers), false)
+			} else {
+				idx = PopBestValueFrom(&unusedOutputs, &(tx.SelectedTransfers), false)
+			}
+		}
+
+		tx.SelectedTransfers = append(tx.SelectedTransfers, unusedOutputs[idx])
+		availableAmount := unusedOutputs[idx].Output.Amount
+		accumulatedOutputs += availableAmount
+
+		outs = nil
+
+		if addingFee {
+			availableForFee += availableAmount
+		} else {
+			for len(dsts) != 0 &&
+				dsts[0].Amount <= availableAmount &&
+				estimateTxSize(len(tx.SelectedTransfers), int(fakeOutsCount), len(tx.Dsts), len(extra)) < txSizeTarget(upperTxSizeLimit) {
+				tx.Add(dsts[0].Address, dsts[0].Amount, originalOutputIndex, false) // <- Last field is merge_destinations. For now its false. @todo
+				availableAmount -= dsts[0].Amount
+				dsts[0].Amount = 0
+				dsts = dsts[1:]
+				originalOutputIndex++
+			}
+
+			// @todo Check why this block exists at all.
+			if availableAmount > 0 && dsts != nil && estimateTxSize(len(tx.SelectedTransfers), int(fakeOutsCount), len(tx.Dsts), len(extra)) != 0 {
+				tx.Add(dsts[0].Address, availableAmount, originalOutputIndex, false)
+				dsts[0].Amount -= availableAmount
+				availableAmount = 0
+			}
+		}
+
+		var tryTx bool = false
+
+		if addingFee {
+			tryTx = availableForFee >= neededFee
+		} else {
+			estimatedSize := estimateTxSize(len(tx.SelectedTransfers), fakeOutsCount, len(tx.Dsts), len(extra))
+			tryTx = len(dsts) == 0 || (estimatedSize >= txSizeTarget(upperTxSizeLimit))
+		}
+
+		if tryTx {
+			var testTx safex.Transaction
+			var testPtx PendingTx
+			estimatedTxSize := estimateTxSize(len(tx.SelectedTransfers), fakeOutsCount, len(tx.Dsts), len(extra))
+			neededFee = consensus.CalculateFee(feePerKb, estimatedTxSize, feeMultiplier)
+
+			var inputs uint64 = 0
+			var outputs uint64 = neededFee
+
+			for _, val := range tx.SelectedTransfers {
+				inputs += val.Output.Amount
+			}
+
+			for _, val := range tx.Dsts {
+				outputs += val.Amount
+			}
+
+			// We dont have enough for the basice fee, switching to adding fee.
+			// @todo Add logs, panics and shit
+			if outputs > inputs {
+				panic("You dont have enough money for fee")
+				addingFee = true
+				// goto skip_tx
+			}
+		}
+
+	}
 
 	return []PendingTx{}
 }

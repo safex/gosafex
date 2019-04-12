@@ -13,7 +13,7 @@ func UseForkRules(version uint32, earlyBlocks uint64) bool {
 	return info.Height >= hfInfo.EarliestHeight-earlyBlocks
 }
 
-func GetUpperTransactionSizeLimit(forkVersion uint32, earlyBlocks uint64) uint64 {
+func GetUpperTransactionSizeLimit(forkVersion uint32, earlyBlocks uint64) int {
 	var fullRewardZone uint64
 	if UseForkRules(forkVersion, earlyBlocks) {
 		fullRewardZone = BlockGrantedFullRewardZoneV2
@@ -21,7 +21,7 @@ func GetUpperTransactionSizeLimit(forkVersion uint32, earlyBlocks uint64) uint64
 		fullRewardZone = BlockGrantedFullRewardZoneV1
 	}
 
-	return fullRewardZone - CoinbaseBlobReservedSize
+	return int(fullRewardZone - CoinbaseBlobReservedSize)
 }
 
 func GetFeeAlgorithm() uint32 {
@@ -58,4 +58,9 @@ func GetFeeMultiplier(priority uint32, feeAlgorithm uint32) uint64 {
 	}
 
 	return 1
+}
+
+func CalculateFee(feePerKb uint64, bytes int, feeMultiplier uint64) uint64 {
+	var kB uint64 = uint64(bytes+1023) / 1024
+	return kB * feePerKb * feeMultiplier
 }

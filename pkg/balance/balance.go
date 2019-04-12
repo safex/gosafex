@@ -35,6 +35,7 @@ type Transfer struct {
 	Spent   bool
 	MinerTx bool
 	Height  uint64
+	KImage  derivation.Key
 }
 
 type Wallet struct {
@@ -42,6 +43,33 @@ type Wallet struct {
 	Address Address
 	client  *safexdrpc.Client
 	outputs map[derivation.Key]Transfer // Save output keys.
+}
+
+func (t Transfer) getRelatedness(input *Transfer) float32 {
+
+	// @todo: Implement txid check.
+	// if t.Txid == input.Txid {
+	//	return float32(1.0)
+	//}
+
+	var dh uint64
+	if t.Height > input.Height {
+		dh = t.Height - input.Height
+	} else {
+		dh = input.Height - t.Height
+	}
+
+	if dh == 0 {
+		return float32(0.9)
+	}
+	if dh == 1 {
+		return float32(0.8)
+	}
+	if dh < 10 {
+		return float32(0.2)
+	}
+
+	return float32(0.0)
 }
 
 func (t Transfer) IsUnlocked(height uint64) bool {
