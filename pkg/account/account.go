@@ -1,5 +1,7 @@
 package account
 
+import "github.com/safex/gosafex/pkg/key"
+
 // Account contains methods of the account wrapper.
 // You can get an accounts:
 // - Address
@@ -46,12 +48,12 @@ func addressMaker(testnet bool) AddressMaker {
 // View keys are derived from spend keys.
 // Returns an error if private keys cannot be generated.
 func GenerateAccount(isTestnet bool) (result *Store, err error) {
-	keyset, err := GenerateKeySet()
+	keyset, err := key.GenerateSet()
 	if err != nil {
 		return nil, err
 	}
-	adr := addressMaker(isTestnet)(keyset.view.pub, keyset.spend.pub)
-	result = NewStore(adr, keyset.view.priv, keyset.spend.priv)
+	adr := addressMaker(isTestnet)(keyset.View.Pub, keyset.Spend.Pub)
+	result = NewStore(adr, keyset.View.Priv, keyset.Spend.Priv)
 	return
 }
 
@@ -59,9 +61,9 @@ func GenerateAccount(isTestnet bool) (result *Store, err error) {
 // If testnet is true it will generate a testnet account
 // View keys are derived from spend keys.
 func FromSeed(seed Seed, isTestnet bool) *Store {
-	keyset := KeySetFromSeed(seed)
-	adr := addressMaker(isTestnet)(keyset.view.pub, keyset.spend.pub)
-	return NewStore(adr, keyset.view.priv, keyset.spend.priv)
+	keyset := key.SetFromSeed(seed)
+	adr := addressMaker(isTestnet)(keyset.View.Pub, keyset.Spend.Pub)
+	return NewStore(adr, keyset.View.Priv, keyset.Spend.Priv)
 }
 
 // FromMnemonic will create a new account store using a given mnemonic.
@@ -91,3 +93,10 @@ func (s *Store) PrivateSpendKey() PrivateKey { return s.spendKey }
 
 // PrivateViewKey implements Account. It returns the account's private view key.
 func (s *Store) PrivateViewKey() PrivateKey { return s.viewKey }
+
+// DeriveKey derives generates a new key derovation from a given public key
+// and a secret.
+// The implementation is a thin wrapper around the derivation package.
+func DeriveKey(pub PublicKey, secret PrivateKey) PrivateKey {
+	return key.DeriveKey(pub, secret)
+}

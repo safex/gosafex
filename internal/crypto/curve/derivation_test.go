@@ -1,4 +1,4 @@
-package derivation
+package curve
 
 import (
 	"reflect"
@@ -15,10 +15,10 @@ var (
 	testDerivation    = hexToKey(testDerivationStr)
 )
 
-func TestKeyDerivation(t *testing.T) {
+func TestDeriveKey(t *testing.T) {
 	type args struct {
-		pub  *Key
-		priv *Key
+		pub  Key
+		priv Key
 	}
 	tests := []struct {
 		name string
@@ -28,16 +28,16 @@ func TestKeyDerivation(t *testing.T) {
 		{
 			name: "passes, derivation",
 			args: args{
-				pub:  &testPubKey,
-				priv: &testPrivKey,
+				pub:  testPubKey,
+				priv: testPrivKey,
 			},
 			want: testDerivation,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := KeyDerivation(tt.args.pub, tt.args.priv); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("KeyDerivation() = %v, want %v", got, tt.want)
+			if got := DeriveKey(tt.args.pub, tt.args.priv); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("DeriveKey() = %v, want %v", got, tt.want)
 			}
 		})
 	}

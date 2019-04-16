@@ -1,6 +1,8 @@
 package random
 
-import "crypto/rand"
+import (
+	"crypto/rand"
+)
 
 // MaxGeneratorCacheSize is the maximum number of cached entries.
 const MaxGeneratorCacheSize = 4096
@@ -9,32 +11,32 @@ const MaxGeneratorCacheSize = 4096
 type SequenceCacher interface {
 	IsCaching() bool
 	CacheSize() int
-	GetCachedSequence(n int) []byte
-	GetCache() []byte
+	GetCachedSequence(n int) Sequence
+	GetCache() Sequence
 	Flush()
 }
 
 // Generator implements a sequence generator.
 type Generator struct {
 	cacheSize int
-	cache     [][]byte
+	cache     SequenceCache
 }
 
 // NewGenerator creates a new Generator
-// The generator can optionally cache up to maxCache generated entries.
-func NewGenerator(isCaching bool, maxCache int) (result *Generator) {
+// The generator can optionally cache up to cacheSize generated entries.
+func NewGenerator(isCaching bool, cacheSize int) (result *Generator) {
 	result = new(Generator)
 	if isCaching {
-		if maxCache > MaxGeneratorCacheSize {
+		if cacheSize > MaxGeneratorCacheSize {
 			panic("Cache size exceeds max")
 		}
-		result.cacheSize = maxCache
-		result.cache = make([][]byte, maxCache)
+		result.cacheSize = cacheSize
+		result.cache = make(SequenceCache, cacheSize)
 	}
 	return result
 }
 
-func (g *Generator) cacheSequence(seq []byte) {
+func (g *Generator) cacheSequence(seq *Sequence) {
 	g.cache = append(g.cache, seq)
 	if len(g.cache) > g.cacheSize {
 		g.cache = g.cache[1:] // TODO: test this
@@ -42,18 +44,20 @@ func (g *Generator) cacheSequence(seq []byte) {
 }
 
 // NewSequence implements Sequencer. It returns a random sequence.
-// This size of the sequence MUST BE RandomSliceByteSize.
+// This sequence MUST be of SequenceLength.
 // Panics if the sequence of exact size could not be generated.
 // This implementation uses 'crypto/rand'.
-func (g *Generator) NewSequence() (result []byte) {
-	result = make([]byte, RandomSliceByteSize)
-	n, err := rand.Read(result)
-	if err != nil || n != RandomSliceByteSize {
+func (g *Generator) NewSequence() (result *Sequence) {
+	result = new(Sequence)
+	buf := make([]byte, SequenceLength)
+	n, err := rand.Read(buf[:])
+	if err != nil || n != SequenceLength {
 		panic("Failed to generate random sequence")
 	}
 	if g.cacheSize != 0 {
 		g.cacheSequence(result)
 	}
+	copy(result[:], buf)
 	return result
 }
 
@@ -67,7 +71,7 @@ func (g *Generator) CacheSize() int { return g.cacheSize }
 
 // GetCachedSequence implements SequenceCacher. It returns a cached sequence.
 // Returns ErrOutOfRange if index is out of cache range.
-func (g *Generator) GetCachedSequence(idx int) (result []byte, err error) {
+func (g *Generator) GetCachedSequence(idx int) (result *Sequence, err error) {
 	if idx >= g.cacheSize {
 		return nil, ErrOutOfRange
 	}
@@ -75,9 +79,9 @@ func (g *Generator) GetCachedSequence(idx int) (result []byte, err error) {
 }
 
 // GetCache implements SequenceCacher. It returns the sequence cache.
-func (g *Generator) GetCache() [][]byte { return g.cache }
+func (g *Generator) GetCache() []*Sequence { return g.cache }
 
 // Flush implements SequenceCacher. It flushes the sequence cache.
 func (g *Generator) Flush() {
-	g.cache = make([][]byte, g.cacheSize)
+	g.cache = make(SequenceCache, g.cacheSize)
 }

@@ -2,7 +2,6 @@ package account
 
 import (
 	"github.com/safex/gosafex/internal/crypto"
-	"golang.org/x/crypto/ed25519"
 )
 
 // KeyPair is a public/private keypair.
@@ -28,14 +27,13 @@ func NewKeyPair(pub PublicKey, priv PrivateKey) *KeyPair {
 // GenerateKeyPair will create a new keypair.
 // The implementation relies on system entropy from '/dev/urandom' by default.
 func GenerateKeyPair() (*KeyPair, error) {
-	pubKey, privKey, err := ed25519.GenerateKey(nil)
+	pubKey, privKey, err := crypto.GenerateKeys()
 	return NewKeyPair(pubKey, privKey), err
 }
 
 // KeyPairFromSeed will create a new keypair from a given seed.
 func KeyPairFromSeed(seed Seed) *KeyPair {
-	privKey := ed25519.NewKeyFromSeed(seed)
-	pubKey := privKey.Public().(PublicKey)
+	pubKey, privKey := crypto.KeysFromSeed(seed)
 	return NewKeyPair(pubKey, privKey)
 }
 
