@@ -18,6 +18,6 @@ func TestTxCreate(t *testing.T) {
 
 	addr, _ := account.FromBase58("SFXtzV7tt2KZqvpCWVWauC5Qf16o3dAwLKNd9hCNzoB21ELLNfFjAMjXRhsR3ohT1AeW8j3jL4gfRahR86x6aoiU5hm5ZJj7BSc")
 	var extra []byte
-	_ = wallet.TxCreateCash([]DestinationEntry{DestinationEntry{10000000000, 0, *addr, false, false}}, 2, 0, 1, extra, true)
+	_ = wallet.TxCreateCash([]DestinationEntry{DestinationEntry{10000000000, 0, *addr, false, false}}, 0, 0, 1, extra, true)
 	t.Errorf("Failing!")
 }
