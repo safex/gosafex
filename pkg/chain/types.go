@@ -12,22 +12,16 @@ import (
 type Digest = crypto.Digest
 
 // KeySize is the size of public/private keys (in bytes).
-const KeySize = crypto.KeySize
-
-// Key is the alias to key.CurveKey.
-type Key = key.CurveKey
+const KeySize = key.Size
 
 // PublicKey is an alias to crypto.PublicKey.
-type PublicKey = crypto.PublicKey
+type PublicKey = key.PublicKey
 
 // PrivateKey is an alias to crypto.PrivateKey.
-type PrivateKey = crypto.PrivateKey
+type PrivateKey = key.PrivateKey
 
 // Account is an alias to account.Account
 type Account = account.Account
-
-// OutputMap is the map of key derivation => txout.
-// type OutputMap map[DigestType]*TxOutput
 
 // Client is an alias to safexdrpc.Client.
 type Client = safexdrpc.Client
