@@ -17,7 +17,7 @@ func GenerateKey() *Key {
 // This function is provided for interoperability
 // with RFC 8032. RFC 8032's private keys correspond to seeds in this
 // package.
-func NewKeyFromSeed(seed Seed) (pub, priv *Key) {
+func NewKeyFromSeed(seed *Seed) (pub, priv *Key) {
 	return curve.NewKeyFromSeed(seed)
 }
 

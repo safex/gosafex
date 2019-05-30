@@ -66,7 +66,7 @@ func NewFromString(raw string) (result *Key, err error) {
 // This function is provided for interoperability
 // with RFC 8032. RFC 8032's private keys correspond to seeds in this
 // package.
-func NewKeyFromSeed(seed Seed) (pub, priv *Key) {
+func NewKeyFromSeed(seed *Seed) (pub, priv *Key) {
 	digest := sha512.Sum512(seed[:])
 	digest[0] &= 248
 	digest[31] &= 127

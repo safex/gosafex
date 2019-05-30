@@ -22,7 +22,7 @@ func GeneratePair() *Pair {
 }
 
 // PairFromSeed will create a new keypair from a given seed.
-func PairFromSeed(seed Seed) *Pair {
+func PairFromSeed(seed *Seed) *Pair {
 	pubKey, privKey := fromSeed(seed)
 	return NewPair(pubKey, privKey)
 }

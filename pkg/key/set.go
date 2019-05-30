@@ -21,7 +21,7 @@ func NewSet(view, spend *Pair) *Set {
 func GenerateSet() (result *Set, err error) {
 	spend := GeneratePair()
 	viewSeed := Seed(spend.Priv.Digest())
-	view := PairFromSeed(viewSeed)
+	view := PairFromSeed(&viewSeed)
 	result = NewSet(view, spend)
 	return
 }
@@ -30,9 +30,9 @@ func GenerateSet() (result *Set, err error) {
 //
 // NOTE: to preserve the same seed - we generate the private view key from the
 // Keccak256 hash of the private spend key.
-func SetFromSeed(seed Seed) *Set {
+func SetFromSeed(seed *Seed) *Set {
 	spend := PairFromSeed(seed)
 	viewSeed := Seed(spend.Priv.Digest())
-	view := PairFromSeed(viewSeed)
+	view := PairFromSeed(&viewSeed)
 	return NewSet(view, spend)
 }

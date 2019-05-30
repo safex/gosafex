@@ -1,8 +1,8 @@
 package account
 
 import (
-	"bytes"
 	"encoding/hex"
+	"reflect"
 	"testing"
 )
 
@@ -92,15 +92,15 @@ func Test_AddressFromBase58(t *testing.T) {
 			}
 
 			// Test if proper view/spend public keys were extracted
-			if (bytes.Compare(adr.SpendKey, wantSpendKey) != 0) != tt.wantErr {
-				t.Errorf("Bad spend key, want = %v, got = %v", wantSpendKey, adr.SpendKey)
+			if reflect.DeepEqual(adr.SpendKey.ToBytes(), wantSpendKey) != tt.wantErr {
+				t.Errorf("Bad spend key, want = %v, got = %v", wantSpendKey, adr.SpendKey.ToBytes())
 			}
-			if (bytes.Compare(adr.ViewKey, wantViewKey) != 0) != tt.wantErr {
-				t.Errorf("Bad view key, want = %v, got = %v", wantViewKey, adr.ViewKey)
+			if reflect.DeepEqual(adr.ViewKey.ToBytes(), wantViewKey) != tt.wantErr {
+				t.Errorf("Bad view key, want = %v, got = %v", wantViewKey, adr.ViewKey.ToBytes())
 			}
 
 			// Convert address back to base58
-			if res := adr.String(); (res != tt.tVec.adrStr) != tt.wantErr {
+			if res := adr.String(); reflect.DeepEqual(res, tt.tVec.adrStr) != tt.wantErr {
 				t.Errorf("Address.String() = %v, want %v", res, tt.tVec.adrStr)
 			}
 		})
