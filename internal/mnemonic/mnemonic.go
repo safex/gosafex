@@ -7,6 +7,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/safex/gosafex/internal/mnemonic/dictionary"
+	"github.com/safex/gosafex/pkg/key"
 )
 
 const (
@@ -94,7 +95,7 @@ func FromString(mnemonicStr string) (result *Mnemonic, err error) {
 }
 
 // FromKey will convert key bytes into a mnemonic seed with the given language code. If langCode is true, will add checksum word. Retunrs error if language code or key is invalid
-func FromKey(key []byte, langCode int, checksum bool) (*Mnemonic, error) {
+func FromKey(key *key.PrivateKey, langCode int, checksum bool) (*Mnemonic, error) {
 	// Try and get the dictionary with the given language code
 	dict, err := dictionary.GetDictionary(langCode)
 	if err != nil {
@@ -104,10 +105,12 @@ func FromKey(key []byte, langCode int, checksum bool) (*Mnemonic, error) {
 	result := New(dict, checksum)
 	dictSize := uint32(len(dict.Entries))
 
+	rawKey := key.ToBytes()
+
 	// Encode hex characters into base 1626
-	for i := 0; i < (len(key) / 4); i++ {
+	for i := 0; i < (len(rawKey) / 4); i++ {
 		// Take 4 bytes of the key
-		val := binary.LittleEndian.Uint32(key[i*4:])
+		val := binary.LittleEndian.Uint32(rawKey[i*4:])
 
 		// Generate 3 digits base 1626
 		w1 := val % dictSize
@@ -134,8 +137,9 @@ func FromKey(key []byte, langCode int, checksum bool) (*Mnemonic, error) {
 	return result, nil
 }
 
-// ToKey will convert the mnemonic seed into key bytes. Returns error if mnemonic is invalid
-func (m *Mnemonic) ToKey() (key []byte, err error) {
+// ToKeyPair will use the mnemonic as seed to generate a public/private keypair.
+// Returns an error if mnemonic is invalid.
+func (m *Mnemonic) ToKeyPair() (result *key.Pair, err error) {
 	baseWords := m.Words
 
 	// If checksum is present, verify then remove it
@@ -146,7 +150,7 @@ func (m *Mnemonic) ToKey() (key []byte, err error) {
 		baseWords = baseWords[:MnemonicLength]
 	}
 
-	key = make([]byte, 32, 32)
+	var seed key.Seed
 	dictSize := len(m.dict.Entries)
 
 	// Divide the base mnemonic into 3 word groups
@@ -162,10 +166,10 @@ func (m *Mnemonic) ToKey() (key []byte, err error) {
 		val += dictSize * dictSize * (((dictSize - w2) + w3) % dictSize)
 
 		// Finaly, convert to 4B of the key
-		binary.LittleEndian.PutUint32(key[i*4:], uint32(val))
+		binary.LittleEndian.PutUint32(seed[i*4:], uint32(val))
 	}
 
-	return
+	return key.PairFromSeed(seed), nil
 }
 
 // ListDictionaries returns descriptions of all available mnemonic dictionaries
