@@ -42,7 +42,7 @@ func TestDeriveKey(t *testing.T) {
 				t.Errorf("DeriveKey() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !reflect.DeepEqual(got, tt.want) {
+			if !reflect.DeepEqual(got, &tt.want) {
 				t.Errorf("DeriveKey() = %v, want %v", got, tt.want)
 			}
 		})
