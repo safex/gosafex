@@ -21,9 +21,10 @@ func TestDeriveKey(t *testing.T) {
 		priv Key
 	}
 	tests := []struct {
-		name string
-		args args
-		want Key
+		name    string
+		args    args
+		want    Key
+		wantErr bool
 	}{
 		{
 			name: "passes, derivation",
@@ -36,7 +37,12 @@ func TestDeriveKey(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := DeriveKey(tt.args.pub, tt.args.priv); !reflect.DeepEqual(got, tt.want) {
+			got, err := DeriveKey(&tt.args.pub, &tt.args.priv)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("DeriveKey() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("DeriveKey() = %v, want %v", got, tt.want)
 			}
 		})

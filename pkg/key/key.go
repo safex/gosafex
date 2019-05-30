@@ -2,55 +2,60 @@ package key
 
 import (
 	"github.com/safex/gosafex/internal/crypto"
-	"golang.org/x/crypto/ed25519"
-)``
+)
 
-func fromSeed(seed Seed) (PublicKey, PrivateKey) {
-	privKey := ed25519.NewKeyFromSeed(seed)
-	pubKey := privKey.Public().(PublicKey)
-	return PublicKey(pubKey), PrivateKey(privKey)
+// PublicKey is a point on the default cryptographic curve interpreted as a public key.
+type PublicKey struct {
+	key crypto.Key
 }
 
-func generate() (PublicKey, PrivateKey, error) {
-	pubKey, privKey, err := crypto.GenerateKeys()
-	return PublicKey(pubKey), PrivateKey(privKey), err
+// PrivateKey is a point on the default cryptographic curve interpreted as a public key.
+type PrivateKey struct {
+	key crypto.Key
+}
+
+func fromSeed(seed Seed) (*PublicKey, *PrivateKey) {
+	pubKey, privKey := crypto.NewKeyFromSeed(seed)
+	return NewPublicKey(pubKey), NewPrivateKey(privKey)
+}
+
+func generate() (*PublicKey, *PrivateKey) {
+	privKey := crypto.GenerateKey()
+	pubKey := privKey.ToPublic()
+	return NewPublicKey(pubKey), NewPrivateKey(privKey)
+}
+
+// NewPublicKey will construct a PublicKey from a Key.
+func NewPublicKey(key *crypto.Key) *PublicKey {
+	return &PublicKey{*key}
+}
+
+// NewPrivateKey will construct a PrivateKey from a Key.
+func NewPrivateKey(key *crypto.Key) *PrivateKey {
+	return &PrivateKey{*key}
 }
 
 // ToBytes implements ByteSerializer.
 func (priv PrivateKey) ToBytes() []byte {
-	return []byte(priv)
+	return priv.key.ToBytes()
 }
 
 // Digest returns the keccak256 hash of the private key.
 func (priv PrivateKey) Digest() Digest {
-	return crypto.NewDigest(priv)
+	return crypto.NewDigest(priv.ToBytes())
 }
 
 // Public returns a public key from a given private key.
-func (priv PrivateKey) Public() PublicKey {
-	return PublicKey(priv.Public())
+func (priv PrivateKey) Public() *PublicKey {
+	return NewPublicKey(priv.key.ToPublic())
 }
 
 // ToBytes implements ByteSerializer.
 func (pub PublicKey) ToBytes() []byte {
-	return []byte(pub)
+	return pub.key.ToBytes()
 }
 
 // Digest returns the keccak256 hash of the public key.
 func (pub PublicKey) Digest() Digest {
-	return crypto.NewDigest(pub)
-}
-
-// ToCurveKey returns the curve key format of the key.
-func (priv PrivateKey) ToCurveKey() CurveKey {
-	var buf [KeySize]byte
-	copy(buf[:], priv[:KeySize])
-	return CurveKey(buf)
-}
-
-// ToCurveKey returns the curve key format of the key.
-func (pub PublicKey) ToCurveKey() CurveKey {
-	var buf [KeySize]byte
-	copy(buf[:], pub[:KeySize])
-	return CurveKey(buf)
+	return crypto.NewDigest(pub.ToBytes())
 }

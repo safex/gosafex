@@ -43,8 +43,7 @@ func hashToEC(data []byte) (result *ExtendedGroupElement) {
 
 // DeriveKey derives a new private key derivation
 // from a given public key and a secret (private key).
-// Returns ErrInvalidPrivKey if the given private key (secret)
-// is invalid.
+// Returns ErrInvalidPrivKey if the given private key (secret) is invalid.
 // Returns ErrInvalidPubKey if the given public key is invalid.
 func DeriveKey(pub, priv *Key) (result *Key, err error) {
 	point := new(ExtendedGroupElement)
