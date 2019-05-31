@@ -187,19 +187,19 @@ func TestMnemonic_VerifyChecksum(t *testing.T) {
 
 func TestMnemonic_BackAndForth(t *testing.T) {
 	tests := []struct {
-		name           string
-		tVec           *tVec
-		langCode       int
-		checksum       bool
-		wantToKeyErr   bool
-		wantFromKeyErr bool
+		name            string
+		tVec            *tVec
+		langCode        int
+		checksum        bool
+		wantToSeedErr   bool
+		wantFromSeedErr bool
 	}{
 		{
-			name:           "fails, illegal lang code",
-			tVec:           validChecksum,
-			langCode:       9999,
-			checksum:       true,
-			wantFromKeyErr: true,
+			name:          "fails, illegal lang code",
+			tVec:          validChecksum,
+			langCode:      9999,
+			checksum:      true,
+			wantToSeedErr: true,
 		},
 		{
 			name:     "passes, english mnemonic with checksum",
@@ -210,17 +210,17 @@ func TestMnemonic_BackAndForth(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotKey, err := tt.tVec.Mnemonic.ToKey()
+			gotSeed, err := tt.tVec.Mnemonic.ToSeed()
 			if err != nil {
-				if !tt.wantToKeyErr {
-					t.Errorf("Mnemonic.ToKey() err = %v, wantErr %v", err, tt.wantToKeyErr)
+				if !tt.wantToSeedErr {
+					t.Errorf("Mnemonic.ToSeed() err = %v, wantErr %v", err, tt.wantToSeedErr)
 				}
 				return
 			}
-			gotMnemonic, err := FromKey(gotKey, tt.langCode, tt.checksum)
+			gotMnemonic, err := FromSeed(gotSeed, tt.langCode, tt.checksum)
 			if err != nil {
-				if !tt.wantFromKeyErr {
-					t.Errorf("FromKey() err = %v, wantErr %v", err, tt.wantFromKeyErr)
+				if !tt.wantToSeedErr {
+					t.Errorf("FromSeed() err = %v, wantErr %v", err, tt.wantToSeedErr)
 				}
 				return
 			}

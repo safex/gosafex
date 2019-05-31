@@ -8,5 +8,8 @@ import (
 // Digest is an alias to crypto.Digest.
 type Digest = crypto.Digest
 
-// ToByteSerializer is an alias to common.ToByteSerializer.
-type ToByteSerializer = common.ToByteSerializer
+// ByteMarshaller is an alias to common.ByteMarshaller.
+type ByteMarshaller = common.ByteMarshaller
+
+// Seed bytes are used for generating a keypair.
+type Seed = crypto.Seed

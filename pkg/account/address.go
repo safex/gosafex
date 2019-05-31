@@ -5,6 +5,7 @@ import (
 
 	"github.com/safex/gosafex/internal/crypto"
 	"github.com/safex/gosafex/internal/tools/base58"
+	"github.com/safex/gosafex/pkg/key"
 )
 
 const (
@@ -53,14 +54,15 @@ func getPaymentID(nid *NetworkID, raw []byte) (PaymentID, error) {
 	return nil, nil
 }
 
+// Return the first ChecksumSize bytes of the digest as the checksum.
 func computeChecksum(raw []byte) []byte {
-	// Return the first ChecksumSize bytes of the Keccak hash as checksum
-	return crypto.Digest(raw)[:ChecksumSize]
+	digest := crypto.NewDigest(raw)
+	return digest[:ChecksumSize]
 }
 
 func verifyChecksum(raw []byte) error {
-	checksum := crypto.Digest(raw[:len(raw)-ChecksumSize])
-	if bytes.Compare(checksum, raw[len(raw)-ChecksumSize:]) != 0 {
+	checksum := crypto.NewDigest(raw[:len(raw)-ChecksumSize])
+	if bytes.Compare(checksum[:], raw[len(raw)-ChecksumSize:]) != 0 {
 		return ErrInvalidChecksum
 	}
 	return nil
@@ -93,10 +95,12 @@ func decodeBase58(b58string string) (result *Address, err error) {
 	spendKeyOffset := networkID.Size
 	viewKeyOffset := spendKeyOffset + KeySize
 	paymentIDOffset := viewKeyOffset + KeySize
+	spendKey, _ := key.NewPublicKeyFromBytes(raw[spendKeyOffset:viewKeyOffset])
+	viewKey, _ := key.NewPublicKeyFromBytes(raw[viewKeyOffset:paymentIDOffset])
 	result = &Address{
 		NetworkID: *networkID,
-		SpendKey:  raw[spendKeyOffset:viewKeyOffset],
-		ViewKey:   raw[viewKeyOffset:paymentIDOffset],
+		SpendKey:  *spendKey,
+		ViewKey:   *viewKey,
 		PaymentID: paymentID,
 	}
 
@@ -105,8 +109,8 @@ func decodeBase58(b58string string) (result *Address, err error) {
 
 func (adr *Address) encodeBase58() string {
 	raw := networkIDToBytes(adr.NetworkID)
-	raw = append(raw, adr.SpendKey...)
-	raw = append(raw, adr.ViewKey...)
+	raw = append(raw, adr.SpendKey.ToBytes()...)
+	raw = append(raw, adr.ViewKey.ToBytes()...)
 	raw = append(raw, adr.PaymentID...)
 
 	raw = append(raw, computeChecksum(raw)...)
@@ -189,7 +193,7 @@ func equalPaymentIDs(a, b PaymentID) bool {
 // Equals will return true if the Address is the same.
 func (adr *Address) Equals(other *Address) bool {
 	return adr.NetworkID == other.NetworkID &&
-		EqualPubKeys(adr.SpendKey, adr.SpendKey) &&
-		EqualPubKeys(adr.ViewKey, adr.ViewKey) &&
+		adr.SpendKey.Equal(&other.SpendKey) &&
+		adr.ViewKey.Equal(&other.ViewKey) &&
 		equalPaymentIDs(adr.PaymentID, other.PaymentID)
 }

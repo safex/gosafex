@@ -1,56 +1,109 @@
 package key
 
 import (
-	"github.com/safex/gosafex/internal/crypto"
-	"golang.org/x/crypto/ed25519"
-)``
+	"errors"
 
-func fromSeed(seed Seed) (PublicKey, PrivateKey) {
-	privKey := ed25519.NewKeyFromSeed(seed)
-	pubKey := privKey.Public().(PublicKey)
-	return PublicKey(pubKey), PrivateKey(privKey)
+	"github.com/safex/gosafex/internal/crypto"
+)
+
+// Size is the size of the default type cryptographic key (in bytes).
+const Size = 32
+
+// PublicKey is a point on the default cryptographic curve interpreted as a public key.
+type PublicKey struct {
+	key crypto.Key
 }
 
-func generate() (PublicKey, PrivateKey, error) {
-	pubKey, privKey, err := crypto.GenerateKeys()
-	return PublicKey(pubKey), PrivateKey(privKey), err
+// PrivateKey is a point on the default cryptographic curve interpreted as a public key.
+type PrivateKey struct {
+	key crypto.Key
+}
+
+func fromSeed(seed *Seed) (*PublicKey, *PrivateKey) {
+	pubKey, privKey := crypto.NewKeyFromSeed(seed)
+	return NewPublicKey(pubKey), NewPrivateKey(privKey)
+}
+
+func generate() (*PublicKey, *PrivateKey) {
+	privKey := crypto.GenerateKey()
+	pubKey := privKey.ToPublic()
+	return NewPublicKey(pubKey), NewPrivateKey(privKey)
+}
+
+func equalKeys(a, b *crypto.Key) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i, v := range a {
+		if v != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
+// NewPublicKey will construct a PublicKey from a Key.
+func NewPublicKey(key *crypto.Key) *PublicKey {
+	return &PublicKey{*key}
+}
+
+// NewPrivateKey will construct a PrivateKey from a Key.
+func NewPrivateKey(key *crypto.Key) *PrivateKey {
+	return &PrivateKey{*key}
+}
+
+// NewPublicKeyFromBytes will create a PublicKey from a raw bytes representation.
+// Returns error if the slice size is greater than Size.
+func NewPublicKeyFromBytes(raw []byte) (result *PublicKey, err error) {
+	if len(raw) > Size {
+		return nil, errors.New("Raw key size is too large")
+	}
+
+	key := new(crypto.Key)
+	copy(key[:], raw[:Size])
+
+	return NewPublicKey(key), nil
 }
 
 // ToBytes implements ByteSerializer.
 func (priv PrivateKey) ToBytes() []byte {
-	return []byte(priv)
+	return priv.key.ToBytes()
 }
 
 // Digest returns the keccak256 hash of the private key.
 func (priv PrivateKey) Digest() Digest {
-	return crypto.NewDigest(priv)
+	return crypto.NewDigest(priv.ToBytes())
+}
+
+// ToSeed returns the seed form of the private key.
+func (priv PrivateKey) ToSeed() *Seed {
+	seed := Seed(priv.key)
+	return &seed
 }
 
 // Public returns a public key from a given private key.
-func (priv PrivateKey) Public() PublicKey {
-	return PublicKey(priv.Public())
+func (priv PrivateKey) Public() *PublicKey {
+	return NewPublicKey(priv.key.ToPublic())
+}
+
+// Equal compares a private key with another private key.
+// Retuns true if keys are byte-level equal.
+func (priv *PrivateKey) Equal(other *PrivateKey) bool {
+	return equalKeys(&priv.key, &other.key)
 }
 
 // ToBytes implements ByteSerializer.
 func (pub PublicKey) ToBytes() []byte {
-	return []byte(pub)
+	return pub.key.ToBytes()
 }
 
 // Digest returns the keccak256 hash of the public key.
 func (pub PublicKey) Digest() Digest {
-	return crypto.NewDigest(pub)
+	return crypto.NewDigest(pub.ToBytes())
 }
 
-// ToCurveKey returns the curve key format of the key.
-func (priv PrivateKey) ToCurveKey() CurveKey {
-	var buf [KeySize]byte
-	copy(buf[:], priv[:KeySize])
-	return CurveKey(buf)
-}
-
-// ToCurveKey returns the curve key format of the key.
-func (pub PublicKey) ToCurveKey() CurveKey {
-	var buf [KeySize]byte
-	copy(buf[:], pub[:KeySize])
-	return CurveKey(buf)
+// Equal compares a public key with another public key.
+// Retuns true if keys are byte-level equal.
+func (pub *PublicKey) Equal(other *PublicKey) bool {
+	return equalKeys(&pub.key, &other.key)
 }

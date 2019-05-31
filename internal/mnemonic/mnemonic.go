@@ -21,6 +21,12 @@ type Mnemonic struct {
 	positions []int
 }
 
+// SeedSize is the size of the seed the mnemonic can convert to (in bytes).
+const SeedSize = 32
+
+// Seed is the byte value the mnemonic can convert to.
+type Seed = [SeedSize]byte
+
 func extractRunePrefix(word string, prefixLen int) (result []rune) {
 	if utf8.RuneCountInString(word) > prefixLen {
 		return []rune(word[0:prefixLen])
@@ -93,8 +99,8 @@ func FromString(mnemonicStr string) (result *Mnemonic, err error) {
 	return nil, ErrShortWordList
 }
 
-// FromKey will convert key bytes into a mnemonic seed with the given language code. If langCode is true, will add checksum word. Retunrs error if language code or key is invalid
-func FromKey(key []byte, langCode int, checksum bool) (*Mnemonic, error) {
+// FromSeed will convert key bytes into a mnemonic seed with the given language code. If langCode is true, will add checksum word. Retunrs error if language code or key is invalid
+func FromSeed(seed *Seed, langCode int, checksum bool) (*Mnemonic, error) {
 	// Try and get the dictionary with the given language code
 	dict, err := dictionary.GetDictionary(langCode)
 	if err != nil {
@@ -105,9 +111,9 @@ func FromKey(key []byte, langCode int, checksum bool) (*Mnemonic, error) {
 	dictSize := uint32(len(dict.Entries))
 
 	// Encode hex characters into base 1626
-	for i := 0; i < (len(key) / 4); i++ {
+	for i := 0; i < (len(seed) / 4); i++ {
 		// Take 4 bytes of the key
-		val := binary.LittleEndian.Uint32(key[i*4:])
+		val := binary.LittleEndian.Uint32(seed[i*4:])
 
 		// Generate 3 digits base 1626
 		w1 := val % dictSize
@@ -134,8 +140,9 @@ func FromKey(key []byte, langCode int, checksum bool) (*Mnemonic, error) {
 	return result, nil
 }
 
-// ToKey will convert the mnemonic seed into key bytes. Returns error if mnemonic is invalid
-func (m *Mnemonic) ToKey() (key []byte, err error) {
+// ToSeed will convert the mnemonic to a Seed.
+// Returns an error if mnemonic is invalid.
+func (m *Mnemonic) ToSeed() (result *Seed, err error) {
 	baseWords := m.Words
 
 	// If checksum is present, verify then remove it
@@ -146,8 +153,8 @@ func (m *Mnemonic) ToKey() (key []byte, err error) {
 		baseWords = baseWords[:MnemonicLength]
 	}
 
-	key = make([]byte, 32, 32)
 	dictSize := len(m.dict.Entries)
+	result = new(Seed)
 
 	// Divide the base mnemonic into 3 word groups
 	for i := 0; i < len(baseWords)/3; i++ {
@@ -162,10 +169,10 @@ func (m *Mnemonic) ToKey() (key []byte, err error) {
 		val += dictSize * dictSize * (((dictSize - w2) + w3) % dictSize)
 
 		// Finaly, convert to 4B of the key
-		binary.LittleEndian.PutUint32(key[i*4:], uint32(val))
+		binary.LittleEndian.PutUint32(result[i*4:], uint32(val))
 	}
 
-	return
+	return result, nil
 }
 
 // ListDictionaries returns descriptions of all available mnemonic dictionaries

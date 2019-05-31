@@ -58,9 +58,9 @@ func GenerateAccount(isTestnet bool) (result *Store, err error) {
 }
 
 // FromSeed will create a new account store using a given seed.
-// If testnet is true it will generate a testnet account
+// If testnet is true it will generate a testnet account.
 // View keys are derived from spend keys.
-func FromSeed(seed Seed, isTestnet bool) *Store {
+func FromSeed(seed *Seed, isTestnet bool) *Store {
 	keyset := key.SetFromSeed(seed)
 	adr := addressMaker(isTestnet)(keyset.View.Pub, keyset.Spend.Pub)
 	return NewStore(adr, keyset.View.Priv, keyset.Spend.Priv)
@@ -71,7 +71,7 @@ func FromSeed(seed Seed, isTestnet bool) *Store {
 // View keys are derived from spend keys.
 // Returns an error if the mnemonic is invalid or cannot be parsed.
 func FromMnemonic(mnemonic *Mnemonic, isTestnet bool) (result *Store, err error) {
-	seed, err := mnemonic.ToKey()
+	seed, err := mnemonic.ToSeed()
 	if err != nil {
 		return nil, err
 	}
@@ -97,6 +97,6 @@ func (s *Store) PrivateViewKey() PrivateKey { return s.viewKey }
 // DeriveKey derives generates a new key derovation from a given public key
 // and a secret.
 // The implementation is a thin wrapper around the derivation package.
-func DeriveKey(pub PublicKey, secret PrivateKey) PrivateKey {
+func DeriveKey(pub PublicKey, secret PrivateKey) (result *PrivateKey, err error) {
 	return key.DeriveKey(pub, secret)
 }

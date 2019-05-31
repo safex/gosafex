@@ -5,10 +5,8 @@ import (
 	"github.com/safex/gosafex/pkg/key"
 )
 
-// Type aliases:
-
 // KeySize is the alias for key.KeySize.
-const KeySize = key.KeySize
+const KeySize = 32
 
 // Seed is the alias for key.Seed.
 type Seed = key.Seed
@@ -18,6 +16,12 @@ type PublicKey = key.PublicKey
 
 // PrivateKey is the alias for key.PrivateKey.
 type PrivateKey = key.PrivateKey
+
+// Pair is the public/private keypair.
+type Pair = key.Pair
+
+// Set is the set of view and spend keypairs.
+type Set = key.Set
 
 // Mnemonic is the alias for mnemonic.Mnemonic.
 type Mnemonic = mnemonic.Mnemonic

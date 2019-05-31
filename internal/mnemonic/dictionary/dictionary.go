@@ -48,7 +48,7 @@ func NewFromFile(filePath string) (*Dictionary, error) {
 	defer dFile.Close()
 
 	// Read/decode the file
-	dict := Dictionary{}
+	dict := new(Dictionary)
 	if err := json.NewDecoder(dFile).Decode(dict); err != nil {
 		return nil, err
 	}
@@ -58,7 +58,7 @@ func NewFromFile(filePath string) (*Dictionary, error) {
 		return nil, ErrDictionarySize
 	}
 
-	return &dict, nil
+	return dict, nil
 }
 
 // All returns a slice of all compiled and runtime dictionary ptrs

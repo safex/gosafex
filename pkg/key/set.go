@@ -1,9 +1,5 @@
 package key
 
-import (
-	"github.com/safex/gosafex/internal/crypto"
-)
-
 // Set is a complete set of spend and view keypairs.
 type Set struct {
 	View  Pair
@@ -23,12 +19,9 @@ func NewSet(view, spend *Pair) *Set {
 // NOTE: to preserve the same seed - we generate the private view key from the
 // Keccak256 hash of the private spend key.
 func GenerateSet() (result *Set, err error) {
-	spend, err := GeneratePair()
-	if err != nil {
-		return nil, err
-	}
-	viewSeed := Seed(crypto.NewDigest(spend.Priv))
-	view := PairFromSeed(viewSeed)
+	spend := GeneratePair()
+	viewSeed := Seed(spend.Priv.Digest())
+	view := PairFromSeed(&viewSeed)
 	result = NewSet(view, spend)
 	return
 }
@@ -37,9 +30,9 @@ func GenerateSet() (result *Set, err error) {
 //
 // NOTE: to preserve the same seed - we generate the private view key from the
 // Keccak256 hash of the private spend key.
-func SetFromSeed(seed Seed) *Set {
+func SetFromSeed(seed *Seed) *Set {
 	spend := PairFromSeed(seed)
-	viewSeed := Seed(crypto.Digest(spend.Priv))
-	view := PairFromSeed(viewSeed)
+	viewSeed := Seed(spend.Priv.Digest())
+	view := PairFromSeed(&viewSeed)
 	return NewSet(view, spend)
 }
