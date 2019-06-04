@@ -79,7 +79,7 @@ func FromMnemonic(mnemonic *Mnemonic, isTestnet bool) (result *Store, err error)
 	if err != nil {
 		return nil, err
 	}
-	//We can use unsafe since we are sure of the underlying type, since they are the same
+	//We can use unsafe since we are sure of the underlying type
 	result = FromSeed((*Seed)(unsafe.Pointer(seed)), isTestnet)
 	return
 }
