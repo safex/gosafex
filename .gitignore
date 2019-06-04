@@ -4,3 +4,6 @@ vendor
 
 # Configuration
 config*.json
+
+#Personal
+TODO.md
