@@ -8,18 +8,6 @@ import (
 	"github.com/safex/gosafex/pkg/key"
 )
 
-const (
-	// ChecksumSize is the size of the address checksum (in bytes)
-	ChecksumSize = 4
-	// EncryptedPaymentIDSize is the size of the encrypted paymentID (in bytes)
-	EncryptedPaymentIDSize = 8
-	// UnencryptedPaymentIDSize is the size of the unencrypted paymentID (in bytes)
-	UnencryptedPaymentIDSize = 32
-)
-
-// MinRawAddressSize is the minimal size of the raw address (in bytes).
-const MinRawAddressSize = MinNetworkIDSize + 2*KeySize + ChecksumSize
-
 // Address is the full safex address
 // - NetworkID - the network prefix
 // - Public spend key
@@ -41,7 +29,7 @@ type PaymentID []byte
 
 func getPaymentID(nid *NetworkID, raw []byte) (PaymentID, error) {
 	if nid.AddressType() == IntegratedAddressType {
-		offset := nid.Size + 2*KeySize // Offset network ID and spend and view keys
+		offset := nid.Size + 2*KeyLength // Offset network ID and spend and view keys
 		pid := raw[offset:]
 		size := len(pid)
 		if (EncryptedPaymentIDSize == size) || (UnencryptedPaymentIDSize == size) {
@@ -93,10 +81,10 @@ func decodeBase58(b58string string) (result *Address, err error) {
 	}
 
 	spendKeyOffset := networkID.Size
-	viewKeyOffset := spendKeyOffset + KeySize
-	paymentIDOffset := viewKeyOffset + KeySize
-	spendKey, _ := key.NewPublicKeyFromBytes(raw[spendKeyOffset:viewKeyOffset])
-	viewKey, _ := key.NewPublicKeyFromBytes(raw[viewKeyOffset:paymentIDOffset])
+	viewKeyOffset := spendKeyOffset + KeyLength
+	paymentIDOffset := viewKeyOffset + KeyLength
+	spendKey := key.NewPublicKeyFromBytes(raw[spendKeyOffset:viewKeyOffset])
+	viewKey := key.NewPublicKeyFromBytes(raw[viewKeyOffset:paymentIDOffset])
 	result = &Address{
 		NetworkID: *networkID,
 		SpendKey:  *spendKey,

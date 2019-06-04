@@ -5,8 +5,20 @@ import (
 	"github.com/safex/gosafex/pkg/key"
 )
 
-// KeySize is the alias for key.KeySize.
-const KeySize = 32
+// KeyLength is the alias for key.KeyLength.
+const KeyLength = key.KeyLength
+
+// ChecksumSize is the size of the address checksum (in bytes)
+const ChecksumSize = 4
+
+// EncryptedPaymentIDSize is the size of the encrypted paymentID (in bytes)
+const EncryptedPaymentIDSize = 8
+
+// UnencryptedPaymentIDSize is the size of the unencrypted paymentID (in bytes)
+const UnencryptedPaymentIDSize = 32
+
+// MinRawAddressSize is the minimal size of the raw address (in bytes).
+const MinRawAddressSize = MinNetworkIDSize + 2*KeyLength + ChecksumSize
 
 // Seed is the alias for key.Seed.
 type Seed = key.Seed
