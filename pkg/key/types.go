@@ -13,3 +13,6 @@ type ByteMarshaller = common.ByteMarshaller
 
 // Seed bytes are used for generating a keypair.
 type Seed = crypto.Seed
+
+//KeyLength is the size of the default type cryptographic key (in bytes).
+const KeyLength = crypto.KeyLength
