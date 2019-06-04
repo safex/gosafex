@@ -6,6 +6,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/safex/gosafex/internal/crypto"
 	"github.com/safex/gosafex/internal/mnemonic/dictionary"
 )
 
@@ -21,11 +22,11 @@ type Mnemonic struct {
 	positions []int
 }
 
-// SeedSize is the size of the seed the mnemonic can convert to (in bytes).
-const SeedSize = 32
+// SeedLength is the size of the seed the mnemonic can convert to (in bytes).
+const SeedLength = crypto.SeedLength
 
 // Seed is the byte value the mnemonic can convert to.
-type Seed = [SeedSize]byte
+type Seed = [SeedLength]byte
 
 func extractRunePrefix(word string, prefixLen int) (result []rune) {
 	if utf8.RuneCountInString(word) > prefixLen {
