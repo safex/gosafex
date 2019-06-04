@@ -63,6 +63,7 @@ func decodeBase58(b58string string) (result *Address, err error) {
 	}
 
 	// TODO: should max size be checked as well?
+	// TODO - edo: isn't it a fixed size?
 	if len(raw) < MinRawAddressSize {
 		return nil, ErrRawAddressTooShort
 	}
@@ -80,11 +81,18 @@ func decodeBase58(b58string string) (result *Address, err error) {
 		return nil, err
 	}
 
+	var bytes [KeyLength]byte
+
 	spendKeyOffset := networkID.Size
 	viewKeyOffset := spendKeyOffset + KeyLength
 	paymentIDOffset := viewKeyOffset + KeyLength
-	spendKey := key.NewPublicKeyFromBytes(raw[spendKeyOffset:viewKeyOffset])
-	viewKey := key.NewPublicKeyFromBytes(raw[viewKeyOffset:paymentIDOffset])
+
+	copy(bytes[:], raw[spendKeyOffset:viewKeyOffset])
+	spendKey := key.NewPublicKeyFromBytes(bytes)
+
+	copy(bytes[:], raw[viewKeyOffset:paymentIDOffset])
+	viewKey := key.NewPublicKeyFromBytes(bytes)
+
 	result = &Address{
 		NetworkID: *networkID,
 		SpendKey:  *spendKey,
@@ -97,10 +105,13 @@ func decodeBase58(b58string string) (result *Address, err error) {
 
 func (adr *Address) encodeBase58() string {
 	raw := networkIDToBytes(adr.NetworkID)
-	raw = append(raw, adr.SpendKey.ToBytes()...)
-	raw = append(raw, adr.ViewKey.ToBytes()...)
-	raw = append(raw, adr.PaymentID...)
 
+	bytes := adr.SpendKey.ToBytes()
+	raw = append(raw, bytes[:]...)
+	bytes = adr.ViewKey.ToBytes()
+	raw = append(raw, bytes[:]...)
+
+	raw = append(raw, adr.PaymentID...)
 	raw = append(raw, computeChecksum(raw)...)
 
 	return base58.Encode(raw)

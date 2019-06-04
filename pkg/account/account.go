@@ -1,6 +1,10 @@
 package account
 
-import "github.com/safex/gosafex/pkg/key"
+import (
+	"unsafe"
+
+	"github.com/safex/gosafex/pkg/key"
+)
 
 // Account contains methods of the account wrapper.
 // You can get an accounts:
@@ -75,7 +79,8 @@ func FromMnemonic(mnemonic *Mnemonic, isTestnet bool) (result *Store, err error)
 	if err != nil {
 		return nil, err
 	}
-	result = FromSeed(seed, isTestnet)
+	//We can use unsafe since we are sure of the underlying type, since they are the same
+	result = FromSeed((*Seed)(unsafe.Pointer(seed)), isTestnet)
 	return
 }
 
