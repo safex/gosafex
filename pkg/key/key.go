@@ -4,9 +4,6 @@ import (
 	"github.com/safex/gosafex/internal/crypto"
 )
 
-//KeyLength is the size of the default type cryptographic key (in bytes).
-const KeyLength = crypto.KeyLength
-
 // PublicKey is a point on the default cryptographic curve interpreted as a public key.
 type PublicKey struct {
 	key crypto.Key
