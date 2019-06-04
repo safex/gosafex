@@ -11,8 +11,8 @@ import (
 // Digest is the alias to crypto.Digest.
 type Digest = crypto.Digest
 
-// KeySize is the size of public/private keys (in bytes).
-const KeySize = key.Size
+// KeyLength is the size of public/private keys (in bytes).
+const KeyLength = key.KeyLength
 
 // PublicKey is an alias to crypto.PublicKey.
 type PublicKey = key.PublicKey

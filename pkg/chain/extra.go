@@ -15,7 +15,9 @@ func (ex Extra) matchTag(tag byte) bool {
 // Returns nil if key could not be extracted.
 func (ex Extra) TxPubKey() (result *PublicKey) {
 	if ok := ex.matchTag(ExtraTagPubkey); ok {
-		result, _ = key.NewPublicKeyFromBytes(ex[1 : KeySize+1])
+		var bytes [KeyLength]byte
+		copy(bytes[:], ex[1:KeyLength+1])
+		result = key.NewPublicKeyFromBytes(bytes)
 	}
 	return
 }
