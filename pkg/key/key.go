@@ -1,13 +1,11 @@
 package key
 
 import (
-	"errors"
-
 	"github.com/safex/gosafex/internal/crypto"
 )
 
-// Size is the size of the default type cryptographic key (in bytes).
-const Size = 32
+//KeyLength is the size of the default type cryptographic key (in bytes).
+const KeyLength = crypto.KeyLength
 
 // PublicKey is a point on the default cryptographic curve interpreted as a public key.
 type PublicKey struct {
@@ -30,7 +28,10 @@ func generate() (*PublicKey, *PrivateKey) {
 	return NewPublicKey(pubKey), NewPrivateKey(privKey)
 }
 
+//TODO: this whole function should be redundant now that keys are defined as fixed types, could be kept for order. Could be
+//		included directly into Equal (still redundant)
 func equalKeys(a, b *crypto.Key) bool {
+	//This should be redundant right now
 	if len(a) != len(b) {
 		return false
 	}
@@ -53,26 +54,20 @@ func NewPrivateKey(key *crypto.Key) *PrivateKey {
 }
 
 // NewPublicKeyFromBytes will create a PublicKey from a raw bytes representation.
-// Returns error if the slice size is greater than Size.
-func NewPublicKeyFromBytes(raw []byte) (result *PublicKey, err error) {
-	if len(raw) > Size {
-		return nil, errors.New("Raw key size is too large")
-	}
-
-	key := new(crypto.Key)
-	copy(key[:], raw[:Size])
-
-	return NewPublicKey(key), nil
+func NewPublicKeyFromBytes(raw [KeyLength]byte) *PublicKey {
+	key := crypto.Key(raw)
+	return NewPublicKey(&key)
 }
 
 // ToBytes implements ByteSerializer.
-func (priv PrivateKey) ToBytes() []byte {
+func (priv PrivateKey) ToBytes() [KeyLength]byte {
 	return priv.key.ToBytes()
 }
 
 // Digest returns the keccak256 hash of the private key.
 func (priv PrivateKey) Digest() Digest {
-	return crypto.NewDigest(priv.ToBytes())
+	bytes := priv.ToBytes()
+	return crypto.NewDigest(bytes[:])
 }
 
 // ToSeed returns the seed form of the private key.
@@ -93,13 +88,14 @@ func (priv *PrivateKey) Equal(other *PrivateKey) bool {
 }
 
 // ToBytes implements ByteSerializer.
-func (pub PublicKey) ToBytes() []byte {
+func (pub PublicKey) ToBytes() [KeyLength]byte {
 	return pub.key.ToBytes()
 }
 
 // Digest returns the keccak256 hash of the public key.
 func (pub PublicKey) Digest() Digest {
-	return crypto.NewDigest(pub.ToBytes())
+	bytes := pub.ToBytes()
+	return crypto.NewDigest(bytes[:])
 }
 
 // Equal compares a public key with another public key.
