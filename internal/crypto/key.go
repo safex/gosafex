@@ -8,6 +8,12 @@ type Seed = curve.Seed
 // Key is a point on the default cryptographic curve type.
 type Key = curve.Key
 
+// KeyLength exposes the underlying key length to other modules.
+const KeyLength = curve.KeyLength
+
+// SeedLength exposes the underlying seed length to other modules.
+const SeedLength = curve.SeedLength
+
 // GenerateKey will generate a random Key based on the default random source.
 func GenerateKey() *Key {
 	return curve.NewRandomScalar()

@@ -23,7 +23,7 @@ const SeedLength = 32
 type Key [KeyLength]byte
 
 // Seed is a random sequence used a seed for generating keys.
-type Seed = [SeedLength]byte
+type Seed [SeedLength]byte
 
 // New will construct a new key with the given data.
 func New(data [KeyLength]byte) *Key {
@@ -119,6 +119,6 @@ func (key Key) String() string {
 }
 
 // ToBytes implements ByteMarshaller.
-func (key Key) ToBytes() []byte {
-	return key[:]
+func (key Key) ToBytes() [KeyLength]byte {
+	return key
 }
