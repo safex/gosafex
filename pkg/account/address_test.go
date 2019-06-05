@@ -22,17 +22,17 @@ var (
 		adrStr: "Safex616",
 	}
 	badNetworkID = testVector{
-		spendingKeyHex: "8c1a9d5ff5aaf1c3cdeb2a1be62f07a34ae6b15fe47a254c8bc240f348271679",
-		viewKeyHex:     "0a29b163e392eb9416a52907fd7d3b84530f8d02ff70b1f63e72fdcb54cf7fe1",
-		adrStr:         "46w3n5EGhBeZkYmKvQRsd8UK9GhvcbYWQDobJape3NLMMFEjFZnJ3CnRmeKspubQGiP8iMTwFEX2QiBsjUkjKT4SSPd3fKp",
+		spendingKeyHex: "322aa25558f5c5ec6b60e2c83e94cd14423d406b73c61c925554183fcda1a03d",
+		viewKeyHex:     "91ffbc5b116ecbf79e35a9a1481fb97165ced550b7733df9254525168e025eed",
+		adrStr:         "5zCxPRXEGbM4WwG9X25T4oJhDR7ZT9EQaVSiUFDKbUFyRjRuzbGEUXcKUTbmiTydpduEkV72EW42SJpLz9A4movipf8YrH2v",
 	}
 	validMainnet = testVector{
 		prefix:         MainnetRegularAddressPrefix,
 		addressType:    RegularAddressType,
 		networkType:    MainnetNetworkType,
-		spendingKeyHex: "d645dd142d38c950d5d38c7d81c3fff2ff9c8e267169dc2c896ed9b84509ca84",
-		viewKeyHex:     "0fadcae4d1c82d3cd3f62c5c27ce036cc2c7617cb19f4bcef17cf4650d949ff6",
-		adrStr:         "Safex616cpc4NjrBS34ciXMzaJL6y8fUZ7RwqYVuUjdJXpeWbNXcr2ufGqTHWjiMKZGR2NcMFPap8Mrgp6z9Ndb9HuLnfUQMs2R11",
+		spendingKeyHex: "6c34868fb70656086226996ddd1e30873ee57e4b569568a8cb91eec669947a51",
+		viewKeyHex:     "d146e3a50f1f892f2343b2ee6c9e86b5d9221d275eeca01330d0fb841591e968",
+		adrStr:         "Safex5zUzTPR3DU5huKs9rKNpKkH3gs7bDbskmfR7Ky7aBrF9be1yVUUcHED5NtJcRgt1q9iegKsz7awsYaWfueiP6PCb6hWCnV3v",
 	}
 )
 
@@ -65,14 +65,18 @@ func Test_AddressFromBase58(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Setup
-			wantSpendKey, err := hex.DecodeString(tt.tVec.spendingKeyHex)
+			var wantSpendKey [32]byte
+			var wantViewKey [32]byte
+			wantSpendKeyTemp, err := hex.DecodeString(tt.tVec.spendingKeyHex)
 			if err != nil {
 				t.Fatalf("Failed to decode test spend key, key = %s", tt.tVec.spendingKeyHex)
 			}
-			wantViewKey, err := hex.DecodeString(tt.tVec.viewKeyHex)
+			copy(wantSpendKey[:], wantSpendKeyTemp)
+			wantViewKeyTemp, err := hex.DecodeString(tt.tVec.viewKeyHex)
 			if err != nil {
 				t.Fatalf("Failed to decode test view key, key = %s", tt.tVec.viewKeyHex)
 			}
+			copy(wantViewKey[:], wantViewKeyTemp)
 
 			// Decode address
 			adr, err := FromBase58(tt.tVec.adrStr)
@@ -82,7 +86,6 @@ func Test_AddressFromBase58(t *testing.T) {
 				}
 				return
 			}
-
 			// Test network type and address type
 			if (adr.NetworkType() != tt.tVec.networkType) != tt.wantErr {
 				t.Errorf("Bad network type, want = %v, got = %v", tt.tVec.networkType, adr.NetworkType())
@@ -92,15 +95,16 @@ func Test_AddressFromBase58(t *testing.T) {
 			}
 
 			// Test if proper view/spend public keys were extracted
-			if reflect.DeepEqual(adr.SpendKey.ToBytes(), wantSpendKey) != tt.wantErr {
+			if reflect.DeepEqual(adr.SpendKey.ToBytes(), wantSpendKey) == tt.wantErr {
 				t.Errorf("Bad spend key, want = %v, got = %v", wantSpendKey, adr.SpendKey.ToBytes())
 			}
-			if reflect.DeepEqual(adr.ViewKey.ToBytes(), wantViewKey) != tt.wantErr {
+
+			if reflect.DeepEqual(adr.ViewKey.ToBytes(), wantViewKey) == tt.wantErr {
 				t.Errorf("Bad view key, want = %v, got = %v", wantViewKey, adr.ViewKey.ToBytes())
 			}
 
 			// Convert address back to base58
-			if res := adr.String(); reflect.DeepEqual(res, tt.tVec.adrStr) != tt.wantErr {
+			if res := adr.String(); reflect.DeepEqual(res, tt.tVec.adrStr) == tt.wantErr {
 				t.Errorf("Address.String() = %v, want %v", res, tt.tVec.adrStr)
 			}
 		})
