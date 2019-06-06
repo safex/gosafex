@@ -29,6 +29,7 @@ type Address struct {
 // Data structure for storing outputs.
 type Transfer struct {
 	Output  *safex.Txout
+	Index 	int
 	Spent   bool
 	MinerTx bool
 	Height  uint64

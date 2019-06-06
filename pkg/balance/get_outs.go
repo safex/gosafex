@@ -9,7 +9,7 @@ import (
 	"fmt"
 )
 
-func (w *Wallet) getOutputHistogram(selectedTransfer *[]Transfer, outType safex.TxOutType) (histograms []safex.Histogram){
+func (w *Wallet) getOutputHistogram(selectedTransfer *[]Transfer, outType safex.TxOutType) (histograms []*safex.Histogram){
 	// @todo can be optimized
 	var amounts []uint64
 	encountered := map[uint64]bool{}
@@ -50,8 +50,15 @@ func (w *Wallet) getOuts(outs *[][]OutsEntry, selectedTransfers *[]Transfer, fak
 		histograms := w.getOutputHistogram(selectedTransfers, safex.OutCash)
 		
 		baseRequestedOutputsCount := uint64(float64(fakeOutsCount + 1) * 1.5 + 1)
+		
+		fmt.Println("---------------- ************************* ------------------------------------")
+		for _, val := range(*selectedTransfers) {
+			fmt.Println(val.Index)
+			fmt.Println(val.Output.Amount)
+		}
+		fmt.Println("---------------- ************************* ------------------------------------")
 
-
+		fmt.Println(baseRequestedOutputsCount)
 		fmt.Println("This is something!!!", histograms)
 	}
 
