@@ -1,7 +1,6 @@
 package balance
 
 import (
-	"encoding/hex"
 	"fmt"
 	"math/rand"
 	"sort"
@@ -47,56 +46,6 @@ func IsDecomposedOutputValue(value uint64) bool {
 	} else {
 		return false
 	}
-}
-
-// Structure for keeping destination entries for transaction.
-type DestinationEntry struct {
-	Amount           uint64
-	TokenAmount      uint64
-	Address          account.Address
-	IsSubaddress     bool // Not used, maybe needed in the future
-	TokenTransaction bool
-}
-
-type TxSourceEntry struct {
-}
-
-type OutsEntry struct {
-	Index  uint64
-	PubKey [32]byte
-}
-
-type TxConstructionData struct {
-	Sources           []TxSourceEntry
-	ChangeDts         DestinationEntry
-	SplittedDsts      []DestinationEntry
-	SelectedTransfers []uint64
-	Extra             []byte
-	UnlockTime        uint64
-	Dests             []DestinationEntry
-}
-
-type PendingTx struct {
-	Tx                safex.Transaction
-	Dust              uint64
-	Fee               uint64
-	DustAddedToFee    uint64
-	ChangeDts         DestinationEntry
-	ChangeTokenDts    DestinationEntry
-	SelectedTransfers []uint64
-	KeyImages         string
-	TxKey             [32]byte
-	AdditionalTxKeys  [][32]byte // Not used
-	Dests             []DestinationEntry
-	ConstructionData  TxConstructionData
-}
-
-type TX struct {
-	SelectedTransfers []Transfer
-	Dsts              []DestinationEntry
-	Tx                safex.Transaction
-	PendingTx         PendingTx
-	bytes             uint64
 }
 
 func (tx *TX) findDst(acc account.Address) int {
@@ -174,31 +123,6 @@ func estimateTxSize(nInputs, mixin, nOutputs, extraSize int) int {
 
 func txSizeTarget(input int) int {
 	return input * 3 / 2
-}
-
-func (w *Wallet) transferSelected(dsts *[]DestinationEntry, selectedTransfers *[]Transfer, fakeOutsCount int, outs *[][]OutsEntry,
-	unlockTime uint64, fee uint64, extra *[]byte, tx *safex.Transaction, ptx *PendingTx) { // destination_split_strategy, // dust_policy
-
-	// Check if dsts are empty
-	if len(*dsts) == 0 {
-		panic("zero destination")
-	}
-
-	upperTxSizeLimit := consensus.GetUpperTransactionSizeLimit(2, 10)
-	neededMoney := fee
-	// @todo add tokens
-
-	//@todo Check for uint64 overflow
-	for _, dst := range *dsts {
-		neededMoney += dst.Amount
-	}
-
-	var foundMoney uint64 = 0
-	for _, slctd := range *selectedTransfers {
-		foundMoney += slctd.Output.Amount
-	}
-
-	
 }
 
 func (w *Wallet) TxCreateCash(dsts []DestinationEntry, fakeOutsCount int, unlockTime uint64, priority uint32, extra []byte, trustedDaemon bool) []PendingTx {
@@ -280,7 +204,7 @@ func (w *Wallet) TxCreateCash(dsts []DestinationEntry, fakeOutsCount int, unlock
 	txes = append(txes, TX{})
 	var accumulatedFee, accumulatedOutputs, accumulatedChange, availableForFee, neededFee uint64 = 0, 0, 0, 0, 0
 
-	//	var outs [][]OutsEntry
+	var outs [][]OutsEntry
 
 	var originalOutputIndex int = 0
 	var addingFee bool = false
@@ -290,7 +214,6 @@ func (w *Wallet) TxCreateCash(dsts []DestinationEntry, fakeOutsCount int, unlock
 	var idx int = 0
 	// basic loop for getting outputs
 	for (len(dsts) != 0 && dsts[0].Amount != 0) || addingFee {
-		fmt.Println("----------------------------------------------------*******************************")
 		tx := &txes[len(txes)-1]
 
 		if len(unusedOutputs) == 0 && len(dustOutputs) == 0 {
@@ -309,7 +232,7 @@ func (w *Wallet) TxCreateCash(dsts []DestinationEntry, fakeOutsCount int, unlock
 		availableAmount := unusedOutputs[idx].Output.Amount
 		accumulatedOutputs += availableAmount
 
-		//outs = nil
+		outs = nil
 
 		if addingFee {
 			availableForFee += availableAmount
@@ -325,8 +248,6 @@ func (w *Wallet) TxCreateCash(dsts []DestinationEntry, fakeOutsCount int, unlock
 			}
 			// @todo Check why this block exists at all.
 			if availableAmount > 0 && len(dsts) != 0 && estimateTxSize(len(tx.SelectedTransfers), int(fakeOutsCount), len(tx.Dsts), len(extra)) != 0 {
-				fmt.Println(dsts != nil)
-				fmt.Println(len(dsts))
 				tx.Add(dsts[0].Address, availableAmount, originalOutputIndex, false)
 				dsts[0].Amount -= availableAmount
 				availableAmount = 0
@@ -342,8 +263,8 @@ func (w *Wallet) TxCreateCash(dsts []DestinationEntry, fakeOutsCount int, unlock
 		}
 
 		if tryTx {
-			//var testTx safex.Transaction
-			//var testPtx PendingTx
+			var testTx safex.Transaction
+			var testPtx PendingTx
 			estimatedTxSize := estimateTxSize(len(tx.SelectedTransfers), fakeOutsCount, len(tx.Dsts), len(extra))
 			neededFee = consensus.CalculateFee(feePerKb, estimatedTxSize, feeMultiplier)
 
@@ -358,17 +279,20 @@ func (w *Wallet) TxCreateCash(dsts []DestinationEntry, fakeOutsCount int, unlock
 				outputs += val.Amount
 			}
 
-			fmt.Println(len(tx.Dsts))
-			fmt.Println(len(tx.SelectedTransfers))
-			fmt.Println(hex.EncodeToString(tx.SelectedTransfers[0].Output.Target.TxoutToKey.Key))
-			fmt.Println(tx.SelectedTransfers[0].Output)
 			// We dont have enough for the basice fee, switching to adding fee.
 			// @todo Add logs, panics and shit
-			if outputs > inputs {
-				panic("You dont have enough money for fee")
-				addingFee = true
-				// goto skip_tx
-			}
+			// @todo see why this is panicing always
+			// if outputs > inputs {
+			// 	panic("You dont have enough money for fee")
+			// 	addingFee = true
+			// 	// goto skip_tx
+			// }
+
+
+			// Transfer selected
+			// @todo This need to be reworked
+			var fee uint64 = 0
+			w.transferSelected(&tx.Dsts, &tx.SelectedTransfers, fakeOutsCount, &outs, unlockTime, fee, &extra, &testTx, &testPtx)
 		}
 
 	}

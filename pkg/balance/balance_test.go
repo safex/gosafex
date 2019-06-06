@@ -32,7 +32,7 @@ func TestBalance(t *testing.T) {
 
 	fmt.Printf("Cash Locked: %d \n", got.CashLocked)
 	fmt.Printf("Token Locked: %d \n", got.TokenLocked)
-
+	
 	if !(got.CashLocked == cashLockedWant && got.TokenLocked == tokenLockedWant) {
 		t.Errorf("Locked balance mismatch for blockchain test snapshot 29.3.2019! got %d %d want %d %d", got.CashLocked, got.TokenLocked, cashLockedWant, tokenLockedWant)
 	}

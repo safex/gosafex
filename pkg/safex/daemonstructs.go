@@ -41,3 +41,21 @@ type HardForkInfo struct {
 	Voting uint64 `json:"voting"`
 	Window uint64 `json:"window"`
 }
+
+type TxOutType int
+
+const (
+	OutCash TxOutType = iota
+	OutToken
+	OutBitcointMigration
+	OutInvalid = 100
+)
+
+type OutputHistogram struct {
+	Amount uint64 `json:"amount"`
+	RecentInstances uint64 `json:"recent_instances"`
+	TotalInstances uint64 `json:"total_instances"`
+	UnlockedInstances uint64 `json:"unlocked_instances"`
+	outtypeDmmy []byte `json:"out_type"-`
+	OutType TxOutType
+}

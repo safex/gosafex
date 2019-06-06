@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"strconv"
 	"time"
+	"fmt"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/safex/gosafex/pkg/safex"
@@ -78,7 +79,7 @@ func (c Client) JSONSafexdCall(method string, params interface{}) ([]byte, error
 
 	jsonBuff, _ := json.Marshal(body)
 
-	//fmt.Println(string(jsonBuff))
+	fmt.Println(string(jsonBuff))
 
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonBuff))
 	must(err)
@@ -196,4 +197,23 @@ func (c Client) GetDynamicFeeEstimate() (fee uint64, err error) {
 	fee = uint64(gjson.GetBytes(result, "result.fee").Num)
 
 	return fee, err
+}
+
+func (c Client) GetOutputHistogram(amounts *[]uint64, 
+									 minCount uint64, 
+									 maxCount uint64, 
+									 unlocked bool, 
+									 recentCutoff uint64,
+									 txOutType safex.TxOutType) (histograms safex.Histograms, err error) {
+	result, err := c.SafexdCall("proto/get_output_histogram",  JSONElement{ "amounts" : *amounts, 
+																			"min_count" : minCount,
+																			"max_count" : maxCount,
+																			"unlocked" : unlocked,
+																			"recent_cutoff" : recentCutoff,
+																			"out_type_as_int": txOutType}, "POST")
+	must(err)
+
+	err = proto.Unmarshal(result, &histograms)
+	must(err)
+	return histograms, err
 }

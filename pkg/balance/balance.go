@@ -10,41 +10,6 @@ import (
 	"github.com/safex/gosafex/pkg/safexdrpc"
 )
 
-// Containing balance status
-type Balance struct {
-	CashUnlocked  uint64
-	CashLocked    uint64
-	TokenUnlocked uint64
-	TokenLocked   uint64
-}
-
-type Key struct {
-	Public  [32]byte
-	Private [32]byte
-}
-
-type Address struct {
-	SpendKey Key
-	ViewKey  Key
-	Address  string
-}
-
-// Data structure for storing outputs.
-type Transfer struct {
-	Output  *safex.Txout
-	Spent   bool
-	MinerTx bool
-	Height  uint64
-	KImage  derivation.Key
-}
-
-type Wallet struct {
-	balance Balance
-	Address Address
-	client  *safexdrpc.Client
-	outputs map[derivation.Key]Transfer // Save output keys.
-}
-
 func (t Transfer) getRelatedness(input *Transfer) float32 {
 
 	// @todo: Implement txid check.
