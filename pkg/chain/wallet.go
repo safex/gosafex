@@ -16,19 +16,19 @@ type Wallet struct {
 
 // BlockFetchCnt is the the nubmer of blocks to fetch at once.
 // TODO: Move this to some config, or recalculate based on response time
-const BlockFetchCnt = 100
-
-func matchOutput(txOut *safex.Txout, index uint64, der [32]byte, outputKey *[32]byte) bool {
-	derivatedPubKey := crypto.KeyDerivation_To_PublicKey(index, crypto.Key(der), w.Address.SpendKey.Public)
-	var outKeyTemp []byte
-	if txOut.Target.TxoutToKey != nil {
-		outKeyTemp, _ = hex.DecodeString(txOut.Target.TxoutToKey.Key)
-	} else {
-		outKeyTemp, _ = hex.DecodeString(txOut.Target.TxoutTokenToKey.Key)
-	}	// Return also outputkey
-	copy(outputKey[:], outKeyTemp[:32])
-	return *outputKey == [32]byte(derivatedPubKey)
-}
+//const BlockFetchCnt = 100
+//
+//func matchOutput(txOut *safex.Txout, index uint64, der [32]byte, outputKey *[32]byte) bool {
+//	derivatedPubKey := crypto.KeyDerivation_To_PublicKey(index, crypto.Key(der), w.Address.SpendKey.Public)
+//	var outKeyTemp []byte
+//	if txOut.Target.TxoutToKey != nil {
+//		outKeyTemp, _ = hex.DecodeString(txOut.Target.TxoutToKey.Key)
+//	} else {
+//		outKeyTemp, _ = hex.DecodeString(txOut.Target.TxoutTokenToKey.Key)
+//	}	// Return also outputkey
+//	copy(outputKey[:], outKeyTemp[:32])
+//	return *outputKey == [32]byte(derivatedPubKey)
+//}
 
 // // ProcessBlockRange processes all transactions in a range of blocks.
 // func (w *Wallet) ProcessBlockRange(blocks safex.Blocks) bool {
