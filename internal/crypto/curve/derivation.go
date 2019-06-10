@@ -108,7 +108,7 @@ func KeyImage(pub, priv *Key) (result *Key) {
 	proj := new(ProjectiveGroupElement)
 
 	ext := pub.toECPoint()
-	GeScalarMult(proj, pub, ext)
+	GeScalarMult(proj, priv, ext)
 	proj.toBytes(result)
 	return
 }

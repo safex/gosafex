@@ -306,7 +306,6 @@ func TestDeriveKey(t *testing.T) {
 		})
 	}
 }
-
 func TestGenerateImage(t *testing.T) {
 	var tests []TestCase
 	for _, el := range generateTestPositive {
