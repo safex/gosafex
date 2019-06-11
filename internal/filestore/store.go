@@ -5,6 +5,7 @@ import (
 	"crypto/cipher"
 	"crypto/rand"
 	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"io"
 	"log"
@@ -12,6 +13,24 @@ import (
 	bolt "github.com/etcd-io/bbolt"
 	"golang.org/x/crypto/hkdf"
 )
+
+func unpad(value []byte) []byte {
+	for i := len(value) - 1; i >= 0; i-- {
+		if byte(value[i]) == byte(0) {
+			_, value = value[len(value)-1], value[:len(value)-1]
+		} else {
+			break
+		}
+	}
+	return value
+}
+
+func pad(value []byte, size int) []byte {
+	for len(value) < size {
+		value = append(value, byte(0))
+	}
+	return value
+}
 
 func createHash(value []byte) []byte {
 	hasher := sha256.New()
@@ -227,9 +246,9 @@ func (e *EncryptedDB) SetBucket(bucket string) error {
 	if _, err := io.ReadFull(kdf, key[:]); err != nil {
 		return err
 	}
-
+	log.Printf("Global nonce (hex) %s", hex.EncodeToString(e.masternonce))
 	e.stream.targetBucket = encrypt([]byte(bucket), key[:], e.masternonce[:])
-
+	log.Printf("Wallet encrypted bucket name(hex): %s", hex.EncodeToString(e.stream.targetBucket))
 	if !e.stream.BucketExists() {
 		return errors.New("Bucket not initialized")
 	}
@@ -260,8 +279,8 @@ func (e *EncryptedDB) Write(key string, data []byte) error {
 	}
 	log.Printf("Encryption key: %x", ecryptkey)
 
-	e.stream.targetKey = encrypt([]byte(key), ecryptkey[:], nonce[:])
-	e.stream.Write(encrypt(data, ecryptkey[:], nonce[:]))
+	e.stream.targetKey = encrypt(pad([]byte(key), 32), ecryptkey[:], nonce[:])
+	e.stream.Write(encrypt(pad(data, 32), ecryptkey[:], nonce[:]))
 
 	log.Printf("Wrote at key %x", e.stream.targetKey)
 
@@ -275,7 +294,7 @@ func (e *EncryptedDB) Read(key string) ([]byte, error) {
 	}
 
 	nonce, err := e.GetNonce()
-	log.Printf("Got nonce: %x", nonce)
+	log.Printf("Wallet nonce: %x", nonce)
 	if err != nil {
 		return nil, err
 	}
@@ -288,7 +307,7 @@ func (e *EncryptedDB) Read(key string) ([]byte, error) {
 	}
 	log.Printf("Encryption key: %x", ecryptkey)
 
-	e.stream.targetKey = encrypt([]byte(key), ecryptkey[:], nonce[:])
+	e.stream.targetKey = encrypt(pad([]byte(key), 32), ecryptkey[:], nonce[:])
 
 	log.Printf("Reading at key %x", e.stream.targetKey)
 	data, err := e.stream.Read()
@@ -296,8 +315,9 @@ func (e *EncryptedDB) Read(key string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	return decrypt(data, ecryptkey[:]), nil
+	log.Printf("Read (hex): %s", hex.EncodeToString(data))
+	data = unpad(decrypt(data, ecryptkey[:]))
+	return data, nil
 }
 
 //GetCurrentBucket .
@@ -362,10 +382,11 @@ func main() {
 		db.CreateBucket("Wallet1")
 		db.SetBucket("Wallet1")
 	}
+	log.Printf("Reading key \"test\" inside \"Wallet1\"")
 	data, err := db.Read("test")
 	if err != nil {
 		log.Print(err)
 	} else {
-		log.Print(data)
+		log.Printf("Decrypted Data: %s", data)
 	}
 }
