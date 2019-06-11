@@ -1,7 +1,8 @@
-package filestore
+package main
 
 import (
-	"bytes"
+	"crypto/aes"
+	"crypto/cipher"
 	"crypto/rand"
 	"crypto/sha256"
 	"errors"
@@ -9,16 +10,63 @@ import (
 	"log"
 
 	bolt "github.com/etcd-io/bbolt"
-	sio "github.com/minio/sio"
 	"golang.org/x/crypto/hkdf"
 )
 
-//In our representation the bucket is the single wallet
+func createHash(value []byte) []byte {
+	hasher := sha256.New()
+	hasher.Write(value)
+	return hasher.Sum(nil)
+}
+func encrypt(data []byte, secret []byte, nonce []byte) []byte {
+	c, err := aes.NewCipher(createHash(secret))
+	if err != nil {
+		return nil
+	}
 
+	gcm, err := cipher.NewGCM(c)
+	nonce = nonce[:gcm.NonceSize()]
+	if err != nil {
+		return nil
+	}
+
+	return gcm.Seal(nonce, nonce, data, nil)
+}
+
+func decrypt(data []byte, secret []byte) []byte {
+	c, err := aes.NewCipher(createHash(secret))
+	if err != nil {
+		return nil
+	}
+
+	gcm, err := cipher.NewGCM(c)
+	if err != nil {
+		return nil
+	}
+
+	nonceSize := gcm.NonceSize()
+	if len(data) < nonceSize {
+		return nil
+	}
+
+	nonce, data := data[:nonceSize], data[nonceSize:]
+
+	ret, _ := gcm.Open(nil, nonce, data, nil)
+	return ret
+}
+
+//EncryptedStream .
 type EncryptedStream struct {
 	db           *bolt.DB
-	targetBucket bytes.Buffer
-	targetKey    bytes.Buffer
+	targetBucket []byte
+	targetKey    []byte
+}
+
+//EncryptedDB .
+type EncryptedDB struct {
+	masterkey   []byte
+	masternonce []byte
+	stream      *EncryptedStream
 }
 
 //TODO: manage errors
@@ -26,11 +74,11 @@ type EncryptedStream struct {
 func (e *EncryptedStream) Write(p []byte) (int, error) {
 	n := 0
 	err := e.db.Update(func(tx *bolt.Tx) error {
-		b := tx.Bucket(e.targetBucket.Bytes())
+		b := tx.Bucket(e.targetBucket)
 		if b == nil {
 			return errors.New("Can't find bucket")
 		}
-		err := b.Put(e.targetKey.Bytes(), p)
+		err := b.Put(e.targetKey, p)
 		n = len(p)
 		return err
 	})
@@ -38,32 +86,27 @@ func (e *EncryptedStream) Write(p []byte) (int, error) {
 }
 
 //TODO: manage errors
-func (e *EncryptedStream) Read(p []byte) (int, error) {
-	var n int
+func (e *EncryptedStream) Read() ([]byte, error) {
+	ret := []byte(nil)
 	err := e.db.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket(e.targetBucket.Bytes())
+		b := tx.Bucket(e.targetBucket)
 		if b == nil {
 			return errors.New("Can't find bucket")
 		}
-		ret := b.Get(e.targetKey.Bytes())
+		ret = b.Get(e.targetKey)
 		if ret == nil {
 			return errors.New("Can't find target key")
 		}
-		if len(ret) >= len(p) {
-			copy(p, ret[:len(p)])
-			n = len(p)
-			return errors.New("Byte buffer of the wrong size")
-		}
-		copy(p, ret[:])
-		n = len(ret)
 		return nil
 	})
-	return n, err
+	return ret, err
 }
 
+//BucketExists .
 func (e *EncryptedStream) BucketExists() bool {
 	err := e.db.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket(e.targetBucket.Bytes())
+		bytes := e.targetBucket
+		b := tx.Bucket(bytes)
 		if b == nil {
 			return errors.New("")
 		}
@@ -76,54 +119,47 @@ func (e *EncryptedStream) BucketExists() bool {
 
 }
 
+//CreateBucket .
 func (e *EncryptedStream) CreateBucket(nonce [32]byte) error {
 	err := e.db.Update(func(tx *bolt.Tx) error {
-		b, err := tx.CreateBucket(e.targetBucket.Bytes())
+		b, err := tx.CreateBucket(e.targetBucket)
 		if err != nil {
 			return err
 		}
-		b.Put([]byte("nonce"), nonce[:])
-		return nil
+		return b.Put([]byte("nonce"), nonce[:])
 	})
 	return err
 }
 
-type EncryptedDB struct {
-	masterkey   []byte
-	masternonce []byte
-	stream      *EncryptedStream
-}
-
+//GetNonce .
 func (e *EncryptedDB) GetNonce() ([]byte, error) {
-	nonce := make([]byte, 32)
 
-	e.stream.targetKey.Reset()
-	e.stream.targetKey.Write([]byte("nonce"))
+	e.stream.targetKey = []byte("nonce")
 
-	_, err := e.stream.Read(nonce)
+	nonce, err := e.stream.Read()
 	if err != nil {
 		return nil, err
 	}
 	return nonce, nil
 }
 
+//CreateMasterBucket .
 func (e *EncryptedDB) CreateMasterBucket() error {
 	var nonce [32]byte
 	if _, err := io.ReadFull(rand.Reader, nonce[:]); err != nil {
 		return err
 	}
 
-	e.stream.targetBucket.Reset()
-	e.stream.targetBucket.Write([]byte("master"))
+	e.stream.targetBucket = []byte("master")
 
 	err := e.stream.CreateBucket(nonce)
 	return err
 }
 
+//InitMaster .
 func (e *EncryptedDB) InitMaster() error {
 
-	e.stream.targetBucket.Reset()
-	e.stream.targetBucket.Write([]byte("master"))
+	e.stream.targetBucket = []byte("master")
 
 	if !e.stream.BucketExists() {
 		err := e.CreateMasterBucket()
@@ -132,19 +168,17 @@ func (e *EncryptedDB) InitMaster() error {
 		}
 	}
 
-	nonce := make([]byte, 32)
+	e.stream.targetKey = []byte("nonce")
 
-	e.stream.targetKey.Reset()
-	e.stream.targetKey.Write([]byte("nonce"))
-
-	_, err := e.stream.Read(nonce)
+	data, err := e.stream.Read()
 	if err != nil {
 		return err
 	}
-	e.masternonce = nonce
+	e.masternonce = data[:]
 	return nil
 }
 
+//CreateBucket .
 func (e *EncryptedDB) CreateBucket(bucket string) error {
 
 	if e.masternonce == nil {
@@ -166,21 +200,19 @@ func (e *EncryptedDB) CreateBucket(bucket string) error {
 		return err
 	}
 
-	sio.Encrypt(&e.stream.targetBucket, bytes.NewReader([]byte(bucket)), sio.Config{Key: key[:]})
+	e.stream.targetBucket = encrypt([]byte(bucket), key[:], e.masternonce[:])
+
 	if e.stream.BucketExists() {
 		return errors.New("Bucket already exists")
 	}
 
 	err := e.stream.CreateBucket(nonce)
 
-	e.stream.targetKey.Reset()
-	e.stream.targetKey.Write([]byte("nonce"))
-	sio.Encrypt(e.stream, bytes.NewReader(nonce[:]), sio.Config{Key: key[:]})
-
 	return err
 }
 
-func (e *EncryptedDB) SetWallet(WalletName string) error {
+//SetBucket .
+func (e *EncryptedDB) SetBucket(bucket string) error {
 
 	if e.masternonce == nil {
 		err := e.InitMaster()
@@ -195,52 +227,145 @@ func (e *EncryptedDB) SetWallet(WalletName string) error {
 	if _, err := io.ReadFull(kdf, key[:]); err != nil {
 		return err
 	}
-	sio.Encrypt(&e.stream.targetBucket, bytes.NewReader([]byte(WalletName)), sio.Config{Key: key[:]})
+
+	e.stream.targetBucket = encrypt([]byte(bucket), key[:], e.masternonce[:])
 
 	if !e.stream.BucketExists() {
-		return errors.New("Wallet not initialized")
+		return errors.New("Bucket not initialized")
 	}
+
 	return nil
 
 }
 
 //Utility functions are set to go, only need to write these
-/*
-func (e *EncryptedDB) Write(key string, data []byte) {
 
-	e.stream.targetKey.Reset()
-	sio.Encrypt(&e.stream.targetKey, bytes.NewReader([]byte(key)), config)
-	sio.Encrypt(e.stream, bytes.NewReader(data), config)
+func (e *EncryptedDB) Write(key string, data []byte) error {
+
+	if !e.stream.BucketExists() {
+		return errors.New("Bucket not initialized")
+	}
+
+	nonce, err := e.GetNonce()
+	log.Printf("Got nonce: %x", nonce)
+	if err != nil {
+		return err
+	}
+
+	var ecryptkey [32]byte
+	kdf := hkdf.New(sha256.New, e.masterkey, nonce, nil)
+
+	if _, err := io.ReadFull(kdf, ecryptkey[:]); err != nil {
+		return err
+	}
+	log.Printf("Encryption key: %x", ecryptkey)
+
+	e.stream.targetKey = encrypt([]byte(key), ecryptkey[:], nonce[:])
+	e.stream.Write(encrypt(data, ecryptkey[:], nonce[:]))
+
+	log.Printf("Wrote at key %x", e.stream.targetKey)
+
+	return nil
 }
 
-func (e *EncryptedDB) Read(key string, data []byte) {
-	config := sio.Config{Key: e.masterkey[:]}
-	e.stream.targetKey.Reset()
-	sio.Encrypt(&e.stream.targetKey, bytes.NewReader([]byte(key)), config)
-	sio.Encrypt(e.stream, bytes.NewReader(data), config)
-}*/
+func (e *EncryptedDB) Read(key string) ([]byte, error) {
 
-func (e *EncryptedDB) GetCurrentWallet() string {
-	return "0"
+	if !e.stream.BucketExists() {
+		return nil, errors.New("Bucket not initialized")
+	}
+
+	nonce, err := e.GetNonce()
+	log.Printf("Got nonce: %x", nonce)
+	if err != nil {
+		return nil, err
+	}
+
+	var ecryptkey [32]byte
+	kdf := hkdf.New(sha256.New, e.masterkey, nonce, nil)
+
+	if _, err := io.ReadFull(kdf, ecryptkey[:]); err != nil {
+		return nil, err
+	}
+	log.Printf("Encryption key: %x", ecryptkey)
+
+	e.stream.targetKey = encrypt([]byte(key), ecryptkey[:], nonce[:])
+
+	log.Printf("Reading at key %x", e.stream.targetKey)
+	data, err := e.stream.Read()
+
+	if err != nil {
+		return nil, err
+	}
+
+	return decrypt(data, ecryptkey[:]), nil
+}
+
+//GetCurrentBucket .
+func (e *EncryptedDB) GetCurrentBucket() (string, error) {
+
+	if e.masternonce == nil {
+		err := e.InitMaster()
+		if err != nil {
+			return "", err
+		}
+	}
+
+	var ecryptkey [32]byte
+	kdf := hkdf.New(sha256.New, e.masterkey, e.masternonce, nil)
+
+	if _, err := io.ReadFull(kdf, ecryptkey[:]); err != nil {
+		return "", err
+	}
+
+	data := decrypt(e.stream.targetBucket, ecryptkey[:])
+	return string(data), nil
+}
+
+//Close .
+func (e *EncryptedDB) Close() {
+	e.stream.db.Close()
+}
+
+func newEncryptedDB(file string, masterkey string) (*EncryptedDB, error) {
+
+	err := error(nil)
+	DB := new(EncryptedDB)
+	DB.stream = new(EncryptedStream)
+	DB.stream.db, err = bolt.Open(file, 0600, nil)
+
+	if err != nil {
+		return nil, err
+	}
+
+	DB.stream.targetKey = nil
+	DB.stream.targetBucket = nil
+
+	DB.masterkey = []byte(masterkey)
+	DB.masternonce = nil
+
+	DB.InitMaster()
+
+	return DB, nil
 }
 
 func main() {
+
 	// Open the my.db data file in your current directory.
 	// It will be created if it doesn't exist.
-	db, err := bolt.Open("my.db", 0600, nil)
+
+	db, err := newEncryptedDB("my.db", "test")
 	if err != nil {
-		log.Fatal(err)
-	}
-	err = db.Update(func(tx *bolt.Tx) error {
-		bucket, err := tx.CreateBucketIfNotExists([]byte("test"))
-		if err != nil {
-			return err
-		}
-		err = bucket.Put([]byte("ciao"), []byte("test"))
-		return err
-	})
-	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("Error creating db %x", err)
 	}
 	defer db.Close()
+	if err := db.SetBucket("Wallet1"); err != nil {
+		db.CreateBucket("Wallet1")
+		db.SetBucket("Wallet1")
+	}
+	data, err := db.Read("test")
+	if err != nil {
+		log.Print(err)
+	} else {
+		log.Print(data)
+	}
 }
