@@ -3,7 +3,6 @@ package filestore
 import (
 	"crypto/rand"
 	"crypto/sha512"
-	"errors"
 	"io"
 
 	bolt "github.com/etcd-io/bbolt"
@@ -71,7 +70,7 @@ func (e *EncryptedDB) CreateBucket(bucket string) error {
 	e.stream.targetBucket = encrypt([]byte(bucket), key[:], e.masternonce[:])
 
 	if e.stream.BucketExists() {
-		return errors.New("Bucket already exists")
+		return ErrBucketAlreadyExists
 	}
 
 	err := e.stream.CreateBucket(nonce)
@@ -97,7 +96,7 @@ func (e *EncryptedDB) SetBucket(bucket string) error {
 	}
 	e.stream.targetBucket = encrypt([]byte(bucket), key[:], e.masternonce[:])
 	if !e.stream.BucketExists() {
-		return errors.New("Bucket not initialized")
+		return ErrBucketNotInit
 	}
 
 	return nil
@@ -120,7 +119,7 @@ func (e *EncryptedDB) GetNonce() ([]byte, error) {
 func (e *EncryptedDB) Write(key string, data []byte) error {
 
 	if !e.stream.BucketExists() {
-		return errors.New("Bucket not initialized")
+		return ErrBucketNotInit
 	}
 
 	nonce, err := e.GetNonce()
@@ -146,7 +145,7 @@ func (e *EncryptedDB) Write(key string, data []byte) error {
 func (e *EncryptedDB) Read(key string) ([]byte, error) {
 
 	if !e.stream.BucketExists() {
-		return nil, errors.New("Bucket not initialized")
+		return nil, ErrBucketNotInit
 	}
 
 	nonce, err := e.GetNonce()
@@ -173,9 +172,47 @@ func (e *EncryptedDB) Read(key string) ([]byte, error) {
 	return data, nil
 }
 
+//Delete .
+func (e *EncryptedDB) Delete(key string) error {
+
+	if !e.stream.BucketExists() {
+		return ErrBucketNotInit
+	}
+
+	nonce, err := e.GetNonce()
+	if err != nil {
+		return err
+	}
+
+	var encryptedKey [keylength]byte
+	kdf := hkdf.New(sha512.New, e.masterkey, nonce, nil)
+
+	if _, err := io.ReadFull(kdf, encryptedKey[:]); err != nil {
+		return err
+	}
+
+	tempKey := SafexCrypto.NewDigest(encrypt(pad([]byte(key), 32), encryptedKey[:], nonce[:]))
+	e.stream.targetKey = tempKey[:]
+	return e.stream.Delete()
+
+}
+
+//DeleteBucket . s
+func (e *EncryptedDB) DeleteBucket() error {
+
+	if !e.stream.BucketExists() {
+		return ErrBucketNotInit
+	}
+
+	return e.stream.DeleteBucket()
+
+}
+
 //GetCurrentBucket .
 func (e *EncryptedDB) GetCurrentBucket() (string, error) {
-
+	if e.stream.targetBucket == nil {
+		return "", ErrNoBucketSet
+	}
 	if e.masternonce == nil {
 		err := e.InitMaster()
 		if err != nil {
@@ -194,16 +231,30 @@ func (e *EncryptedDB) GetCurrentBucket() (string, error) {
 	return string(data), nil
 }
 
+//BucketExists .
+func (e *EncryptedDB) BucketExists(bucket string) bool {
+	prevB, err := e.GetCurrentBucket()
+	if err == nil {
+		defer e.SetBucket(prevB)
+	}
+	err = e.SetBucket(bucket)
+	if err != nil {
+		return false
+	}
+	return true
+}
+
 //Close .
 func (e *EncryptedDB) Close() {
 	e.stream.db.Close()
 }
 
-func newEncryptedDB(file string, masterkey string) (*EncryptedDB, error) {
+//NewEncryptedDB .
+func NewEncryptedDB(file string, masterkey string) (*EncryptedDB, error) {
 
 	err := error(nil)
 	DB := new(EncryptedDB)
-	DB.stream = new(EncryptedStream)
+	DB.stream = new(Stream)
 	DB.stream.db, err = bolt.Open(file, 0600, nil)
 
 	if err != nil {

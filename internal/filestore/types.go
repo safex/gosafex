@@ -10,8 +10,8 @@ const noncelength = 32
 const noncename = "nonce"
 const masterbucketname = "master"
 
-//EncryptedStream .
-type EncryptedStream struct {
+//Stream .
+type Stream struct {
 	db           *bolt.DB
 	targetBucket []byte
 	targetKey    []byte
@@ -21,5 +21,5 @@ type EncryptedStream struct {
 type EncryptedDB struct {
 	masterkey   []byte
 	masternonce []byte
-	stream      *EncryptedStream
+	stream      *Stream
 }

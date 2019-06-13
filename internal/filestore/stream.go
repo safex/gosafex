@@ -6,13 +6,31 @@ import (
 	bolt "github.com/etcd-io/bbolt"
 )
 
-//TODO: manage errors
-func (e *EncryptedStream) Write(p []byte) (int, error) {
+//Delete removes a target key
+func (e *Stream) Delete() error {
+	return e.db.Update(func(tx *bolt.Tx) error {
+		b := tx.Bucket(e.targetBucket)
+		if b == nil {
+			return ErrNoBucketSet
+		}
+		err := b.Delete(e.targetKey)
+		return err
+	})
+}
+
+//DeleteBucket .
+func (e *Stream) DeleteBucket() error {
+	return e.db.Update(func(tx *bolt.Tx) error {
+		return tx.DeleteBucket(e.targetBucket)
+	})
+}
+
+func (e *Stream) Write(p []byte) (int, error) {
 	n := 0
 	err := e.db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket(e.targetBucket)
 		if b == nil {
-			return errors.New("Can't find bucket")
+			return ErrNoBucketSet
 		}
 		err := b.Put(e.targetKey, p)
 		n = len(p)
@@ -21,17 +39,16 @@ func (e *EncryptedStream) Write(p []byte) (int, error) {
 	return n, err
 }
 
-//TODO: manage errors
-func (e *EncryptedStream) Read() ([]byte, error) {
+func (e *Stream) Read() ([]byte, error) {
 	ret := []byte(nil)
 	err := e.db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket(e.targetBucket)
 		if b == nil {
-			return errors.New("Can't find bucket")
+			return ErrNoBucketSet
 		}
 		ret = b.Get(e.targetKey)
 		if ret == nil {
-			return errors.New("Can't find target key")
+			return ErrKeyNotFound
 		}
 		return nil
 	})
@@ -39,7 +56,7 @@ func (e *EncryptedStream) Read() ([]byte, error) {
 }
 
 //BucketExists .
-func (e *EncryptedStream) BucketExists() bool {
+func (e *Stream) BucketExists() bool {
 	err := e.db.View(func(tx *bolt.Tx) error {
 		bytes := e.targetBucket
 		b := tx.Bucket(bytes)
@@ -56,7 +73,7 @@ func (e *EncryptedStream) BucketExists() bool {
 }
 
 //CreateBucket .
-func (e *EncryptedStream) CreateBucket(nonce [32]byte) error {
+func (e *Stream) CreateBucket(nonce [32]byte) error {
 	err := e.db.Update(func(tx *bolt.Tx) error {
 		b, err := tx.CreateBucket(e.targetBucket)
 		if err != nil {
