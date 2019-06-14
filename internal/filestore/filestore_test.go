@@ -50,7 +50,7 @@ func prepareFolder() {
 	if _, err := os.Stat(fullpath); os.IsExist(err) {
 		os.Remove(fullpath)
 	}
-	os.Mkdir(foldername, os.FileMode(int(0600)))
+	os.Mkdir(foldername, os.FileMode(int(0700)))
 }
 
 func TestCreateRW(t *testing.T) {
