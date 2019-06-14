@@ -35,7 +35,7 @@ var safexdRPCCmd = &cobra.Command{
 		gInfo, _ = safexdClient.GetDaemonInfo()
 		fmt.Println(gInfo)
 
-		hInfo, _ = safexdClient.GetHardForkInfo()
+		hInfo, _ = safexdClient.GetHardForkInfo(1)
 		fmt.Println(hInfo)
 
 		var txs safex.Transactions

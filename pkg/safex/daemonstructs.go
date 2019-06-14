@@ -59,3 +59,16 @@ type OutputHistogram struct {
 	outtypeDmmy []byte `json:"out_type"-`
 	OutType TxOutType
 }
+
+type GetOutputRq struct {
+	Amount uint64 `json:"amount"`
+	Index uint64 `json:"index"`
+}
+
+// ByIndex implements sort.Interface for []Person based on
+// the Age field.
+type ByIndex []GetOutputRq
+
+func (a ByIndex) Len() int           { return len(a) }
+func (a ByIndex) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a ByIndex) Less(i, j int) bool { return a[i].Index < a[j].Index }

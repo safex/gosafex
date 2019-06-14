@@ -5,6 +5,7 @@ import (
 	"github.com/safex/gosafex/pkg/safex"
 )
 
+
 /* NOTES:
 - There are possible multiple TxPublicKey in transaction, if transaction has outputs
 for more than one address. This is omitted in current implementation, to be added in the future.

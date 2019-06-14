@@ -210,10 +210,20 @@ func (c Client) GetOutputHistogram(amounts *[]uint64,
 																			"max_count" : maxCount,
 																			"unlocked" : unlocked,
 																			"recent_cutoff" : recentCutoff,
-																			"out_type_as_int": txOutType}, "POST")
+																			"out_type": txOutType}, "POST")
 	must(err)
 
 	err = proto.Unmarshal(result, &histograms)
 	must(err)
 	return histograms, err
+}
+
+func (c Client) GetOutputs(out_entries []safex.GetOutputRq, txOutType safex.TxOutType) (outs safex.Outs, err error) {
+	result, err := c.SafexdCall("proto/get_outputs",  JSONElement{ "outputs" : out_entries,
+											"out_type": txOutType}, "POST")
+	must(err)
+
+	err = proto.Unmarshal(result, &outs)
+	must(err)
+	return outs, err
 }
