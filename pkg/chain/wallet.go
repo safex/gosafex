@@ -6,12 +6,12 @@ import (
 
 // TODO: figure out where to place the wallet struct.
 
-// Wallet is a structure containing an Account, its Balance and tx Outputs.
 type Wallet struct {
 	balance balance.Balance
 	account Account
 	client  *Client
-	// outputs OutputMap
+	//outputs OutputMap
+	wallet  *FileWallet
 }
 
 // BlockFetchCnt is the the nubmer of blocks to fetch at once.

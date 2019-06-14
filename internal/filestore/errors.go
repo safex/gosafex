@@ -2,11 +2,10 @@ package filestore
 
 import "errors"
 
-// Filestore errors:
+// Errors:
 var (
-	ErrNotImplemented    = errors.New("Not implemented")
-	ErrFileNotFound      = errors.New("File not found")
-	ErrDirNotFound       = errors.New("Directory not found")
-	ErrFailedToCreateDir = errors.New("Failed to create directory")
-	ErrFailedToOpenFile  = errors.New("Failed to open file")
+	ErrKeyNotFound 		  	= errors.New("Can't find target key")
+	ErrNoBucketSet    		= errors.New("No bucket set")
+	ErrBucketNotInit   		= errors.New("Bucket not initialized")
+	ErrBucketAlreadyExists  = errors.New("Bucket already exists")
 )
