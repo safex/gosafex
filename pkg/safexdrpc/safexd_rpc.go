@@ -113,7 +113,7 @@ func (c Client) SafexdCall(method string, params interface{}, httpMethod string)
 	must(err)
 	url := "http://" + c.Host + ":" + strconv.Itoa(int(c.Port)) + "/" + method
 
-	//fmt.Println(string(body))
+	fmt.Println("endpoint: ", url, "body: ", string(body))
 
 	req, err := http.NewRequest(httpMethod, url, bytes.NewBuffer(body))
 	must(err)
@@ -212,6 +212,7 @@ func (c Client) GetOutputHistogram(amounts *[]uint64,
 																			"recent_cutoff" : recentCutoff,
 																			"out_type": txOutType}, "POST")
 	must(err)
+
 
 	err = proto.Unmarshal(result, &histograms)
 	must(err)

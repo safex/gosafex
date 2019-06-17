@@ -33,14 +33,14 @@ func (w *Wallet) getOutputHistogram(selectedTransfer *[]Transfer, outType safex.
 	return histogramRes.Histograms
 }
 
-func getOutputDistribution(type_ string, numOuts uint64) (i uint64) {
+func getOutputDistribution(type_ string, numOuts uint64, numRecentOutputs uint64) (i uint64) {
 	r := rand.Uint64() % (uint64(1) << 53)
-	frac := math.Sqrt(float64(r)) / (uint64(1) << 53)
+	frac := math.Sqrt(float64(r)) / float64(uint64(1) << 53)
 	
 	if type_ == "recent" {
-		i = uint64(frac * numRecentOutputs) + numOuts - numRecentOutputs
+		i = uint64(frac * float64(numRecentOutputs)) + numOuts - numRecentOutputs
 	} else if type_ == "triangular" {
-		i = uint64(frac * numOuts)
+		i = uint64(frac * float64(numOuts))
 	}
 
 	if i == numOuts {
@@ -85,20 +85,19 @@ func (w *Wallet) getOuts(outs *[][]OutsEntry, selectedTransfers *[]Transfer, fak
 		var outsRq []safex.GetOutputRq
 
 		var numSelectedTransfers uint32 = 0
-		var seenIndices []*Transfer
+		var seenIndices map[uint64]*Transfer
+		seenIndices = make(map[uint64]*Transfer)
 
 		for index, val := range(*selectedTransfers) {
 			fmt.Println(index, " ", val)
 			numSelectedTransfers++
-			start := len(outsRq)
-			outputIsPreFork := false
 			valueAmount := GetOutputAmount(val.Output, outType)
 			var numOuts uint64 = 0
 			var numRecentOutputs uint64 = 0
-			var numPostForkOuts uint64 = 0
 			
 
 			for _, he := range(histograms) {
+				fmt.Println("histograms loop")
 				if he.Amount == valueAmount {
 					numOuts = he.UnlockedInstances
 					numRecentOutputs = he.RecentInstances
@@ -106,9 +105,7 @@ func (w *Wallet) getOuts(outs *[][]OutsEntry, selectedTransfers *[]Transfer, fak
 				}
 
 			}
-			numPostForkOuts = numOuts
 
-			normalOutputCount := baseRequestedOutputsCount
 			var recentOutputsCount uint64 = uint64(consensus.RecentOutputRatio * float64(baseRequestedOutputsCount))
 
 			if recentOutputsCount == 0 {
@@ -123,7 +120,6 @@ func (w *Wallet) getOuts(outs *[][]OutsEntry, selectedTransfers *[]Transfer, fak
 			}
 
 			var numFound uint64 = 0
-			var existingRingFound = false
 
 			// @todo In original CLI wallet forked from monero, there is saving used rings in ringdb and reusing them
 			// 		 implement that after
@@ -131,6 +127,7 @@ func (w *Wallet) getOuts(outs *[][]OutsEntry, selectedTransfers *[]Transfer, fak
 			
 			
 			if numOuts <= baseRequestedOutputsCount {
+				fmt.Println("This is loop ", numOuts, " ", baseRequestedOutputsCount)
 				var i uint64 = 0
 				for i = 0 ; i < numOuts; i++ {
 					outsRq = append(outsRq, safex.GetOutputRq{valueAmount, i})
@@ -142,7 +139,7 @@ func (w *Wallet) getOuts(outs *[][]OutsEntry, selectedTransfers *[]Transfer, fak
 			} else {
 				if numFound == 0 {
 					numFound = 1
-					seenIndices = append(seenIndices, &val)
+					seenIndices[uint64(val.Index)] = &val
 					outsRq = append(outsRq, safex.GetOutputRq{valueAmount, uint64(val.Index)})
 				}
 				
@@ -161,7 +158,15 @@ func (w *Wallet) getOuts(outs *[][]OutsEntry, selectedTransfers *[]Transfer, fak
 					} else {
 						type_ = "triangular"
 					}
-					i = getOutputDistribution(type_, numOuts)
+					i = getOutputDistribution(type_, numOuts, numRecentOutputs)
+
+					// @todo check this again. There must be better solution
+					if _, ok := seenIndices[i]; ok {
+						continue
+					} else {
+						seenIndices[i] = &val
+					}
+
 					outsRq = append(outsRq, safex.GetOutputRq{valueAmount, i})
 					numFound++
 				}
@@ -170,15 +175,17 @@ func (w *Wallet) getOuts(outs *[][]OutsEntry, selectedTransfers *[]Transfer, fak
 		}
 
 		outs, _ := w.client.GetOutputs(outsRq, safex.OutCash)
+		
+		fmt.Println("---------------------------------------------------------")
 		fmt.Println(outs)
 
-		var scantyOuts map[uint64]uint64
-		scantyOuts = make(map[uint64]uint64)
-		var base uint64 = 0
-		for index, val := range(selectedTransfers) {
-			var entry []OutsEntry
+		// var scantyOuts map[uint64]uint64
+		// scantyOuts = make(map[uint64]uint64)
+		// var base uint64 = 0
+		// for index, val := range(*selectedTransfers) {
+		// 	var entry []OutsEntry
 
-		}
+		// }
 
 
 	} else {

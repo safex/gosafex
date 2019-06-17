@@ -2,7 +2,6 @@ package balance
 
 import (
 	"testing"
-
 	"github.com/safex/gosafex/pkg/account"
 )
 

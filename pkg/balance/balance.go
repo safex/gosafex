@@ -115,6 +115,7 @@ func (w *Wallet) GetBalance() (b Balance, err error) {
 		start := time.Now()
 		blocks, err = w.client.GetBlocks(curr, end) // Load blocks from daemon
 		fmt.Println(time.Since(start))
+		
 
 		// If there was error during loading of blocks return err.
 		if err != nil {
