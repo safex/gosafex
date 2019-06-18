@@ -1,13 +1,14 @@
-package chain 
+package chain
 
 import (
 	"errors"
 	"fmt"
 	"time"
-	"github.com/safex/gosafex/pkg/safex"
-	"github.com/safex/gosafex/pkg/safexdrpc"
+
 	"github.com/safex/gosafex/internal/crypto"
 	"github.com/safex/gosafex/pkg/balance"
+	"github.com/safex/gosafex/pkg/safex"
+	"github.com/safex/gosafex/pkg/safexdrpc"
 )
 
 func (t *Transfer) getRelatedness(input *Transfer) float32 {
