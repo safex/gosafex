@@ -10,6 +10,8 @@ const noncelength = 32
 const noncename = "nonce"
 const masterbucketname = "master"
 
+const appendSeparator = byte('\n')
+
 //Stream .
 type Stream struct {
 	db           *bolt.DB

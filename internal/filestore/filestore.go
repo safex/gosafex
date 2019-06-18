@@ -1,6 +1,7 @@
 package filestore
 
 import (
+	"bytes"
 	"crypto/rand"
 	"crypto/sha512"
 	"io"
@@ -170,6 +171,72 @@ func (e *EncryptedDB) Read(key string) ([]byte, error) {
 	}
 	data = unpad(decrypt(data, encryptedKey[:]))
 	return data, nil
+}
+
+func (e *EncryptedDB) Append(key string, newData []byte) error {
+
+	if !e.stream.BucketExists() {
+		return ErrBucketNotInit
+	}
+
+	nonce, err := e.GetNonce()
+	if err != nil {
+		return err
+	}
+
+	var encryptedKey [keylength]byte
+	kdf := hkdf.New(sha512.New, e.masterkey, nonce, nil)
+
+	if _, err := io.ReadFull(kdf, encryptedKey[:]); err != nil {
+		return err
+	}
+
+	tempKey := SafexCrypto.NewDigest(encrypt(pad([]byte(key), 32), encryptedKey[:], nonce[:]))
+	e.stream.targetKey = tempKey[:]
+
+	data, err := e.stream.Read()
+
+	if err != nil && err != ErrKeyNotFound {
+		return err
+	}
+	if data != nil{
+		data = unpad(decrypt(data, encryptedKey[:]))
+		data = append(data, appendSeparator)
+	}
+
+	data = append(data, newData...)
+	return e.Write(key, data)
+}
+
+func (e *EncryptedDB) ReadAppended(key string) ([][]byte, error) {
+
+	if !e.stream.BucketExists() {
+		return nil, ErrBucketNotInit
+	}
+
+	nonce, err := e.GetNonce()
+	if err != nil {
+		return nil, err
+	}
+
+	var encryptedKey [keylength]byte
+	kdf := hkdf.New(sha512.New, e.masterkey, nonce, nil)
+
+	if _, err := io.ReadFull(kdf, encryptedKey[:]); err != nil {
+		return nil, err
+	}
+
+	tempKey := SafexCrypto.NewDigest(encrypt(pad([]byte(key), 32), encryptedKey[:], nonce[:]))
+	e.stream.targetKey = tempKey[:]
+
+	data, err := e.stream.Read()
+
+	if err != nil {
+		return nil, err
+	}
+	data = unpad(decrypt(data, encryptedKey[:]))
+	splitData := bytes.Split(data, []byte{appendSeparator})
+	return splitData, nil
 }
 
 //Delete .
