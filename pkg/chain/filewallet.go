@@ -10,7 +10,9 @@ import (
 )
 
 const TransactionKeyPrefix = "Tx-"
+const BlockKeyPrefix = "Blk-"
 const TransactionReferenceKey = "TxReference"
+const LastBlockReferenceKey = "LSTBlckReference-"
 
 //FileWallet is a simple wrapper for a db
 type FileWallet struct {
@@ -88,7 +90,7 @@ func (w *FileWallet) getTransaction(TxHash string) (*safex.Transaction, error) {
 	return tx, nil
 }
 
-func (w *FileWallet) putTransaction(tx *safex.Transaction) (bool, error) {
+func (w *FileWallet) putTransaction(tx *safex.Transaction, blockHash string) (bool, error) {
 	if temptx, _ := w.getTransaction(tx.GetTxHash()); temptx != nil {
 		return false, errors.New("Transaction already present")
 	}
@@ -99,22 +101,75 @@ func (w *FileWallet) putTransaction(tx *safex.Transaction) (bool, error) {
 	if err = w.writeKey(TransactionKeyPrefix+tx.GetTxHash(), data); err != nil {
 		return false, err
 	}
-	if err = w.appendKey(TransactionReferenceKey, []byte(tx.GetTxHash()); err != nil {
+	if err = w.appendKey(TransactionReferenceKey, []byte(tx.GetTxHash())); err != nil {
 		return false, err
 	}
 	return true, nil
 
 }
 
-func (w *FileWallet) getAllTransactions() ([][]data{
+func (w *FileWallet) getAllTransactions() ([]string, error) {
 	tempData, err := w.db.ReadAppended(TransactionReferenceKey)
-	if err != nil{
+	if err != nil {
 		return nil, err
 	}
+	data := []string{}
+	for _, el := range tempData {
+		data = append(data, string(el))
+	}
+	return data, nil
 }
 
-func (w *FileWallet) getLatestBlockHash() {
+func (w *FileWallet) rewindBlockHeader() error {
+	return nil
+}
 
+func (w *FileWallet) getBlockHeader(BlckHash string) (*safex.BlockHeader, error) {
+	data, err := w.readKey(BlockKeyPrefix + BlckHash)
+	if err != nil {
+		return nil, err
+	}
+	BlckHeader := &safex.BlockHeader{}
+	if err = proto.Unmarshal(data, BlckHeader); err != nil {
+		return nil, err
+	}
+	return BlckHeader, nil
+}
+
+func (w *FileWallet) putBlockHeader(blck *safex.Block) error {
+	blockHash := blck.GetHeader().GetHash()
+	lastHash, err := w.GetLatestBlockHash()
+	if err != nil {
+		return err
+	}
+	if lastHash != "" {
+		if blockHash != lastHash {
+			return errors.New("Previous block mismatch")
+		}
+	}
+
+	data, err := proto.Marshal(blck)
+	if err != nil {
+		return err
+	}
+
+	if err = w.writeKey(BlockKeyPrefix+blockHash, data); err != nil {
+		return err
+	}
+
+	if err = w.writeKey(LastBlockReferenceKey, []byte(blockHash)); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (w *FileWallet) GetLatestBlockHash() (string, error) {
+	tempData, err := w.db.Read(LastBlockReferenceKey)
+	if err != nil {
+		return "", err
+	}
+	return string(tempData), nil
 }
 
 //Be very careful here
