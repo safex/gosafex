@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/rand"
 	"crypto/sha512"
+	"errors"
 	"io"
 
 	bolt "github.com/etcd-io/bbolt"
@@ -199,7 +200,7 @@ func (e *EncryptedDB) Append(key string, newData []byte) error {
 	if err != nil && err != ErrKeyNotFound {
 		return err
 	}
-	if data != nil{
+	if data != nil {
 		data = unpad(decrypt(data, encryptedKey[:]))
 		data = append(data, appendSeparator)
 	}
@@ -262,6 +263,27 @@ func (e *EncryptedDB) Delete(key string) error {
 	e.stream.targetKey = tempKey[:]
 	return e.stream.Delete()
 
+}
+
+//DeleteAppendedKey Quite costly atm, could be improved a lot
+func (e *EncryptedDB) DeleteAppendedKey(key string, target int) error {
+	data, err := e.ReadAppended(key)
+	if err != nil {
+		return err
+	}
+	if len(data) < target {
+		return errors.New("Index out of bounds")
+	}
+	e.Delete(key)
+	for i, el := range data {
+		if i != target {
+			err = e.Append(key, el)
+			if err != nil{
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 //DeleteBucket . s
