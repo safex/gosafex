@@ -3,9 +3,18 @@ package balance
 import (
 	"testing"
 	"github.com/safex/gosafex/pkg/account"
+	"log"
+	"os"
 )
 
 func TestTxCreate(t *testing.T) {
+	f, err := os.OpenFile("testlogfile", os.O_RDWR | os.O_CREATE | os.O_APPEND, 0666)
+	if err != nil {
+		log.Fatalf("error opening file: %v", err)
+	}
+	defer f.Close()
+
+	log.SetOutput(f)
 	var wallet Wallet
 
 	wallet.Address.ViewKey.Public = HexToKey("77837b91924a710adc525deb941670432de30b52fb3f19e0bef8bc7ff67641c5")

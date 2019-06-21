@@ -68,7 +68,7 @@ func (w *Wallet) ProcessTransaction(tx *safex.Transaction, minerTx bool) {
 			keyimage := derivation.GenerateKeyImage(ephermal_public, ephermal_secret)
 
 			if _, ok := w.outputs[keyimage]; !ok {
-				w.outputs[keyimage] = Transfer{output, index, false, minerTx, tx.BlockHeight, keyimage}
+				w.outputs[keyimage] = Transfer{output, index, tx.OutputIndices[index], false, minerTx, tx.BlockHeight, keyimage}
 				w.balance.CashLocked += output.Amount
 				w.balance.TokenLocked += output.TokenAmount
 			}

@@ -29,7 +29,8 @@ type Address struct {
 // Data structure for storing outputs.
 type Transfer struct {
 	Output  *safex.Txout
-	Index 	int
+	LocalIndex 	int
+	GlobalIndex uint64
 	Spent   bool
 	MinerTx bool
 	Height  uint64
@@ -61,6 +62,12 @@ type OutsEntry struct {
 	Index  uint64
 	PubKey [32]byte
 }
+
+type OutsEntryByIndex []OutsEntry
+
+func (a OutsEntryByIndex) Len() int           { return len(a) }
+func (a OutsEntryByIndex) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a OutsEntryByIndex) Less(i, j int) bool { return a[i].Index < a[j].Index }
 
 type TxConstructionData struct {
 	Sources           []TxSourceEntry

@@ -27,8 +27,20 @@ func (w *Wallet) transferSelected(dsts *[]DestinationEntry, selectedTransfers *[
 	for _, slctd := range *selectedTransfers {
 		foundMoney += slctd.Output.Amount
 	}
+	fmt.Println("Transfer selected outs: ", outs)
 
 	// @todo This should be refactored so it can accomodate tokens as well.
+	// @note getOuts is fully fitted to accomodate tokens and cash outputs
+	// @todo Test this against cpp code more thoroughly
 	w.getOuts(outs, selectedTransfers, fakeOutsCount, safex.OutCash)
+
+	fmt.Println("------------------------- OUTPUTS -------------------------------------")
+	fmt.Println("OUTPUTS")
+	for _, val1 := range(*outs) {
+		for _, val2 := range(val1) {
+			fmt.Println("GlobalIndex: ", val2.Index, " Pubkey: ", val2.PubKey)
+		}
+	}
+	fmt.Println("-----------------------------------------------------------------------")
 
 }

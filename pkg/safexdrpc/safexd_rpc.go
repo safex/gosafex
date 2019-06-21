@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"strconv"
 	"time"
-	"fmt"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/safex/gosafex/pkg/safex"
@@ -79,7 +78,9 @@ func (c Client) JSONSafexdCall(method string, params interface{}) ([]byte, error
 
 	jsonBuff, _ := json.Marshal(body)
 
-	fmt.Println(string(jsonBuff))
+	log.Println("-----------------------------------------------------------------------------------------")
+	log.Println("endpoint: ", url, "body: ", string(jsonBuff))
+	log.Println("*****************************************************************************************")
 
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonBuff))
 	must(err)
@@ -98,6 +99,9 @@ func (c Client) JSONSafexdCall(method string, params interface{}) ([]byte, error
 		err = errors.New(errorJson.Str)
 		return nil, err
 	}
+
+	log.Println(resBody)
+	log.Println("-----------------------------------------------------------------------------------------")
 	return resBody, err
 }
 
@@ -113,7 +117,9 @@ func (c Client) SafexdCall(method string, params interface{}, httpMethod string)
 	must(err)
 	url := "http://" + c.Host + ":" + strconv.Itoa(int(c.Port)) + "/" + method
 
-	fmt.Println("endpoint: ", url, "body: ", string(body))
+	log.Println("-----------------------------------------------------------------------------------------")
+	log.Println("endpoint: ", url, "body: ", string(body))
+	log.Println("*****************************************************************************************")
 
 	req, err := http.NewRequest(httpMethod, url, bytes.NewBuffer(body))
 	must(err)
@@ -132,6 +138,9 @@ func (c Client) SafexdCall(method string, params interface{}, httpMethod string)
 		err = errors.New(errorJson.Str)
 		return nil, err
 	}
+
+	log.Println(resBody)
+	log.Println("-----------------------------------------------------------------------------------------")
 	return resBody, err
 
 }

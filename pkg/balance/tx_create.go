@@ -9,6 +9,7 @@ import (
 	"github.com/safex/gosafex/internal/consensus"
 	"github.com/safex/gosafex/pkg/account"
 	"github.com/safex/gosafex/pkg/safex"
+	"github.com/jinzhu/copier"
 )
 
 const APPROXIMATE_INPUT_BYTES int = 80
@@ -74,7 +75,7 @@ func (tx *TX) Add(acc account.Address, amount uint64, originalOutputIndex int, m
 }
 
 // @todo add token_transfer support
-func PopBestValueFrom(unusedIndices, selectedTransfers *[]Transfer, smallest bool) int {
+func PopBestValueFrom(unusedIndices, selectedTransfers *[]Transfer, smallest bool) (ret Transfer) {
 	var candidates []int
 	var bestRelatedness float32 = 1.0
 	for index, candidate := range *unusedIndices {
@@ -111,9 +112,11 @@ func PopBestValueFrom(unusedIndices, selectedTransfers *[]Transfer, smallest boo
 		r := rand.New(s)
 		idx = r.Int() % len(candidates)
 	}
-
-	ret := candidates[idx]
+	fmt.Println("PRCKO1")
+	fmt.Println((*unusedIndices)[candidates[idx]])
+	copier.Copy(&ret, &(*unusedIndices)[candidates[idx]])
 	*unusedIndices = append((*unusedIndices)[:idx], (*unusedIndices)[idx+1:]...)
+	fmt.Println(ret)
 	return ret
 }
 
@@ -173,7 +176,6 @@ func (w *Wallet) TxCreateCash(dsts []DestinationEntry, fakeOutsCount int, unlock
 	// Find unused outputs
 	for _, val := range w.outputs {
 		if !val.Spent && !isTokenOutput(val.Output) && val.IsUnlocked(height) {
-			fmt.Println("	Output value: ", val.Output.Amount)
 			if IsDecomposedOutputValue(val.Output.Amount) {
 				unusedOutputs = append(unusedOutputs, val)
 			} else {
@@ -204,14 +206,15 @@ func (w *Wallet) TxCreateCash(dsts []DestinationEntry, fakeOutsCount int, unlock
 	txes = append(txes, TX{})
 	var accumulatedFee, accumulatedOutputs, accumulatedChange, availableForFee, neededFee uint64 = 0, 0, 0, 0, 0
 
-	var outs [][]OutsEntry
+	outs := [][]OutsEntry{}
+
 
 	var originalOutputIndex int = 0
 	var addingFee bool = false
 
 	fmt.Println(accumulatedFee, accumulatedOutputs, accumulatedChange, availableForFee, neededFee)
 
-	var idx int = 0
+	var idx Transfer
 	// basic loop for getting outputs
 	for (len(dsts) != 0 && dsts[0].Amount != 0) || addingFee {
 		tx := &txes[len(txes)-1]
@@ -220,16 +223,12 @@ func (w *Wallet) TxCreateCash(dsts []DestinationEntry, fakeOutsCount int, unlock
 			panic("Not enough money")
 		}
 
-		if (len(dsts) == 0 || dsts[0].Amount == 0) && !addingFee {
-			if unusedOutputs == nil {
-				idx = PopBestValueFrom(&unusedOutputs, &(tx.SelectedTransfers), false)
-			} else {
-				idx = PopBestValueFrom(&unusedOutputs, &(tx.SelectedTransfers), false)
-			}
-		}
+		// @todo: Check this once more. 
+		idx = PopBestValueFrom(&unusedOutputs, &(tx.SelectedTransfers), false)
+	
+		tx.SelectedTransfers = append(tx.SelectedTransfers, idx)
 
-		tx.SelectedTransfers = append(tx.SelectedTransfers, unusedOutputs[idx])
-		availableAmount := unusedOutputs[idx].Output.Amount
+		availableAmount := idx.Output.Amount
 		accumulatedOutputs += availableAmount
 
 		outs = nil
