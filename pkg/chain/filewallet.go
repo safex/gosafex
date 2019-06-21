@@ -6,17 +6,16 @@ import (
 	"errors"
 
 	"github.com/golang/protobuf/proto"
-	"github.com/safex/gosafex/internal/crypto"
 	"github.com/safex/gosafex/internal/filestore"
 	"github.com/safex/gosafex/pkg/safex"
 )
 
-const OutputKeyPrefeix = "Out-"
-const OutputIndexKeyPrefix = "OutIndex-"
+const OutputKeyPrefix = "Out-"
 const BlockKeyPrefix = "Blk-"
-const OutputReferenceKey = "OutReference"
+const OutputReferenceKey = "OutReference-"
+const BlockReferenceKey = "BlckReference-"
 const LastBlockReferenceKey = "LSTBlckReference-"
-const OutputTypeReferenceKey = "OutTypeReference"
+const OutputTypeReferenceKey = "OutTypeReference-"
 
 //FileWallet is a simple wrapper for a db
 type FileWallet struct {
@@ -48,17 +47,35 @@ func NewWallet(walletName string, filename string, masterkey string) (*FileWalle
 	return loadWallet(walletName, db)
 }
 
-func prepareOutput(out *safex.Txout, index uint64) ([]byte, string, error) {
+func PackOutputIndex(globalIndex uint64, localIndex uint64) (string, error) {
+	b := make([]byte, 8)
+	b1 := make([]byte, 8)
+	binary.LittleEndian.PutUint64(b, localIndex)
+	binary.LittleEndian.PutUint64(b1, globalIndex)
+	b = append(b, b1...)
+	return hex.EncodeToString(b), nil
+}
+
+func UnpackOutputIndex(outID string) (uint64, uint64, error) {
+	s, err := hex.DecodeString(outID)
+	if err != nil {
+		return 0, 0, err
+	}
+	globalIndex := binary.LittleEndian.Uint64(s[:8])
+	localIndex := binary.LittleEndian.Uint64(s[8:])
+	return globalIndex, localIndex, nil
+}
+
+func prepareOutput(out *safex.Txout, globalIndex uint64, localIndex uint64) ([]byte, string, error) {
 	data, err := proto.Marshal(out)
 	if err != nil {
 		return nil, "", err
 	}
-
-	b := make([]byte, 8)
-	binary.LittleEndian.PutUint64(b, index)
-	outID := crypto.NewDigest(append(data, b...))
-
-	return data, hex.EncodeToString(outID[:]), nil
+	outID, err := PackOutputIndex(globalIndex, localIndex)
+	if err != nil {
+		return nil, "", err
+	}
+	return data, outID, nil
 
 }
 
@@ -152,7 +169,7 @@ func (w *FileWallet) getOutputTypes() []string {
 }
 
 func (w *FileWallet) getOutput(OutID string) (*safex.Txout, error) {
-	data, err := w.readKey(OutputKeyPrefeix + OutID)
+	data, err := w.readKey(OutputKeyPrefix + OutID)
 	if err != nil {
 		return nil, err
 	}
@@ -163,27 +180,16 @@ func (w *FileWallet) getOutput(OutID string) (*safex.Txout, error) {
 	return out, nil
 }
 
-func (w *FileWallet) putOutput(out *safex.Txout, index uint64, globalIndex uint64, outputType string) (string, error) {
+func (w *FileWallet) putOutput(out *safex.Txout, localIndex uint64, globalIndex uint64, outputType string) (string, error) {
 
-	data, outID, err := prepareOutput(out, index)
+	data, outID, err := prepareOutput(out, globalIndex, localIndex)
 	if err != nil {
 		return "", err
 	}
 	if tempout, _ := w.getOutput(outID); tempout != nil {
 		return "", errors.New("Output already present")
 	}
-	if err = w.writeKey(OutputKeyPrefeix+outID, data); err != nil {
-		return "", err
-	}
-
-	b := make([]byte, 8)
-	b1 := make([]byte, 8)
-
-	binary.LittleEndian.PutUint64(b, index)
-	binary.LittleEndian.PutUint64(b1, globalIndex)
-	b = append(b, b1...)
-
-	if err = w.writeKey(OutputIndexKeyPrefix+outID, b); err != nil {
+	if err = w.writeKey(OutputKeyPrefix+outID, data); err != nil {
 		return "", err
 	}
 	if err = w.appendKey(OutputReferenceKey, []byte(outID)); err != nil {
@@ -194,15 +200,31 @@ func (w *FileWallet) putOutput(out *safex.Txout, index uint64, globalIndex uint6
 
 }
 
-func (w *FileWallet) getOutputIndexes(outID string) (uint64, uint64, error) {
-	data, err := w.readKey(OutputIndexKeyPrefix + outID)
+func (w *FileWallet) findKeyInReference(targetReference string, targetKey string) (int, error) {
+	data, err := w.readAppendedKey(targetReference)
 	if err != nil {
-		return 0, 0, err
+		return -1, err
 	}
-	b := data[:7]
-	b1 := data[8:]
-	localIndex := binary.LittleEndian.Uint64(b)
-	globalIndex := binary.LittleEndian.Uint64(b1)
+	for i, el := range data {
+		if string(el) == targetKey {
+			return i, nil
+		}
+	}
+	return -1, nil
+}
+
+func (w *FileWallet) removeOutput(outID string) error {
+	if err := w.db.Delete(OutputKeyPrefix + outID); err != nil {
+		return err
+	}
+	index, err := w.findKeyInReference(OutputReferenceKey, outID)
+	if index == -1 {
+		return err
+	}
+	if err = w.db.DeleteAppendedKey(OutputReferenceKey, index); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (w *FileWallet) getAllOutputs() ([]string, error) {
@@ -217,7 +239,33 @@ func (w *FileWallet) getAllOutputs() ([]string, error) {
 	return data, nil
 }
 
-func (w *FileWallet) rewindBlockHeader() error {
+func (w *FileWallet) rewindBlockHeader(targetHash string) error {
+	if w.latestBlockHash == ""{
+		return errors.New("No blocks available")
+	}
+	actHash := w.latestBlockHash
+	header := &safex.BlockHeader{}
+	for actHash != targetHash{
+		data, err := w.readKey(BlockKeyPrefix + actHash)
+		if err != nil{
+			return err
+		}
+		if err = proto.Unmarshal(data,header); err != nil{
+			return err
+		}
+		if err = w.deleteKey(BlockKeyPrefix+actHash); err != nil {
+			return err
+		}
+		
+		actHash = header.GetPrevHash()
+	}
+	var b []byte
+	binary.LittleEndian.PutUint64(b, header.GetDepth())
+	if err := w.writeKey(LastBlockReferenceKey, append(b, []byte(actHash)...)); err != nil {
+		return err
+	}
+	w.latestBlockNumber = header.GetDepth()
+	w.latestBlockHash = header.GetHash()
 	return nil
 }
 
@@ -235,14 +283,9 @@ func (w *FileWallet) getBlockHeader(BlckHash string) (*safex.BlockHeader, error)
 
 func (w *FileWallet) putBlockHeader(blck *safex.Block) error {
 	blockHash := blck.GetHeader().GetHash()
-	lastHash, err := w.GetLatestBlockHash()
-	if err != nil {
-		return err
-	}
-	if lastHash != "" {
-		if blockHash != lastHash {
-			return errors.New("Previous block mismatch")
-		}
+
+	if blockHash != w.latestBlockHash {
+		return errors.New("Previous block mismatch")
 	}
 
 	data, err := proto.Marshal(blck)
@@ -253,20 +296,24 @@ func (w *FileWallet) putBlockHeader(blck *safex.Block) error {
 	if err = w.writeKey(BlockKeyPrefix+blockHash, data); err != nil {
 		return err
 	}
-
-	if err = w.writeKey(LastBlockReferenceKey, []byte(blockHash)); err != nil {
+	var b []byte
+	binary.LittleEndian.PutUint64(b, blck.GetHeader().GetDepth())
+	if err = w.writeKey(LastBlockReferenceKey, append(b, []byte(blockHash)...)); err != nil {
 		return err
 	}
-
+	w.latestBlockNumber = blck.GetHeader().GetDepth()
+	w.latestBlockHash = blck.GetHeader().GetHash()
 	return nil
 }
 
-func (w *FileWallet) GetLatestBlockHash() (string, error) {
+func (w *FileWallet) loadLatestBlock() error {
 	tempData, err := w.db.Read(LastBlockReferenceKey)
 	if err != nil {
-		return "", err
+		return err
 	}
-	return string(tempData), nil
+	w.latestBlockNumber = binary.LittleEndian.Uint64(tempData[:8])
+	w.latestBlockHash = string(tempData[8:])
+	return nil
 }
 
 //Be very careful here
@@ -296,4 +343,27 @@ func (w *FileWallet) addUnspentOutput() {
 
 func (w *FileWallet) removeUnspentOutput() {
 
+}
+
+func (w *FileWallet) New(file string, masterkey string) error {
+	w = new(FileWallet)
+	var err error
+	if w.db, err = filestore.NewEncryptedDB(file, masterkey); err != nil {
+		return err
+	}
+	if err = w.loadOutputTypes(); err != nil {
+		return err
+	}
+
+	//To be reviewed
+	if len(w.knownOutputs) < 1 {
+		w.addOutputType("Cash")
+		w.addOutputType("Token")
+	}
+
+	err = w.loadLatestBlock()
+	if err != nil && err != filestore.ErrKeyNotFound {
+		return err
+	}
+	return nil
 }
