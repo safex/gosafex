@@ -54,9 +54,6 @@ type DestinationEntry struct {
 	TokenTransaction bool
 }
 
-type TxSourceEntry struct {
-}
-
 
 type OutsEntry struct {
 	Index  uint64
@@ -92,6 +89,28 @@ type PendingTx struct {
 	AdditionalTxKeys  [][32]byte // Not used
 	Dests             []DestinationEntry
 	ConstructionData  TxConstructionData
+}
+
+type CTKey struct {
+	Mask [32]byte
+	Key  [32]byte
+}
+
+type TxOutputEntry struct {
+	Index uint64
+	CtKey CTKey
+}
+
+
+type TxSourceEntry struct {
+	Outputs []TxOutputEntry
+	RealOutput uint64
+	RealOutTxKey [32]byte
+	RealOutAdditionalTxKeys [][32]byte
+	Amount uint64
+	TokenAmount uint64
+	TokenTx bool
+	Migration bool
 }
 
 type TX struct {

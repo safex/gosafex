@@ -43,4 +43,9 @@ func (w *Wallet) transferSelected(dsts *[]DestinationEntry, selectedTransfers *[
 	}
 	fmt.Println("-----------------------------------------------------------------------")
 
+	// See how to handle fees for token transactions.
+
+	for index, val := range(selectedTransfers) {
+		
+	}
 }
