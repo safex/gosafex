@@ -10,18 +10,21 @@ import (
 	"github.com/safex/gosafex/pkg/safex"
 )
 
+const WalletInfoKey = "WalletInfo"
 const OutputKeyPrefix = "Out-"
 const BlockKeyPrefix = "Blk-"
-const OutputReferenceKey = "OutReference-"
-const BlockReferenceKey = "BlckReference-"
-const LastBlockReferenceKey = "LSTBlckReference-"
-const OutputTypeReferenceKey = "OutTypeReference-"
+const OutputReferenceKey = "OutReference"
+const BlockReferenceKey = "BlckReference"
+const LastBlockReferenceKey = "LSTBlckReference"
+const OutputTypeReferenceKey = "OutTypeReference"
+const UnspentOutputReferenceKey = "UnspentOutputReference"
 
 //FileWallet is a simple wrapper for a db
 type FileWallet struct {
 	name              string
 	db                *filestore.EncryptedDB
 	knownOutputs      []string //REMEMBER TO INITIALIZE THIS
+	unspentOutputs    []string
 	latestBlockNumber uint64
 	latestBlockHash   string
 }
@@ -107,7 +110,7 @@ func (w *FileWallet) readKey(key string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return (hex.DecodeString(string(data)))
+	return hex.DecodeString(string(data))
 }
 
 func (w *FileWallet) readAppendedKey(key string) ([][]byte, error) {
@@ -240,23 +243,23 @@ func (w *FileWallet) getAllOutputs() ([]string, error) {
 }
 
 func (w *FileWallet) rewindBlockHeader(targetHash string) error {
-	if w.latestBlockHash == ""{
+	if w.latestBlockHash == "" {
 		return errors.New("No blocks available")
 	}
 	actHash := w.latestBlockHash
 	header := &safex.BlockHeader{}
-	for actHash != targetHash{
+	for actHash != targetHash {
 		data, err := w.readKey(BlockKeyPrefix + actHash)
-		if err != nil{
+		if err != nil {
 			return err
 		}
-		if err = proto.Unmarshal(data,header); err != nil{
+		if err = proto.Unmarshal(data, header); err != nil {
 			return err
 		}
-		if err = w.deleteKey(BlockKeyPrefix+actHash); err != nil {
+		if err = w.deleteKey(BlockKeyPrefix + actHash); err != nil {
 			return err
 		}
-		
+
 		actHash = header.GetPrevHash()
 	}
 	var b []byte
@@ -316,41 +319,77 @@ func (w *FileWallet) loadLatestBlock() error {
 	return nil
 }
 
-//Be very careful here
-func (w *FileWallet) replaceTransaction(tx *safex.Transaction) {
-
+func (w *FileWallet) getUnspentOutputs() []string {
+	return w.unspentOutputs
 }
 
-func (w *FileWallet) getSpentOutputs() {
-
+func (w *FileWallet) addUnspentOutput(outputID string) error {
+	if i, _ := w.findKeyInReference(OutputReferenceKey, outputID); i != -1 {
+		if j, _ := w.findKeyInReference(UnspentOutputReferenceKey, outputID); j != -1 {
+			w.appendKey(UnspentOutputReferenceKey, []byte(outputID))
+			w.unspentOutputs = append(w.unspentOutputs, outputID)
+		} else {
+			return errors.New("Output already in unspent list")
+		}
+	} else {
+		return errors.New("Can't find output")
+	}
+	return nil
 }
 
-func (w *FileWallet) addSpentOutput() {
-
+func (w *FileWallet) removeUnspentOutput(outputID string) error {
+	if j, _ := w.findKeyInReference(UnspentOutputReferenceKey, outputID); j != -1 {
+		w.deleteAppendedKey(UnspentOutputReferenceKey, j)
+		for i, el := range w.unspentOutputs { //TODO Maybe redundant
+			if el == outputID {
+				w.unspentOutputs = append(w.unspentOutputs[:i], w.unspentOutputs[i+1:]...)
+				return nil
+			}
+		}
+	} else {
+		return errors.New("Can't find output")
+	}
+	return nil
 }
 
-func (w *FileWallet) removeSpentOutput() {
-
+func (w *FileWallet) loadUnspentOutputs() error {
+	data, err := w.readAppendedKey(UnspentOutputReferenceKey)
+	if err != nil {
+		return err
+	}
+	w.unspentOutputs = []string{}
+	for _, el := range data {
+		w.unspentOutputs = append(w.unspentOutputs, string(el))
+	}
+	return nil
 }
 
-func (w *FileWallet) getUnspentOutputs() {
-
+func (w *FileWallet) OpenWallet(walletName string, createOnFail bool) error {
+	err := w.db.SetBucket(walletName)
+	if err == filestore.ErrBucketNotInit && createOnFail {
+		if err = w.db.CreateBucket(walletName); err != nil {
+			return err
+		}
+		if err = w.db.Write(WalletInfoKey, []byte(walletName)); err != nil {
+			return err
+		}
+	} else {
+		return filestore.ErrBucketNotInit
+	}
+	return nil
 }
 
-func (w *FileWallet) addUnspentOutput() {
-
-}
-
-func (w *FileWallet) removeUnspentOutput() {
-
-}
-
-func (w *FileWallet) New(file string, masterkey string) error {
+func (w *FileWallet) New(file string, walletName string, masterkey string, createOnFail bool) error {
 	w = new(FileWallet)
 	var err error
 	if w.db, err = filestore.NewEncryptedDB(file, masterkey); err != nil {
 		return err
 	}
+
+	if err = w.OpenWallet(walletName, createOnFail); err != nil {
+		return err
+	}
+
 	if err = w.loadOutputTypes(); err != nil {
 		return err
 	}
@@ -363,10 +402,15 @@ func (w *FileWallet) New(file string, masterkey string) error {
 
 	err = w.loadLatestBlock()
 	if err != nil && err != filestore.ErrKeyNotFound {
-		if err == filestore.ErrKeyNotFound{ 
-			w.latestBlockNumber = 0; w.latestBlockHash = ""
-		}else{
-		return err}
+		if err == filestore.ErrKeyNotFound {
+			w.latestBlockNumber = 0
+			w.latestBlockHash = ""
+		} else {
+			return err
+		}
+	}
+	if err = w.loadUnspentOutputs(); err != nil {
+		return err
 	}
 
 	return nil
