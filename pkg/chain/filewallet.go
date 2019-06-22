@@ -363,7 +363,11 @@ func (w *FileWallet) New(file string, masterkey string) error {
 
 	err = w.loadLatestBlock()
 	if err != nil && err != filestore.ErrKeyNotFound {
-		return err
+		if err == filestore.ErrKeyNotFound{ 
+			w.latestBlockNumber = 0; w.latestBlockHash = ""
+		}else{
+		return err}
 	}
+
 	return nil
 }
