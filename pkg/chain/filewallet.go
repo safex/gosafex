@@ -50,12 +50,10 @@ func NewWallet(walletName string, filename string, masterkey string) (*FileWalle
 	return loadWallet(walletName, db)
 }
 
-func PackOutputIndex(globalIndex uint64, localIndex uint64) (string, error) {
+func PackOutputIndex(blockHash string, localIndex uint64) (string, error) {
 	b := make([]byte, 8)
-	b1 := make([]byte, 8)
 	binary.LittleEndian.PutUint64(b, localIndex)
-	binary.LittleEndian.PutUint64(b1, globalIndex)
-	b = append(b, b1...)
+	b = append(b, []byte(blockHash)...)
 	return hex.EncodeToString(b), nil
 }
 
@@ -69,12 +67,12 @@ func UnpackOutputIndex(outID string) (uint64, uint64, error) {
 	return globalIndex, localIndex, nil
 }
 
-func prepareOutput(out *safex.Txout, globalIndex uint64, localIndex uint64) ([]byte, string, error) {
+func prepareOutput(out *safex.Txout, blockHash string, localIndex uint64) ([]byte, string, error) {
 	data, err := proto.Marshal(out)
 	if err != nil {
 		return nil, "", err
 	}
-	outID, err := PackOutputIndex(globalIndex, localIndex)
+	outID, err := PackOutputIndex(blockHash, localIndex)
 	if err != nil {
 		return nil, "", err
 	}
@@ -183,9 +181,9 @@ func (w *FileWallet) getOutput(OutID string) (*safex.Txout, error) {
 	return out, nil
 }
 
-func (w *FileWallet) putOutput(out *safex.Txout, localIndex uint64, globalIndex uint64, outputType string) (string, error) {
+func (w *FileWallet) putOutput(out *safex.Txout, localIndex uint64, blockHash string, outputType string) (string, error) {
 
-	data, outID, err := prepareOutput(out, globalIndex, localIndex)
+	data, outID, err := prepareOutput(out, blockHash, localIndex)
 	if err != nil {
 		return "", err
 	}

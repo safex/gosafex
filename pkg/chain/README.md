@@ -22,6 +22,6 @@
         3. "**Typ-**" + **outputType**  - List of output IDs referring to outputs of the given type
 
 * How are **_IDs_** calculated
-    * **outputID**      - **byte(** output.GlobalIndex **)** + **byte(** output.LocalIndex **)** ; They are both 8 bytes when converted, so the                        ID is 16 bytes
+    * **outputID**      - **byte(** blockHash **)** + **byte(** output.LocalIndex **)** ; 
     * **blockID**       - **byte(** blockHash **)**
     * **outputType**    - **string**
