@@ -6,7 +6,7 @@ import (
 )
 
 func (w *Wallet) transferSelected(dsts *[]DestinationEntry, selectedTransfers *[]Transfer, fakeOutsCount int, outs *[][]OutsEntry,
-	unlockTime uint64, fee uint64, extra *[]byte, tx *safex.Transaction, ptx *PendingTx) { // destination_split_strategy, // dust_policy
+	unlockTime uint64, fee uint64, extra *[]byte, tx *safex.Transaction, ptx *PendingTx, outType safex.TxOutType) { // destination_split_strategy, // dust_policy
 
 	fmt.Println(dsts)
 	// Check if dsts are empty
@@ -32,7 +32,7 @@ func (w *Wallet) transferSelected(dsts *[]DestinationEntry, selectedTransfers *[
 	// @todo This should be refactored so it can accomodate tokens as well.
 	// @note getOuts is fully fitted to accomodate tokens and cash outputs
 	// @todo Test this against cpp code more thoroughly
-	w.getOuts(outs, selectedTransfers, fakeOutsCount, safex.OutCash)
+	w.getOuts(outs, selectedTransfers, fakeOutsCount, outType)
 
 	fmt.Println("------------------------- OUTPUTS -------------------------------------")
 	fmt.Println("OUTPUTS")
@@ -45,7 +45,63 @@ func (w *Wallet) transferSelected(dsts *[]DestinationEntry, selectedTransfers *[
 
 	// See how to handle fees for token transactions.
 
+	var sources []TxSourceEntry{}
+	var outIndex uint64 = 0
+	var i uint64 = 0
 	for index, val := range(selectedTransfers) {
-		
+		src := TxSourceEntry{}
+		src.Amount = getOutputAmount(val.Output, safex.OutCash)
+		src.TokenAmount = getOutputAmount(val.Output, safex.OutToken)
+		src.TokenTransaction = src.TokenAmount != 0
+
+		for n uint64 = 0; n <= fakeOutsCount; ++n {
+			var oe TxOutputEntry
+			oe.Index = outs[outIndex][n].Index
+			oe.Key = outs[outIndex][n].PubKey
+			src.Outputs = append(src.Outputs, oe)
+			i++
+		}
+
+		var realIndex int = -1
+		for i1, v1 := range(src.Outputs) {
+			if v1.Index == val.GlobalIndex {
+				break;
+			}
+		}
+
+		if realIndex == -1 {
+			panic("There is no real output found!")
+		}
+
+		realOE := TxOutputEntry{}
+		realOE.Index = val.GlobalIndex
+		realOE.Key = getOutputKey(val.Output, outType)
+		src.Outputs[realIndex] = realOE
+
+		src.RealOutTxKey = ExtractTxPubKey(val.Extra)
+		src.RealOutAdditionalTxKeys = ExtractTxPubKeys(val.Extra)
+		src.RealOutput = realIndex
+		src.RealOutputInTxIndex = val.LocalIndex
+		outIndex++
 	}
+
+	log.Println("Outputs prepared!!!")
+
+	var changeDts DestinationEntry
+	var changeTokenDts DestinationEntry
+
+	if neededMoney < foundMoney {
+		changeDts.Address = w.Address
+		changeDts.Amount = foundMoney - neededMoney
+	}
+
+	// @todo Add tokens infrastructure once you find out how fee is calulated
+	//		 outType is introduced to help implement this and avoid unnecessary 
+	//		 complications.
+	// @warning		 
+	// if neededTokens < foundTokens {
+
+	// }
+
+
 }

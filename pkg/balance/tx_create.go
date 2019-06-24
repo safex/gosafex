@@ -291,7 +291,7 @@ func (w *Wallet) TxCreateCash(dsts []DestinationEntry, fakeOutsCount int, unlock
 			// Transfer selected
 			// @todo This need to be reworked
 			var fee uint64 = 0
-			w.transferSelected(&tx.Dsts, &tx.SelectedTransfers, fakeOutsCount, &outs, unlockTime, fee, &extra, &testTx, &testPtx)
+			w.transferSelected(&tx.Dsts, &tx.SelectedTransfers, fakeOutsCount, &outs, unlockTime, fee, &extra, &testTx, &testPtx, safex.OutCash)
 		}
 
 	}

@@ -29,6 +29,7 @@ type Address struct {
 // Data structure for storing outputs.
 type Transfer struct {
 	Output  *safex.Txout
+	Extra []byte
 	LocalIndex 	int
 	GlobalIndex uint64
 	Spent   bool
@@ -91,14 +92,9 @@ type PendingTx struct {
 	ConstructionData  TxConstructionData
 }
 
-type CTKey struct {
-	Mask [32]byte
-	Key  [32]byte
-}
-
 type TxOutputEntry struct {
 	Index uint64
-	CtKey CTKey
+	Key [32]byte
 }
 
 

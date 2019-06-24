@@ -28,12 +28,17 @@ const TX_EXTRA_MIGRATION_PUBKEYS = 0x11
 const TX_EXTRA_NONCE_PAYMENT_ID = 0x00
 const TX_EXTRA_NONCE_ENCRYPTED_PAYMENT_ID = 0x01
 
-func extractTxPubKey(extra []byte) (pubTxKey [32]byte) {
+func ExtractTxPubKey(extra []byte) (pubTxKey [32]byte) {
 	// @todo Also if serialization is ok
 	if extra[0] == TX_EXTRA_TAG_PUBKEY {
 		copy(pubTxKey[:], extra[1:33])
 	}
 	return pubTxKey
+}
+
+func ExtractTxPubKeys(extra []byte) (pubTxKeys [][32]byte) {
+	// @warning @todo Not implemented yet
+	return [][32]byte{}
 }
 
 func (w *Wallet) matchOutput(txOut *safex.Txout, index uint64, der [32]byte, outputKey *[32]byte) bool {
@@ -69,6 +74,7 @@ func (w *Wallet) ProcessTransaction(tx *safex.Transaction, minerTx bool) {
 
 			if _, ok := w.outputs[keyimage]; !ok {
 				w.outputs[keyimage] = Transfer{output, index, tx.OutputIndices[index], false, minerTx, tx.BlockHeight, keyimage}
+				copy(w.outputs[keyimage].Extra, tx.Extra)
 				w.balance.CashLocked += output.Amount
 				w.balance.TokenLocked += output.TokenAmount
 			}
