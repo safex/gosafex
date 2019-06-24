@@ -24,6 +24,8 @@ func prepareFolder() {
 	os.Mkdir(foldername, os.FileMode(int(0770)))
 }
 
+
+
 func TestWalletCreation(t *testing.T) {
 	prepareFolder()
 	fullpath := strings.Join([]string{foldername, filename}, "/")
@@ -42,6 +44,7 @@ func TestWalletCreation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("%s", err)
 	}
+	w.putOutput
 	w.Close()
 	err = os.Remove(fullpath)
 	if err != nil {
