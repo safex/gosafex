@@ -24,9 +24,7 @@ func prepareFolder() {
 	os.Mkdir(foldername, os.FileMode(int(0770)))
 }
 
-
-
-func TestWalletCreation(t *testing.T) {
+func TestOutputRW(t *testing.T) {
 	prepareFolder()
 	fullpath := strings.Join([]string{foldername, filename}, "/")
 	w, err := New(fullpath, walletName, masterPass, true)
@@ -36,6 +34,8 @@ func TestWalletCreation(t *testing.T) {
 
 	head1 := &safex.BlockHeader{Depth: 10, Hash: "aaaab", PrevHash: ""}
 	head2 := &safex.BlockHeader{Depth: 11, Hash: "aaaac", PrevHash: "aaaab"}
+	out1 := &safex.Txout{Amount: 20}
+
 	err = w.PutBlockHeader(head1)
 	if err != nil {
 		t.Fatalf("%s", err)
@@ -44,8 +44,36 @@ func TestWalletCreation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("%s", err)
 	}
-	w.putOutput
+
+	if err != nil {
+		t.Fatalf("%s", err)
+	}
+
+	outID, err := w.AddOutput(out1, 1, "aaaac", "Cash", "")
+	if err != nil {
+		t.Fatalf("%s", err)
+	}
 	w.Close()
+	w.OpenWallet(walletName, true)
+	out, err := w.getAllOutputs()
+
+	if err != nil {
+		t.Fatalf("%s", err)
+	}
+	found := false
+	for _, el := range out {
+		if el == outID {
+			found = true
+		}
+	}
+	if !found {
+		fmt.Println(outID)
+		for _, el := range out {
+			fmt.Println(el)
+		}
+		t.Fatalf("Output not read")
+	}
+
 	err = os.Remove(fullpath)
 	if err != nil {
 		fmt.Println(err)
