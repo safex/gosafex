@@ -6,7 +6,6 @@ import (
 	"crypto/sha512"
 	"errors"
 	"io"
-	"fmt"
 
 	bolt "github.com/etcd-io/bbolt"
 	SafexCrypto "github.com/safex/gosafex/internal/crypto"
@@ -80,42 +79,7 @@ func (e *EncryptedDB) CreateBucket(bucket string) error {
 
 	return err
 }
-func (e *EncryptedDB) CreateBucketDebug(bucket string) ([]byte,error) {
 
-	if e.masternonce[:] == nil {
-		err := e.InitMaster()
-		if err != nil {
-			return nil,err
-		}
-	}
-
-	var nonce [noncelength]byte
-	if _, err := io.ReadFull(rand.Reader, nonce[:]); err != nil {
-		return nil,err
-	}
-
-	var key [keylength]byte
-	kdf := hkdf.New(sha512.New, e.masterkey[:], e.masternonce[:], nil)
-
-	if _, err := io.ReadFull(kdf, key[:]); err != nil {
-		return nil,err
-	}
-
-	e.stream.targetBucket = encrypt(pad([]byte(bucket),32), key[:], e.masternonce[:])
-
-	if e.stream.BucketExists() {
-		return e.stream.targetBucket,ErrBucketAlreadyExists
-	}
-	var temp [32]byte 
-	copy(temp[:],e.masternonce[:])
-	fmt.Printf("Before: %x\n",e.masternonce)
-	fmt.Printf("Length: %v\n",len(e.masternonce))
-	e.stream.CreateBucket(nonce)
-	copy(e.masternonce[:],temp[:])
-
-	fmt.Printf("After: %x\n",e.masternonce)
-	return e.stream.targetBucket,nil
-}
 //SetBucket Changes the current bucket
 func (e *EncryptedDB) SetBucket(bucket string) error {
 
@@ -138,30 +102,6 @@ func (e *EncryptedDB) SetBucket(bucket string) error {
 	}
 
 	return nil
-
-}
-
-func (e *EncryptedDB) SetBucketDebug(bucket string) ([]byte, error) {
-
-	if e.masternonce[:] == nil {
-		err := e.InitMaster()
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	var key [keylength]byte
-	kdf := hkdf.New(sha512.New, e.masterkey[:], e.masternonce[:], nil)
-
-	if _, err := io.ReadFull(kdf, key[:]); err != nil {
-		return nil, err
-	}
-	e.stream.targetBucket = encrypt(pad([]byte(bucket),32), key[:], e.masternonce[:])
-	if !e.stream.BucketExists() {
-		return e.stream.targetBucket, ErrBucketNotInit
-	}
-
-	return e.stream.targetBucket,nil
 
 }
 
