@@ -26,7 +26,13 @@ var (
 		value:      []byte("outputoutputoutputoutput"),
 		pass:       true,
 	}
-
+	goodReadWriteAlternative = testVector{
+		masterpass: "TestMaster",
+		bucket:     "TestBucket1",
+		key:        "outputtx9992",
+		value:      []byte("outputalternativeoutputalternativeoutputalternativeoutputalternative"),
+		pass:       true,
+	}
 	OverWrite = testVector{
 		masterpass: "TestMaster",
 		bucket:     "TestBucket",
@@ -220,5 +226,54 @@ func TestWrongKeyRW(t *testing.T) {
 
 	if err := db.SetBucket(WrongKey.bucket); err == nil {
 		t.Fatalf("Failed: %s", err)
+	}
+}
+
+func TestBucketSwitch(t *testing.T) {
+	prepareFolder()
+	fullpath := strings.Join([]string{foldername, filename}, "/")
+	db, err := NewEncryptedDB(fullpath, goodReadWrite.masterpass)
+	defer db.Close()
+
+	if err != nil {
+		t.Fatalf("Failed: %s", err)
+	}
+	if err := db.CreateBucket(goodReadWrite.bucket); err != nil {
+		t.Fatalf("Failed: %s", err)
+	}
+	if err := db.SetBucket(goodReadWrite.bucket); err != nil {
+		t.Fatalf("Failed: %s", err)
+	}
+	if err := db.Write(goodReadWrite.key, goodReadWrite.value); err != nil {
+		t.Fatalf("Failed: %s", err)
+	}
+	if err := db.CreateBucket(goodReadWriteAlternative.bucket); err != nil {
+		t.Fatalf("Failed: %s", err)
+	}
+	if err := db.SetBucket(goodReadWriteAlternative.bucket); err != nil {
+		t.Fatalf("Failed: %s", err)
+	}
+	if err := db.Write(goodReadWriteAlternative.key, goodReadWriteAlternative.value); err != nil {
+		t.Fatalf("Failed: %s", err)
+	}
+	if err := db.SetBucket(goodReadWrite.bucket); err != nil {
+		t.Fatalf("Failed: %s", err)
+	}
+	data, err := db.Read(goodReadWrite.key)
+	if err != nil {
+		t.Fatalf("Failed: %s", err)
+	}
+	if bytes.Equal(data, goodReadWrite.value) && !goodReadWrite.pass {
+		t.Fatalf("Failed: \nGet:  %s\nWant: %s", data, goodReadWrite.value)
+	}
+	if err := db.SetBucket(goodReadWriteAlternative.bucket); err != nil {
+		t.Fatalf("Failed: %s", err)
+	}
+	data, err = db.Read(goodReadWriteAlternative.key)
+	if err != nil {
+		t.Fatalf("Failed: %s", err)
+	}
+	if bytes.Equal(data, goodReadWriteAlternative.value) && !goodReadWriteAlternative.pass {
+		t.Fatalf("Failed: \nGet:  %s\nWant: %s", data, goodReadWriteAlternative.value)
 	}
 }

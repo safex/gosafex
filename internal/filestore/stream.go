@@ -79,7 +79,7 @@ func (e *Stream) CreateBucket(nonce [32]byte) error {
 		if err != nil {
 			return err
 		}
-		return b.Put([]byte("nonce"), nonce[:])
+		return b.Put([]byte(noncename), nonce[:])
 	})
 	return err
 }

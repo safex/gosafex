@@ -6,6 +6,7 @@ import (
 	"crypto/sha512"
 	"errors"
 	"io"
+	"fmt"
 
 	bolt "github.com/etcd-io/bbolt"
 	SafexCrypto "github.com/safex/gosafex/internal/crypto"
@@ -43,14 +44,14 @@ func (e *EncryptedDB) InitMaster() error {
 	if err != nil {
 		return err
 	}
-	e.masternonce = data[:]
+	copy(e.masternonce[:],data)
 	return nil
 }
 
 //CreateBucket Creates a new bucket and relative nonce
 func (e *EncryptedDB) CreateBucket(bucket string) error {
 
-	if e.masternonce == nil {
+	if e.masternonce[:] == nil {
 		err := e.InitMaster()
 		if err != nil {
 			return err
@@ -63,13 +64,13 @@ func (e *EncryptedDB) CreateBucket(bucket string) error {
 	}
 
 	var key [keylength]byte
-	kdf := hkdf.New(sha512.New, e.masterkey, e.masternonce, nil)
+	kdf := hkdf.New(sha512.New, e.masterkey[:], e.masternonce[:], nil)
 
 	if _, err := io.ReadFull(kdf, key[:]); err != nil {
 		return err
 	}
-
-	e.stream.targetBucket = encrypt([]byte(bucket), key[:], e.masternonce[:])
+	
+	e.stream.targetBucket = encrypt(pad([]byte(bucket),32), key[:], e.masternonce[:])
 
 	if e.stream.BucketExists() {
 		return ErrBucketAlreadyExists
@@ -79,11 +80,46 @@ func (e *EncryptedDB) CreateBucket(bucket string) error {
 
 	return err
 }
+func (e *EncryptedDB) CreateBucketDebug(bucket string) ([]byte,error) {
 
+	if e.masternonce[:] == nil {
+		err := e.InitMaster()
+		if err != nil {
+			return nil,err
+		}
+	}
+
+	var nonce [noncelength]byte
+	if _, err := io.ReadFull(rand.Reader, nonce[:]); err != nil {
+		return nil,err
+	}
+
+	var key [keylength]byte
+	kdf := hkdf.New(sha512.New, e.masterkey[:], e.masternonce[:], nil)
+
+	if _, err := io.ReadFull(kdf, key[:]); err != nil {
+		return nil,err
+	}
+
+	e.stream.targetBucket = encrypt(pad([]byte(bucket),32), key[:], e.masternonce[:])
+
+	if e.stream.BucketExists() {
+		return e.stream.targetBucket,ErrBucketAlreadyExists
+	}
+	var temp [32]byte 
+	copy(temp[:],e.masternonce[:])
+	fmt.Printf("Before: %x\n",e.masternonce)
+	fmt.Printf("Length: %v\n",len(e.masternonce))
+	e.stream.CreateBucket(nonce)
+	copy(e.masternonce[:],temp[:])
+
+	fmt.Printf("After: %x\n",e.masternonce)
+	return e.stream.targetBucket,nil
+}
 //SetBucket Changes the current bucket
 func (e *EncryptedDB) SetBucket(bucket string) error {
 
-	if e.masternonce == nil {
+	if e.masternonce[:] == nil {
 		err := e.InitMaster()
 		if err != nil {
 			return err
@@ -91,12 +127,12 @@ func (e *EncryptedDB) SetBucket(bucket string) error {
 	}
 
 	var key [keylength]byte
-	kdf := hkdf.New(sha512.New, e.masterkey, e.masternonce, nil)
+	kdf := hkdf.New(sha512.New, e.masterkey[:], e.masternonce[:], nil)
 
 	if _, err := io.ReadFull(kdf, key[:]); err != nil {
 		return err
 	}
-	e.stream.targetBucket = encrypt([]byte(bucket), key[:], e.masternonce[:])
+	e.stream.targetBucket = encrypt(pad([]byte(bucket),32), key[:], e.masternonce[:])
 	if !e.stream.BucketExists() {
 		return ErrBucketNotInit
 	}
@@ -104,6 +140,31 @@ func (e *EncryptedDB) SetBucket(bucket string) error {
 	return nil
 
 }
+
+func (e *EncryptedDB) SetBucketDebug(bucket string) ([]byte, error) {
+
+	if e.masternonce[:] == nil {
+		err := e.InitMaster()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	var key [keylength]byte
+	kdf := hkdf.New(sha512.New, e.masterkey[:], e.masternonce[:], nil)
+
+	if _, err := io.ReadFull(kdf, key[:]); err != nil {
+		return nil, err
+	}
+	e.stream.targetBucket = encrypt(pad([]byte(bucket),32), key[:], e.masternonce[:])
+	if !e.stream.BucketExists() {
+		return e.stream.targetBucket, ErrBucketNotInit
+	}
+
+	return e.stream.targetBucket,nil
+
+}
+
 
 //GetNonce Checks the current bucketnonce
 func (e *EncryptedDB) GetNonce() ([]byte, error) {
@@ -130,7 +191,7 @@ func (e *EncryptedDB) Write(key string, data []byte) error {
 	}
 
 	var encryptedKey [keylength]byte
-	kdf := hkdf.New(sha512.New, e.masterkey, nonce, nil)
+	kdf := hkdf.New(sha512.New, e.masterkey[:], nonce, nil)
 
 	if _, err := io.ReadFull(kdf, encryptedKey[:]); err != nil {
 		return err
@@ -156,7 +217,7 @@ func (e *EncryptedDB) Read(key string) ([]byte, error) {
 	}
 
 	var encryptedKey [keylength]byte
-	kdf := hkdf.New(sha512.New, e.masterkey, nonce, nil)
+	kdf := hkdf.New(sha512.New, e.masterkey[:], nonce, nil)
 
 	if _, err := io.ReadFull(kdf, encryptedKey[:]); err != nil {
 		return nil, err
@@ -186,7 +247,7 @@ func (e *EncryptedDB) Append(key string, newData []byte) error {
 	}
 
 	var encryptedKey [keylength]byte
-	kdf := hkdf.New(sha512.New, e.masterkey, nonce, nil)
+	kdf := hkdf.New(sha512.New, e.masterkey[:], nonce, nil)
 
 	if _, err := io.ReadFull(kdf, encryptedKey[:]); err != nil {
 		return err
@@ -221,7 +282,7 @@ func (e *EncryptedDB) ReadAppended(key string) ([][]byte, error) {
 	}
 
 	var encryptedKey [keylength]byte
-	kdf := hkdf.New(sha512.New, e.masterkey, nonce, nil)
+	kdf := hkdf.New(sha512.New, e.masterkey[:], nonce, nil)
 
 	if _, err := io.ReadFull(kdf, encryptedKey[:]); err != nil {
 		return nil, err
@@ -252,8 +313,8 @@ func (e *EncryptedDB) Delete(key string) error {
 		return err
 	}
 
-	var encryptedKey [keylength]byte
-	kdf := hkdf.New(sha512.New, e.masterkey, nonce, nil)
+	var encryptedKey [keylength]byte 
+	kdf := hkdf.New(sha512.New, e.masterkey[:], nonce, nil)
 
 	if _, err := io.ReadFull(kdf, encryptedKey[:]); err != nil {
 		return err
@@ -302,7 +363,7 @@ func (e *EncryptedDB) GetCurrentBucket() (string, error) {
 	if e.stream.targetBucket == nil {
 		return "", ErrNoBucketSet
 	}
-	if e.masternonce == nil {
+	if e.masternonce[:] == nil {
 		err := e.InitMaster()
 		if err != nil {
 			return "", err
@@ -310,13 +371,13 @@ func (e *EncryptedDB) GetCurrentBucket() (string, error) {
 	}
 
 	var encryptedKey [keylength]byte
-	kdf := hkdf.New(sha512.New, e.masterkey, e.masternonce, nil)
+	kdf := hkdf.New(sha512.New, e.masterkey[:], e.masternonce[:], nil)
 
 	if _, err := io.ReadFull(kdf, encryptedKey[:]); err != nil {
 		return "", err
 	}
 
-	data := decrypt(e.stream.targetBucket, encryptedKey[:])
+	data := unpad(decrypt(e.stream.targetBucket, encryptedKey[:]))
 	return string(data), nil
 }
 
@@ -353,8 +414,8 @@ func NewEncryptedDB(file string, masterkey string) (*EncryptedDB, error) {
 	DB.stream.targetKey = nil
 	DB.stream.targetBucket = nil
 
-	DB.masterkey = []byte(masterkey)
-	DB.masternonce = nil
+	DB.masterkey = SafexCrypto.NewDigest([]byte(masterkey))
+	DB.masternonce = [32]byte{}
 
 	DB.InitMaster()
 

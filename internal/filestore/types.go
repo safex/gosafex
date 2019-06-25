@@ -7,7 +7,7 @@ import (
 const keylength = 32
 const noncelength = 32
 
-const noncename = "nonce"
+const noncename = "masternonce"
 const masterbucketname = "master"
 
 const appendSeparator = byte('\n')
@@ -21,7 +21,7 @@ type Stream struct {
 
 //EncryptedDB .
 type EncryptedDB struct {
-	masterkey   []byte
-	masternonce []byte
+	masterkey   [keylength]byte
+	masternonce [noncelength]byte
 	stream      *Stream
 }
