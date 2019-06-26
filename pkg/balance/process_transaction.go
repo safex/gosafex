@@ -57,7 +57,7 @@ func (w *Wallet) ProcessTransaction(tx *safex.Transaction, minerTx bool) {
 	// @todo Process Unconfirmed.
 	// Process outputs
 	if len(tx.Vout) != 0 {
-		pubTxKey := extractTxPubKey(tx.Extra)
+		pubTxKey := ExtractTxPubKey(tx.Extra)
 
 		// @todo uniform key structure.
 		txPubKeyDerivation := ([32]byte)(derivation.DeriveKey((*derivation.Key)(&pubTxKey), (*derivation.Key)(&w.Address.ViewKey.Private)))
@@ -73,7 +73,7 @@ func (w *Wallet) ProcessTransaction(tx *safex.Transaction, minerTx bool) {
 			keyimage := derivation.GenerateKeyImage(ephermal_public, ephermal_secret)
 
 			if _, ok := w.outputs[keyimage]; !ok {
-				w.outputs[keyimage] = Transfer{output, index, tx.OutputIndices[index], false, minerTx, tx.BlockHeight, keyimage}
+				w.outputs[keyimage] = Transfer{output, tx.Extra, index, tx.OutputIndices[index], false, minerTx, tx.BlockHeight, keyimage}
 				copy(w.outputs[keyimage].Extra, tx.Extra)
 				w.balance.CashLocked += output.Amount
 				w.balance.TokenLocked += output.TokenAmount

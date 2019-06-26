@@ -45,16 +45,16 @@ func (w *Wallet) transferSelected(dsts *[]DestinationEntry, selectedTransfers *[
 
 	// See how to handle fees for token transactions.
 
-	var sources []TxSourceEntry{}
+	var sources []TxSourceEntry
 	var outIndex uint64 = 0
 	var i uint64 = 0
-	for index, val := range(selectedTransfers) {
+	for index, val := range(*selectedTransfers) {
 		src := TxSourceEntry{}
-		src.Amount = getOutputAmount(val.Output, safex.OutCash)
-		src.TokenAmount = getOutputAmount(val.Output, safex.OutToken)
-		src.TokenTransaction = src.TokenAmount != 0
+		src.Amount = GetOutputAmount(val.Output, safex.OutCash)
+		src.TokenAmount = GetOutputAmount(val.Output, safex.OutToken)
+		src.TokenTx = src.TokenAmount != 0
 
-		for n uint64 = 0; n <= fakeOutsCount; ++n {
+		for n := 0; n <= fakeOutsCount; n++ {
 			var oe TxOutputEntry
 			oe.Index = outs[outIndex][n].Index
 			oe.Key = outs[outIndex][n].PubKey
@@ -75,7 +75,7 @@ func (w *Wallet) transferSelected(dsts *[]DestinationEntry, selectedTransfers *[
 
 		realOE := TxOutputEntry{}
 		realOE.Index = val.GlobalIndex
-		realOE.Key = getOutputKey(val.Output, outType)
+		realOE.Key = GetOutputKey(val.Output, outType)
 		src.Outputs[realIndex] = realOE
 
 		src.RealOutTxKey = ExtractTxPubKey(val.Extra)
@@ -89,7 +89,7 @@ func (w *Wallet) transferSelected(dsts *[]DestinationEntry, selectedTransfers *[
 
 	var changeDts DestinationEntry
 	var changeTokenDts DestinationEntry
-
+	
 	if neededMoney < foundMoney {
 		changeDts.Address = w.Address
 		changeDts.Amount = foundMoney - neededMoney
@@ -104,4 +104,12 @@ func (w *Wallet) transferSelected(dsts *[]DestinationEntry, selectedTransfers *[
 	// }
 
 
+		
+	// @warning @todo Implement dust policy 
+	
+	var splittedDsts []DestinationEntry
+	var dustDsts []DestinationEntry
+
+	var txKey [32]byte
+	bool r = constructTxAndGetTxKey(&sources, )
 }
