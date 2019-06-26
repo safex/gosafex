@@ -46,16 +46,6 @@ type OutputInfo struct {
 	txType      	string
 }
 
-type TransactionInfo struct {
-	version 			uint64
-	unlockTime 			uint64
-	extra				[]byte
-	blockHeight			uint64
-	blockTimestamp 		uint64
-	doubleSpendSeen		bool
-	inPool 				bool
-	txHash 				string
-}
 func loadWallet(accountName string, db *filestore.EncryptedDB) (*FileWallet, error) {
 	ret := &FileWallet{name: accountName, db: db}
 	if err := ret.db.SetBucket(accountName); err != nil {
