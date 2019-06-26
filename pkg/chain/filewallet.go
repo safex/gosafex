@@ -11,17 +11,22 @@ import (
 )
 
 const WalletInfoKey = "WalletInfo"
-const OutputKeyPrefix = "Out-"
-const OutputInfoPrefix = "OutInfo-"
-const BlockKeyPrefix = "Blk-"
-const OutputTypeKeyPrefix = "Typ-"
 const OutputReferenceKey = "OutReference"
 const BlockReferenceKey = "BlckReference"
-const BlockOutputReferencePrefix = "BlckOuts-"
 const LastBlockReferenceKey = "LSTBlckReference"
 const OutputTypeReferenceKey = "OutTypeReference"
 const UnspentOutputReferenceKey = "UnspentOutputReference"
+const TransactionInfoReferenceKey = "TransactionInfoReference"
+
 const GenericDataBucketName = "Generic"
+
+const OutputKeyPrefix = "Out-"
+const OutputInfoPrefix = "OutInfo-"
+const BlockKeyPrefix = "Blk-"
+const TransactionInfoKeyPrefix = "TxInfo-"
+const OutputTypeKeyPrefix = "Typ-"
+const TransactionOutputReferencePrefix = "TxOuts-" 
+
 
 //FileWallet is a simple wrapper for a db
 type FileWallet struct {
@@ -34,15 +39,27 @@ type FileWallet struct {
 }
 
 type OutputInfo struct {
-	outputType 	string
-	blockHash 	string
-	txType      string
+	outputType 		string
+	blockHash 		string
+	transactionID 	string
+	txLocked	    string 
+	txType      	string
 }
 
-func loadWallet(walletName string, db *filestore.EncryptedDB) (*FileWallet, error) {
-	ret := &FileWallet{name: walletName, db: db}
-	if err := ret.db.SetBucket(walletName); err != nil {
-		err = ret.db.CreateBucket(walletName)
+type TransactionInfo struct {
+	version 			uint64
+	unlockTime 			uint64
+	extra				[]byte
+	blockHeight			uint64
+	blockTimestamp 		uint64
+	doubleSpendSeen		bool
+	inPool 				bool
+	txHash 				string
+}
+func loadWallet(accountName string, db *filestore.EncryptedDB) (*FileWallet, error) {
+	ret := &FileWallet{name: accountName, db: db}
+	if err := ret.db.SetBucket(accountName); err != nil {
+		err = ret.db.CreateBucket(accountName)
 		if err != nil {
 			return nil, err
 		}
@@ -124,6 +141,16 @@ func (w *FileWallet) readAppendedKey(key string) ([][]byte, error) {
 	return retData, nil
 }
 
+//TRANSACTION INFO MANAGEMENT
+func(w *FileWallet) putTransactionInfo(txInfo TransactionInfo){
+	transactionID := txInfo.txHash
+	
+}
+
+func (w *FileWallet) checkIfTransactionInfoExists(transactionID string) int{
+	i, _ := w.findKeyInReference(TransactionInfoReferenceKey, transactionID)
+	return i
+}
 //BLOCK HEADER MANAGEMENT
 
 func (w *FileWallet) checkIfBlockExists(blockHash string) int {
@@ -156,7 +183,7 @@ func (w *FileWallet) rewindBlockHeader(targetHash string) error {
 		if err := w.deleteAppendedKey(BlockReferenceKey, i); err != nil {
 			return err
 		}
-		if err := w.deleteKey(BlockOutputReferencePrefix + actHash); err != nil {
+		if err := w.deleteKey(TransactionOutputReferencePrefix + actHash); err != nil {
 			return err
 		}
 		actHash = header.GetPrevHash()
@@ -310,11 +337,11 @@ func (w *FileWallet) isUnspent(outID string) bool {
 	return false
 }
 
-func (w *FileWallet) putOutputInBlock(outID string, blockHash string) error {
+func (w *FileWallet) putOutputInTransaction(outID string, blockHash string) error {
 	if w.checkIfBlockExists(blockHash) < 0 {
 		return errors.New("Output Type not initialized")
 	}
-	w.appendKey(BlockOutputReferencePrefix+blockHash, []byte(outID))
+	w.appendKey(TransactionOutputReferencePrefix+blockHash, []byte(outID))
 	return nil
 }
 
@@ -322,7 +349,7 @@ func (w *FileWallet) findOutputInBlock(outID string, blockHash string) (int, err
 	if w.checkIfBlockExists(blockHash) < 0 {
 		return -1, errors.New("Block not found")
 	}
-	return w.findKeyInReference(BlockOutputReferencePrefix+blockHash, outID)
+	return w.findKeyInReference(TransactionOutputReferencePrefix+blockHash, outID)
 }
 
 func (w *FileWallet) removeOutputFromBlock(outID string, BlockHash string) error {
@@ -371,6 +398,12 @@ func (w *FileWallet) putOutputInfo(outID string, outInfo OutputInfo) error {
 	if err := w.appendKey(OutputInfoPrefix+outID, []byte(outInfo.blockHash)); err != nil {
 		return err
 	}
+	if err := w.appendKey(OutputInfoPrefix+outID, []byte(outInfo.transactionID)); err != nil {
+		return err
+	}
+	if err := w.appendKey(OutputInfoPrefix+outID, []byte(outInfo.txLocked)); err != nil {
+		return err
+	}
 	if err := w.appendKey(OutputInfoPrefix+outID, []byte(outInfo.txType)); err != nil {
 		return err
 	}
@@ -382,7 +415,7 @@ func (w *FileWallet) getOutputInfo(outID string) (OutputInfo, error) {
 	if err != nil {
 		return OutputInfo{}, err
 	}
-	return OutputInfo{string(tempData[0]), string(tempData[1]),string(tempData[2])}, nil
+	return OutputInfo{string(tempData[0]), string(tempData[1]),string(tempData[2]),string(tempData[3]),string(tempData[4])}, nil
 }
 
 func (w *FileWallet) removeOutputInfo(outID string) error {
@@ -413,9 +446,14 @@ func (w *FileWallet) putOutput(out *safex.Txout, localIndex uint64, blockHash st
 
 }
 
-func (w *FileWallet) AddOutput(out *safex.Txout, localIndex uint64, blockHash string, outputType string, txType string, inputID string) (string, error) {
+func (w *FileWallet) AddOutput(out *safex.Txout, localIndex uint64, outInfo OutputInfo, inputID string) (string, error) {
 	if inputID != "" {
 		if w.isUnspent(inputID) {
+			if status, err := w.getOutputLock(inputID); err != nil{
+				return "", err
+			}else if status == "L"{
+				return "", errors.New("Input is locked")
+			}
 			//Need specific checks
 			w.removeUnspentOutput(inputID)
 		} else {
@@ -423,25 +461,25 @@ func (w *FileWallet) AddOutput(out *safex.Txout, localIndex uint64, blockHash st
 		}
 	}
 
-	if w.checkIfBlockExists(blockHash) < 0 {
+	if w.checkIfBlockExists(outInfo.blockHash) < 0 {
 		errors.New("Block not present")
 	}
 
 	//We put the output in it's own key and a reference in the global list
-	outID, err := w.putOutput(out, localIndex, blockHash)
+	outID, err := w.putOutput(out, localIndex, outInfo.blockHash)
 	if err != nil {
 		return "", err
 	}
 	//We put the reference in the type list
-	if err = w.putOutputInType(outID, outputType); err != nil {
+	if err = w.putOutputInType(outID, outInfo.outputType); err != nil {
 		return "", err
 	}
 	//We put the reference in the block list
-	if err = w.putOutputInBlock(outID, blockHash); err != nil {
+	if err = w.putOutputInTransaction(outID, outInfo.transactionID); err != nil {
 		return "", err
 	}
 	//We put the reference in the block list
-	if err = w.putOutputInfo(outID, OutputInfo{outputType: outputType, blockHash: blockHash, txType: txType}); err != nil {
+	if err = w.putOutputInfo(outID, outInfo); err != nil {
 		return "", err
 	}
 	if err = w.addUnspentOutput(outID); err != nil{
@@ -618,7 +656,7 @@ func (w *FileWallet) getOutputType(outID string) (string, error){
 	return OutInf.outputType, nil 
 }
 
-func (w *FileWallet) getTransactionType(outID string) (string, error){
+func (w *FileWallet) getOutputTransactionType(outID string) (string, error){
 	OutInf, err := w.getOutputInfo(outID)
 	if err != nil{
 		return "", err
@@ -626,14 +664,47 @@ func (w *FileWallet) getTransactionType(outID string) (string, error){
 	return OutInf.txType, nil 
 }
 
+func (w *FileWallet) getOutputLock(outID string) (string, error){
+	OutInf, err := w.getOutputInfo(outID)
+	if err != nil{
+		return "", err
+	}
+	return OutInf.txLocked, nil 
+}
 
-func (w *FileWallet) OpenWallet(walletName string, createOnFail bool) error {
-	err := w.db.SetBucket(walletName)
+func (w *FileWallet) getOutputTx(outID string) (string, error){
+	OutInf, err := w.getOutputInfo(outID)
+	if err != nil{
+		return "", err
+	}
+	return OutInf.transactionID, nil 
+}
+
+func (w *FileWallet) lockOutput(outID string) error{
+	OutInf, err := w.getOutputInfo(outID)
+	if err != nil{
+		return  err
+	}
+	OutInf.txLocked = "L"
+	return w.putOutputInfo(outID, OutInf)
+}
+
+func (w *FileWallet) unlockOutput(outID string) error{
+	OutInf, err := w.getOutputInfo(outID)
+	if err != nil{
+		return  err
+	}
+	OutInf.txLocked = "U"
+	return w.putOutputInfo(outID, OutInf)
+}
+
+func (w *FileWallet) OpenAccount(accountName string, createOnFail bool) error {
+	err := w.db.SetBucket(accountName)
 	if err == filestore.ErrBucketNotInit && createOnFail {
-		if err = w.db.CreateBucket(walletName); err != nil {
+		if err = w.db.CreateBucket(accountName); err != nil {
 			return err
 		}
-		if err = w.db.Write(WalletInfoKey, []byte(walletName)); err != nil {
+		if err = w.db.Write(WalletInfoKey, []byte(accountName)); err != nil {
 			return err
 		}
 	} else if err != nil {
@@ -664,18 +735,18 @@ func (w *FileWallet) Close() {
 	w.db.Close()
 }
 
-func New(file string, walletName string, masterkey string, createOnFail bool) (*FileWallet, error) {
+func New(file string, accountName string, masterkey string, createOnFail bool) (*FileWallet, error) {
 	w := new(FileWallet)
 	var err error
 	if w.db, err = filestore.NewEncryptedDB(file, masterkey); err != nil {
 		return nil, err
 	}
 
-	if err = w.OpenWallet(walletName, createOnFail); err != nil {
+	if err = w.OpenAccount(accountName, createOnFail); err != nil {
 		return nil, err
 	}
 
-	w.name = walletName
+	w.name = accountName
 
 	return w, nil
 }
