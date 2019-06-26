@@ -21,6 +21,7 @@ const BlockOutputReferencePrefix = "BlckOuts-"
 const LastBlockReferenceKey = "LSTBlckReference"
 const OutputTypeReferenceKey = "OutTypeReference"
 const UnspentOutputReferenceKey = "UnspentOutputReference"
+const GenericDataBucketName = "Generic"
 
 //FileWallet is a simple wrapper for a db
 type FileWallet struct {
@@ -30,6 +31,12 @@ type FileWallet struct {
 	unspentOutputs    []string
 	latestBlockNumber uint64
 	latestBlockHash   string
+}
+
+type OutputInfo struct {
+	outputType 	string
+	blockHash 	string
+	txType      string
 }
 
 func loadWallet(walletName string, db *filestore.EncryptedDB) (*FileWallet, error) {
@@ -353,25 +360,29 @@ func (w *FileWallet) removeOutputFromType(outID string, outputType string) error
 	return w.deleteAppendedKey(OutputTypeKeyPrefix+outputType, i)
 }
 
-func (w *FileWallet) putOutputInfo(outID string, outputType string, blockHash string) error {
+func (w *FileWallet) putOutputInfo(outID string, outInfo OutputInfo) error {
+	
 	if err := w.deleteKey(OutputInfoPrefix + outID); err != filestore.ErrKeyNotFound {
 		return err
 	}
-	if err := w.appendKey(OutputInfoPrefix+outID, []byte(outputType)); err != nil {
+	if err := w.appendKey(OutputInfoPrefix+outID, []byte(outInfo.outputType)); err != nil {
 		return err
 	}
-	if err := w.appendKey(OutputInfoPrefix+outID, []byte(blockHash)); err != nil {
+	if err := w.appendKey(OutputInfoPrefix+outID, []byte(outInfo.blockHash)); err != nil {
+		return err
+	}
+	if err := w.appendKey(OutputInfoPrefix+outID, []byte(outInfo.txType)); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (w *FileWallet) getOutputInfo(outID string) (string, string, error) {
+func (w *FileWallet) getOutputInfo(outID string) (OutputInfo, error) {
 	tempData, err := w.readAppendedKey(OutputInfoPrefix + outID)
 	if err != nil {
-		return "", "", err
+		return OutputInfo{}, err
 	}
-	return string(tempData[0]), string(tempData[1]), nil
+	return OutputInfo{string(tempData[0]), string(tempData[1]),string(tempData[2])}, nil
 }
 
 func (w *FileWallet) removeOutputInfo(outID string) error {
@@ -402,7 +413,7 @@ func (w *FileWallet) putOutput(out *safex.Txout, localIndex uint64, blockHash st
 
 }
 
-func (w *FileWallet) AddOutput(out *safex.Txout, localIndex uint64, blockHash string, outputType string, inputID string) (string, error) {
+func (w *FileWallet) AddOutput(out *safex.Txout, localIndex uint64, blockHash string, outputType string, txType string, inputID string) (string, error) {
 	if inputID != "" {
 		if w.isUnspent(inputID) {
 			//Need specific checks
@@ -430,7 +441,7 @@ func (w *FileWallet) AddOutput(out *safex.Txout, localIndex uint64, blockHash st
 		return "", err
 	}
 	//We put the reference in the block list
-	if err = w.putOutputInfo(outID, outputType, blockHash); err != nil {
+	if err = w.putOutputInfo(outID, OutputInfo{outputType: outputType, blockHash: blockHash, txType: txType}); err != nil {
 		return "", err
 	}
 	if err = w.addUnspentOutput(outID); err != nil{
@@ -471,7 +482,7 @@ func (w *FileWallet) DeleteOutput(outID string) error {
 	if _, err := w.checkIfOutputExists(outID); err != nil {
 		return err
 	}
-	outputType, blockHash, err := w.getOutputInfo(outID)
+	OutInf, err := w.getOutputInfo(outID)
 	if err != nil {
 		return err
 	}
@@ -479,11 +490,11 @@ func (w *FileWallet) DeleteOutput(outID string) error {
 		return err
 	}
 
-	if err = w.removeOutputFromBlock(outID, blockHash); err != nil {
+	if err = w.removeOutputFromBlock(outID, OutInf.blockHash); err != nil {
 		return err
 	}
 
-	if err = w.removeOutputFromType(outID, outputType); err != nil {
+	if err = w.removeOutputFromType(outID, OutInf.outputType); err != nil {
 		return err
 	}
 
@@ -553,6 +564,68 @@ func (w *FileWallet) loadUnspentOutputs(createOnFail bool) error {
 	}
 	return nil
 }
+//GENERIC DATA FUNCTIONS//
+
+func (w *FileWallet) PutData(key string, data []byte) error{ 
+	defer w.db.SetBucket(w.name)
+	if err := w.db.SetBucket(GenericDataBucketName); err == filestore.ErrBucketNotInit{
+		if err = w.db.CreateBucket(GenericDataBucketName); err != nil {
+			return err
+		}
+	}else if err != nil{
+		return err
+	}
+	err := w.writeKey(key,data) 
+	if err != nil{
+
+		return err
+	}
+	return nil
+}
+
+func (w *FileWallet) GetData(key string) ([]byte,error){
+	defer w.db.SetBucket(w.name)
+	if err := w.db.SetBucket(GenericDataBucketName); err != nil{
+		return nil, err
+	}
+	data, err := w.readKey(key) 
+	if err != nil{
+
+		return nil, err
+	}
+	return data, nil 
+}
+
+//UTILITY FUNCTIONS
+
+func(w *FileWallet) getOutputAge(outID string) (uint64, error){
+	OutInf, err := w.getOutputInfo(outID)
+	if err != nil{
+		return 0, err
+	}
+	head, err := w.getBlockHeader(OutInf.blockHash) 
+	if err != nil{
+		return 0, err
+	}
+	return w.latestBlockNumber - head.GetDepth(), nil 
+}
+
+func (w *FileWallet) getOutputType(outID string) (string, error){
+	OutInf, err := w.getOutputInfo(outID)
+	if err != nil{
+		return "", err
+	}
+	return OutInf.outputType, nil 
+}
+
+func (w *FileWallet) getTransactionType(outID string) (string, error){
+	OutInf, err := w.getOutputInfo(outID)
+	if err != nil{
+		return "", err
+	}
+	return OutInf.txType, nil 
+}
+
 
 func (w *FileWallet) OpenWallet(walletName string, createOnFail bool) error {
 	err := w.db.SetBucket(walletName)
