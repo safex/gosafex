@@ -207,6 +207,7 @@ func (e *EncryptedDB) Append(key string, newData []byte) error {
 	}
 
 	data = append(data, newData...)
+	
 	return e.Write(key, data)
 }
 

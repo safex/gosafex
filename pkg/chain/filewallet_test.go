@@ -1,11 +1,8 @@
 package chain
 
 import (
-	bufio "bufio"
 	"fmt"
-	"io"
 	"os"
-	"strconv"
 	"strings"
 	"testing"
 
@@ -39,6 +36,7 @@ func CleanAfterTests(w *FileWallet, fullpath string) {
 	}
 }
 
+/*
 func prepareWallet(w *FileWallet) {
 
 	blockpath := strings.Join([]string{foldername, blockFile}, "/")
@@ -64,13 +62,14 @@ func prepareWallet(w *FileWallet) {
 		w.AddOutput(out, uint64(val1), arr[2], arr[3], "normal", "")
 	}
 }
-
+*/
 func TestGenericDataRW(t *testing.T) {
 
 	prepareFolder()
 	fullpath := strings.Join([]string{foldername, filename}, "/")
 	w, err := New(fullpath, walletName, masterPass, true)
 	defer CleanAfterTests(w, fullpath)
+
 	if err != nil {
 		t.Fatalf("%s", err)
 	}
@@ -91,8 +90,8 @@ func TestGenericDataRW(t *testing.T) {
 	if err != nil {
 		t.Fatalf("%s", err)
 	}
-
-	outID, err := w.AddOutput(out1, 1, "aaaac", "Cash", "normal", "")
+	outputInfo := &OutputInfo{"Cash", "aaaac", "tx01", "U", "normal"}
+	outID, err := w.AddOutput(out1, 1, outputInfo, "")
 	if err != nil {
 		t.Fatalf("%s", err)
 	}
@@ -101,7 +100,7 @@ func TestGenericDataRW(t *testing.T) {
 		t.Fatalf("%s", err)
 	}
 
-	out, err := w.getAllOutputs()
+	out, err := w.GetAllOutputs()
 
 	if err != nil {
 		t.Fatalf("%s", err)
@@ -131,6 +130,81 @@ func TestGenericDataRW(t *testing.T) {
 
 }
 
+func TestBlockRW(t *testing.T) {
+	prepareFolder()
+	fullpath := strings.Join([]string{foldername, filename}, "/")
+	w, err := New(fullpath, walletName, masterPass, true)
+	if err != nil {
+		t.Fatalf("%s", err)
+	}
+	defer CleanAfterTests(w, fullpath)
+	head1 := &safex.BlockHeader{Depth: 10, Hash: "aaaab", PrevHash: ""}
+	head2 := &safex.BlockHeader{Depth: 11, Hash: "aaaac", PrevHash: "aaaab"}
+	head3 := &safex.BlockHeader{Depth: 12, Hash: "aaaad", PrevHash: "aaaac"}
+	head4 := &safex.BlockHeader{Depth: 13, Hash: "aaaae", PrevHash: "aaaad"}
+	arr := []*safex.BlockHeader{head1, head2, head3, head4}
+	if err = w.PutBlockHeader(head1); err != nil {
+		t.Fatalf("%s", err)
+	}
+	if err = w.PutBlockHeader(head2); err != nil {
+		t.Fatalf("%s", err)
+	}
+	if err = w.PutBlockHeader(head3); err != nil {
+		t.Fatalf("%s", err)
+	}
+	if err = w.PutBlockHeader(head4); err != nil {
+		t.Fatalf("%s", err)
+	}
+	if data, err := w.GetAllBlocks(); err != nil {
+		t.Fatalf("%s", err)
+	} else if len(data) != 4 {
+		t.Fatalf("Read BlockHeader total length mismatch %d", len(data))
+	} else {
+		for i, el := range data {
+			if head, err := w.getBlockHeader(el); err != nil {
+				t.Fatalf("%s", err)
+			} else if head.GetHash() != arr[i].GetHash() {
+				t.Fatalf("Read BlockHeader data mismatch\nhash: %s\nread:%s", arr[i].GetHash(), head.GetHash())
+			}
+		}
+	}
+}
+
+func TestTransactionRW(t *testing.T) {
+	prepareFolder()
+	fullpath := strings.Join([]string{foldername, filename}, "/")
+	w, err := New(fullpath, walletName, masterPass, true)
+	if err != nil {
+		t.Fatalf("%s", err)
+	}
+	defer CleanAfterTests(w, fullpath)
+	head1 := &safex.BlockHeader{Depth: 10, Hash: "aaaab", PrevHash: ""}
+	head2 := &safex.BlockHeader{Depth: 11, Hash: "aaaac", PrevHash: "aaaab"}
+	tx1 := &TransactionInfo{version: 1, unlockTime: 10, extra: []byte("asdasd"), blockHeight: head2.GetDepth(), blockTimestamp: 5, doubleSpendSeen: false, inPool: false, txHash: "tx01"}
+	tx2 := &TransactionInfo{version: 1, unlockTime: 10, extra: []byte("asdasd"), blockHeight: head2.GetDepth(), blockTimestamp: 5, doubleSpendSeen: false, inPool: false, txHash: "tx02"}
+	tx3 := &TransactionInfo{version: 1, unlockTime: 10, extra: []byte("asdasd"), blockHeight: head2.GetDepth(), blockTimestamp: 5, doubleSpendSeen: false, inPool: false, txHash: "tx03"}
+	tx4 := &TransactionInfo{version: 1, unlockTime: 10, extra: []byte("asdasd"), blockHeight: head2.GetDepth(), blockTimestamp: 5, doubleSpendSeen: false, inPool: false, txHash: "tx04"}
+
+	if err = w.PutBlockHeader(head1); err != nil {
+		t.Fatalf("%s", err)
+	}
+	if err = w.PutBlockHeader(head2); err != nil {
+		t.Fatalf("%s", err)
+	}
+	if err = w.PutTransactionInfo(tx1, head2.GetHash()); err != nil {
+		t.Fatalf("%s", err)
+	}
+	transactionInfoArray, err := w.GetAllTransactionInfos()
+	t.Fatal(transactionInfoArray)
+	if err != nil {
+		t.Fatalf("%s", err)
+	}
+	if len(transactionInfoArray) != 4 {
+		t.Fatalf("Read transaction info data mismatch %d", len(transactionInfoArray))
+	}
+
+}
+
 func TestOutputRW(t *testing.T) {
 	prepareFolder()
 	fullpath := strings.Join([]string{foldername, filename}, "/")
@@ -138,9 +212,10 @@ func TestOutputRW(t *testing.T) {
 	if err != nil {
 		t.Fatalf("%s", err)
 	}
-
+	defer CleanAfterTests(w, fullpath)
 	head1 := &safex.BlockHeader{Depth: 10, Hash: "aaaab", PrevHash: ""}
 	head2 := &safex.BlockHeader{Depth: 11, Hash: "aaaac", PrevHash: "aaaab"}
+	tx1 := &TransactionInfo{version: 1, unlockTime: 10, extra: []byte("asdasd"), blockHeight: head2.GetDepth(), blockTimestamp: 5, doubleSpendSeen: false, inPool: false, txHash: "tx01"}
 	out1 := &safex.Txout{Amount: 20}
 
 	err = w.PutBlockHeader(head1)
@@ -151,17 +226,22 @@ func TestOutputRW(t *testing.T) {
 	if err != nil {
 		t.Fatalf("%s", err)
 	}
-
 	if err != nil {
 		t.Fatalf("%s", err)
 	}
 
-	outID, err := w.AddOutput(out1, 1, "aaaac", "Cash", "normal", "")
+	err = w.PutTransactionInfo(tx1, head2.GetHash())
 	if err != nil {
 		t.Fatalf("%s", err)
 	}
 
-	out, err := w.getAllOutputs()
+	outputInfo := &OutputInfo{"Cash", head2.GetHash(), "tx01", "U", "normal"}
+	outID, err := w.AddOutput(out1, 1, outputInfo, "")
+	if err != nil {
+		t.Fatalf("%s", err)
+	}
+
+	out, err := w.GetAllOutputs()
 
 	if err != nil {
 		t.Fatalf("%s", err)
@@ -188,7 +268,7 @@ func TestOutputRW(t *testing.T) {
 	if err != nil {
 		t.Fatalf("%s", err)
 	}
-	out, err = w.getAllOutputs()
+	out, err = w.GetAllOutputs()
 
 	if err != nil {
 		t.Fatalf("%s", err)
