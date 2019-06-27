@@ -1,13 +1,12 @@
 package balance
 
-type digitSplitStrategyHandler func(uint64) void
+type digitSplitStrategyHandler func(uint64)
 
 func DecomposeAmountIntoDigits(
 	amount uint64, 
 	dustThreshold uint64, 
 	splitHandler digitSplitStrategyHandler, 
-	dustHandler digitSplitStrategyHandler) 
-{
+	dustHandler digitSplitStrategyHandler) {
 
 	if amount == 0 {
 		return
@@ -23,8 +22,7 @@ func DecomposeAmountIntoDigits(
 		
 		if (dust + chunk) <= dustThreshold {
 			dust += chunk
-		}
-		else {
+		} else {
 			if !isDustHandled && dust != 0 {
 				dustHandler(dust)
 				isDustHandled = true
@@ -46,12 +44,11 @@ func DigitSplitStrategy(
 	changeDstToken 	*DestinationEntry,
 	dustTrehshold 	uint64,
 	splittedDsts 	*[]DestinationEntry,
-	dustDsts 	 	*[]DestinationEntry
-) {
+	dustDsts 	 	*[]DestinationEntry) {
 	*splittedDsts = nil
 	*dustDsts = nil
 
 	for _,val := range(*dsts) {
-		DecomposeAmountIntoDigits)
+		DecomposeAmountIntoDigits()
 	}
 }

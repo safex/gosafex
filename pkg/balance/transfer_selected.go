@@ -111,5 +111,5 @@ func (w *Wallet) transferSelected(dsts *[]DestinationEntry, selectedTransfers *[
 	var dustDsts []DestinationEntry
 
 	var txKey [32]byte
-	bool r = constructTxAndGetTxKey(&sources, )
+	 r := constructTxAndGetTxKey(&sources, )
 }

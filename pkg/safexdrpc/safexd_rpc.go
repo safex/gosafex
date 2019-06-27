@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"strconv"
 	"time"
+	"os"
+	"io"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/safex/gosafex/pkg/safex"
