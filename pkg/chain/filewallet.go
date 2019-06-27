@@ -26,6 +26,7 @@ const BlockKeyPrefix = "Blk-"
 const TransactionInfoKeyPrefix = "TxInfo-"
 const OutputTypeKeyPrefix = "Typ-"
 const TransactionOutputReferencePrefix = "TxOuts-"
+const BlockTransactionReferencePrefix = "Txs-"
 
 //FileWallet is a simple wrapper for a db
 type FileWallet struct {
@@ -131,31 +132,31 @@ func (w *FileWallet) readAppendedKey(key string) ([][]byte, error) {
 }
 
 //TRANSACTION INFO MANAGEMENT
-func (w *FileWallet) getAllTransactionInfoOutputs(transactionID string) ([][]byte,error){
-	if data, err := w.readAppendedKey(TransactionOutputReferencePrefix + transactionID); err != nil{
-		return nil,err
-	}else{
+func (w *FileWallet) getAllTransactionInfoOutputs(transactionID string) ([][]byte, error) {
+	if data, err := w.readAppendedKey(TransactionOutputReferencePrefix + transactionID); err != nil {
+		return nil, err
+	} else {
 		return data, nil
 	}
 }
 
-func (w *FileWallet) putTransactionInfoInBlock(transactionID string, blockHash string) error{
-	if i := w.checkIfBlockExists(blockHash); i < 0{
+func (w *FileWallet) putTransactionInfoInBlock(transactionID string, blockHash string) error {
+	if i := w.checkIfBlockExists(blockHash); i < 0 {
 		return errors.New("Block not found")
 	}
-	if err := w.appendKey(TransactionInfoReferenceKey, []byte(transactionID)); err != nil {
+	if err := w.appendKey(BlockTransactionReferencePrefix+blockHash, []byte(transactionID)); err != nil {
 		return err
 	}
 	return nil
-} 
+}
 
 func (w *FileWallet) PutTransactionInfo(txInfo *TransactionInfo, blockHash string) error {
-	if w.checkIfTransactionInfoExists(txInfo.txHash) >= 0{
+	if w.checkIfTransactionInfoExists(txInfo.txHash) >= 0 {
 		return errors.New("TransactionInfo already present")
 	}
 	data, err := marshallTransactionInfo(txInfo)
 	if err != nil {
-		return err 
+		return err
 	}
 	if err := w.writeKey(TransactionInfoKeyPrefix+txInfo.txHash, data); err != nil {
 		return err
@@ -163,7 +164,7 @@ func (w *FileWallet) PutTransactionInfo(txInfo *TransactionInfo, blockHash strin
 	if err := w.appendKey(TransactionInfoReferenceKey, []byte(txInfo.txHash)); err != nil {
 		return err
 	}
-	if err := w.putTransactionInfoInBlock(txInfo.txHash,blockHash); err != nil{
+	if err := w.putTransactionInfoInBlock(txInfo.txHash, blockHash); err != nil {
 		return err
 	}
 	return nil
@@ -174,37 +175,37 @@ func (w *FileWallet) checkIfTransactionInfoExists(transactionID string) int {
 	return i
 }
 
-func (w *FileWallet) getTransactionInfo(transactionID string) (*TransactionInfo,error){
+func (w *FileWallet) getTransactionInfo(transactionID string) (*TransactionInfo, error) {
 	data, err := w.readKey(TransactionInfoKeyPrefix + transactionID)
-	if err != nil{
+	if err != nil {
 		return nil, err
 	}
-	return unmarshallTransactionInfo(data) 
+	return unmarshallTransactionInfo(data)
 }
 
-func (w *FileWallet) removeTransactionInfo(transactionID string) error{
-	outputIDList, err := w.getAllTransactionInfoOutputs(transactionID)
-	if err != nil{
-		return err
-	}
-	//Remove all associated outputs
-	for _, el := range outputIDList{
-		w.DeleteOutput(string(el))
-	}
+func (w *FileWallet) removeTransactionInfo(transactionID string) error {
 	if i := w.checkIfTransactionInfoExists(transactionID); i < 0 {
 		return errors.New("Can't find TransactionInfo in reference key")
-	} else{
-		if err := w.deleteAppendedKey(TransactionInfoReferenceKey,i); err != nil{
+	} else {
+		if err := w.deleteAppendedKey(TransactionInfoReferenceKey, i); err != nil {
 			return err
 		}
 	}
-	if err = w.deleteKey(transactionID); err != nil{
+	outputIDList, err := w.getAllTransactionInfoOutputs(transactionID)
+	if err != nil {
 		return err
-	} 
-	return nil 
+	}
+	//Remove all associated outputs
+	for _, el := range outputIDList {
+		w.DeleteOutput(string(el))
+	}
+	if err = w.deleteKey(transactionID); err != nil {
+		return err
+	}
+	return nil
 }
 
-func (w *FileWallet) GetAllTransactionInfos() ([]string,error){
+func (w *FileWallet) GetAllTransactionInfos() ([]string, error) {
 
 	transactionInfoIDList, err := w.readAppendedKey(TransactionInfoReferenceKey)
 	if err != nil {
@@ -231,6 +232,10 @@ func (w *FileWallet) rewindBlockHeader(targetHash string) error {
 	actHash := w.latestBlockHash
 	header := &safex.BlockHeader{}
 	for actHash != targetHash {
+		i := w.checkIfBlockExists(actHash)
+		if i == -1 {
+			return errors.New("Mismatched block reference during deletion")
+		}
 		data, err := w.readKey(BlockKeyPrefix + actHash)
 		if err != nil {
 			return err
@@ -241,20 +246,22 @@ func (w *FileWallet) rewindBlockHeader(targetHash string) error {
 		if err = w.deleteKey(BlockKeyPrefix + actHash); err != nil {
 			return err
 		}
-
-		i := w.checkIfBlockExists(actHash)
-		if i != -1 {
-			return errors.New("Mismatched block reference during deletion")
-		}
 		if err := w.deleteAppendedKey(BlockReferenceKey, i); err != nil {
 			return err
 		}
-		if err := w.deleteKey(TransactionOutputReferencePrefix + actHash); err != nil {
+		transactions, err := w.readAppendedKey(BlockTransactionReferencePrefix + actHash)
+		if err != nil && err != filestore.ErrKeyNotFound { //Key could be absent
+			return err
+		}
+		for _, el := range transactions {
+			w.removeTransactionInfo(string(el))
+		}
+		if err := w.deleteKey(BlockTransactionReferencePrefix + actHash); err != nil {
 			return err
 		}
 		actHash = header.GetPrevHash()
 	}
-	var b []byte
+	b := make([]byte, 8)
 	binary.LittleEndian.PutUint64(b, header.GetDepth())
 	if err := w.writeKey(LastBlockReferenceKey, append(b, []byte(actHash)...)); err != nil {
 		return err
@@ -327,7 +334,6 @@ func (w *FileWallet) GetAllBlocks() ([]string, error) {
 	}
 	return ret, nil
 }
-
 
 //
 // Output Management
@@ -544,7 +550,7 @@ func (w *FileWallet) AddOutput(out *safex.Txout, localIndex uint64, outInfo *Out
 	if w.checkIfBlockExists(outInfo.blockHash) < 0 {
 		return "", errors.New("Block not present")
 	}
-	if w.checkIfTransactionInfoExists(outInfo.transactionID) < 0{
+	if w.checkIfTransactionInfoExists(outInfo.transactionID) < 0 {
 		return "", errors.New("TransactionInfo not present")
 	}
 	if w.checkIfOutputTypeExists(outInfo.outputType) < 0 {
@@ -602,7 +608,7 @@ func (w *FileWallet) DeleteOutput(outID string) error {
 		return err
 	}
 
-	if err = w.removeOutputFromTransaction(outID, OutInf.transactionID); err != nil {  
+	if err = w.removeOutputFromTransaction(outID, OutInf.transactionID); err != nil {
 		return err
 	}
 
@@ -796,7 +802,7 @@ func (w *FileWallet) OpenAccount(accountName string, createOnFail bool) error {
 			w.latestBlockNumber = 0
 			w.latestBlockHash = ""
 		} else {
-			return err 
+			return err
 		}
 	}
 	if err = w.loadUnspentOutputs(createOnFail); err != nil {

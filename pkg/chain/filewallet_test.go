@@ -168,6 +168,26 @@ func TestBlockRW(t *testing.T) {
 			}
 		}
 	}
+	if err := w.rewindBlockHeader("aaaab"); err != nil {
+		t.Fatalf("%s", err)
+	}
+	if data, err := w.GetAllBlocks(); err != nil {
+		t.Fatalf("%s", err)
+	} else if len(data) != 1 {
+		t.Fatalf("Read BlockHeader total length mismatch %d", len(data))
+	} else {
+		head, err := w.getBlockHeader(head1.GetHash())
+		if err != nil {
+			t.Fatalf("%s", err)
+		}
+		if head.GetHash() != head1.GetHash() {
+			t.Fatalf("Error in block rewinding")
+		}
+		head, err = w.getBlockHeader(head2.GetHash())
+		if err == nil {
+			t.Fatalf("Block not rewinded")
+		}
+	}
 }
 
 func TestTransactionRW(t *testing.T) {
@@ -194,8 +214,16 @@ func TestTransactionRW(t *testing.T) {
 	if err = w.PutTransactionInfo(tx1, head2.GetHash()); err != nil {
 		t.Fatalf("%s", err)
 	}
+	if err = w.PutTransactionInfo(tx2, head2.GetHash()); err != nil {
+		t.Fatalf("%s", err)
+	}
+	if err = w.PutTransactionInfo(tx3, head2.GetHash()); err != nil {
+		t.Fatalf("%s", err)
+	}
+	if err = w.PutTransactionInfo(tx4, head2.GetHash()); err != nil {
+		t.Fatalf("%s", err)
+	}
 	transactionInfoArray, err := w.GetAllTransactionInfos()
-	t.Fatal(transactionInfoArray)
 	if err != nil {
 		t.Fatalf("%s", err)
 	}
