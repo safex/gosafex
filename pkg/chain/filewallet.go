@@ -187,20 +187,20 @@ func (w *FileWallet) removeTransactionInfo(transactionID string) error {
 	if i := w.checkIfTransactionInfoExists(transactionID); i < 0 {
 		return errors.New("Can't find TransactionInfo in reference key")
 	} else {
+		outputIDList, err := w.getAllTransactionInfoOutputs(transactionID)
+		if err != nil  && err != filestore.ErrKeyNotFound{
+			return err
+		}
+		//Remove all associated outputs
+		for _, el := range outputIDList {
+			w.DeleteOutput(string(el))
+		}
 		if err := w.deleteAppendedKey(TransactionInfoReferenceKey, i); err != nil {
 			return err
 		}
-	}
-	outputIDList, err := w.getAllTransactionInfoOutputs(transactionID)
-	if err != nil {
-		return err
-	}
-	//Remove all associated outputs
-	for _, el := range outputIDList {
-		w.DeleteOutput(string(el))
-	}
-	if err = w.deleteKey(transactionID); err != nil {
-		return err
+		if err = w.deleteKey(transactionID); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -209,6 +209,9 @@ func (w *FileWallet) GetAllTransactionInfos() ([]string, error) {
 
 	transactionInfoIDList, err := w.readAppendedKey(TransactionInfoReferenceKey)
 	if err != nil {
+		if err == filestore.ErrKeyNotFound {
+			return nil, nil
+		}
 		return nil, err
 	}
 	ret := []string{}
@@ -326,6 +329,9 @@ func (w *FileWallet) loadLatestBlock() error {
 func (w *FileWallet) GetAllBlocks() ([]string, error) {
 	data, err := w.readAppendedKey(BlockReferenceKey)
 	if err != nil {
+		if err == filestore.ErrKeyNotFound {
+			return nil, nil
+		}
 		return nil, err
 	}
 	ret := []string{}
@@ -431,7 +437,7 @@ func (w *FileWallet) putOutputInTransaction(outID string, transactionID string) 
 }
 
 func (w *FileWallet) findOutputInTransaction(outID string, transactionID string) (int, error) {
-	if w.checkIfBlockExists(transactionID) < 0 {
+	if w.checkIfTransactionInfoExists(transactionID) < 0 {
 		return -1, errors.New("Block not found")
 	}
 	return w.findKeyInReference(TransactionOutputReferencePrefix+transactionID, outID)
@@ -442,7 +448,7 @@ func (w *FileWallet) removeOutputFromTransaction(outID string, transactionID str
 	if err != nil {
 		return err
 	} else if i < 0 {
-		return errors.New("Unknow error while removing output from block list")
+		return errors.New("Unknow error while removing output from TransactionInfo list")
 	}
 	return w.deleteAppendedKey(TransactionOutputReferencePrefix+transactionID, i)
 }
@@ -474,7 +480,7 @@ func (w *FileWallet) removeOutputFromType(outID string, outputType string) error
 
 func (w *FileWallet) putOutputInfo(outID string, outInfo *OutputInfo) error {
 
-	if err := w.deleteKey(OutputInfoPrefix + outID); err != filestore.ErrKeyNotFound {
+	if err := w.deleteKey(OutputInfoPrefix + outID); err != nil {
 		return err
 	}
 	if err := w.appendKey(OutputInfoPrefix+outID, []byte(outInfo.outputType)); err != nil {
@@ -604,6 +610,11 @@ func (w *FileWallet) DeleteOutput(outID string) error {
 	if err != nil {
 		return err
 	}
+
+	if err = w.removeUnspentOutput(outID); err != nil {
+		return err
+	}
+
 	if err = w.removeOutput(outID); err != nil {
 		return err
 	}
@@ -626,6 +637,9 @@ func (w *FileWallet) DeleteOutput(outID string) error {
 func (w *FileWallet) GetAllOutputs() ([]string, error) {
 	tempData, err := w.readAppendedKey(OutputReferenceKey)
 	if err != nil {
+		if err == filestore.ErrKeyNotFound {
+			return nil, nil
+		}
 		return nil, err
 	}
 	data := []string{}

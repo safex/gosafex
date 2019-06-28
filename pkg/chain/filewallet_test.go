@@ -76,6 +76,7 @@ func TestGenericDataRW(t *testing.T) {
 
 	head1 := &safex.BlockHeader{Depth: 10, Hash: "aaaab", PrevHash: ""}
 	head2 := &safex.BlockHeader{Depth: 11, Hash: "aaaac", PrevHash: "aaaab"}
+	tx1 := &TransactionInfo{version: 1, unlockTime: 10, extra: []byte("asdasd"), blockHeight: head2.GetDepth(), blockTimestamp: 5, doubleSpendSeen: false, inPool: false, txHash: "tx01"}
 	out1 := &safex.Txout{Amount: 20}
 
 	err = w.PutBlockHeader(head1)
@@ -87,6 +88,7 @@ func TestGenericDataRW(t *testing.T) {
 		t.Fatalf("%s", err)
 	}
 
+	err = w.PutTransactionInfo(tx1, head2.GetHash())
 	if err != nil {
 		t.Fatalf("%s", err)
 	}
@@ -228,9 +230,15 @@ func TestTransactionRW(t *testing.T) {
 		t.Fatalf("%s", err)
 	}
 	if len(transactionInfoArray) != 4 {
-		t.Fatalf("Read transaction info data mismatch %d", len(transactionInfoArray))
+		t.Fatalf("Read transaction  data mismatch %d", len(transactionInfoArray))
 	}
-
+	if err := w.rewindBlockHeader("aaaab"); err != nil {
+		t.Fatalf("%s", err)
+	}
+	transactionInfoArray, err = w.GetAllTransactionInfos()
+	if len(transactionInfoArray) != 0 {
+		t.Fatalf("Error removing data")
+	}
 }
 
 func TestOutputRW(t *testing.T) {
@@ -240,7 +248,6 @@ func TestOutputRW(t *testing.T) {
 	if err != nil {
 		t.Fatalf("%s", err)
 	}
-	defer CleanAfterTests(w, fullpath)
 	head1 := &safex.BlockHeader{Depth: 10, Hash: "aaaab", PrevHash: ""}
 	head2 := &safex.BlockHeader{Depth: 11, Hash: "aaaac", PrevHash: "aaaab"}
 	tx1 := &TransactionInfo{version: 1, unlockTime: 10, extra: []byte("asdasd"), blockHeight: head2.GetDepth(), blockTimestamp: 5, doubleSpendSeen: false, inPool: false, txHash: "tx01"}
@@ -268,7 +275,10 @@ func TestOutputRW(t *testing.T) {
 	if err != nil {
 		t.Fatalf("%s", err)
 	}
-
+	outID, err = w.AddOutput(out1, 2, outputInfo, "")
+	if err != nil {
+		t.Fatalf("%s", err)
+	}
 	out, err := w.GetAllOutputs()
 
 	if err != nil {
@@ -281,10 +291,6 @@ func TestOutputRW(t *testing.T) {
 		}
 	}
 	if !found {
-		fmt.Println(outID)
-		for _, el := range out {
-			fmt.Println(el)
-		}
 		t.Fatalf("Output not read")
 	}
 
@@ -293,11 +299,11 @@ func TestOutputRW(t *testing.T) {
 	//Re-open just to read
 
 	w, err = New(fullpath, walletName, masterPass, true)
+	defer CleanAfterTests(w, fullpath)
 	if err != nil {
 		t.Fatalf("%s", err)
 	}
 	out, err = w.GetAllOutputs()
-
 	if err != nil {
 		t.Fatalf("%s", err)
 	}
@@ -308,17 +314,36 @@ func TestOutputRW(t *testing.T) {
 		}
 	}
 	if !found {
-		fmt.Println(outID)
-		for _, el := range out {
-			fmt.Println(el)
-		}
 		t.Fatalf("Output not read")
 	}
 
-	w.Close()
-
-	err = os.Remove(fullpath)
+	lock, err := w.getOutputLock(outID)
 	if err != nil {
-		fmt.Println(err)
+		t.Fatalf("%s", err)
+	}
+	if lock != "U" {
+		t.Fatalf("Error in lock status consistency")
+	}
+	if err := w.lockOutput(outID); err != nil {
+		t.Fatalf("%s", err)
+	}
+
+	lock, err = w.getOutputLock(outID)
+	if err != nil {
+		t.Fatalf("%s", err)
+	}
+	if lock != "L" {
+		t.Fatalf("Error in changing lock status consistency")
+	}
+
+	if err := w.rewindBlockHeader("aaaab"); err != nil {
+		t.Fatalf("%s", err)
+	}
+	out, err = w.GetAllOutputs()
+	if err != nil {
+		t.Fatalf("%s", err)
+	}
+	if len(out) != 0 {
+		t.Fatalf("Error removing data")
 	}
 }
