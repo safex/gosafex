@@ -3,6 +3,7 @@ package chain
 import (
 	"github.com/safex/gosafex/internal/crypto"
 	"github.com/safex/gosafex/pkg/account"
+	"github.com/safex/gosafex/pkg/balance"
 	"github.com/safex/gosafex/pkg/key"
 	"github.com/safex/gosafex/pkg/safex"
 	"github.com/safex/gosafex/pkg/safexdrpc"
@@ -31,3 +32,24 @@ type TxInputV = safex.TxinV
 
 // TxOut is the alias to safex.Txout.
 type TxOut = safex.Txout
+
+type Wallet struct {
+	balance balance.Balance
+	account Account
+	client  *Client
+	outputs map[crypto.Key]Transfer
+	wallet  *FileWallet
+}
+type Balance struct {
+	CashUnlocked  uint64
+	CashLocked    uint64
+	TokenUnlocked uint64
+	TokenLocked   uint64
+}
+type Transfer struct {
+	Output  *safex.Txout
+	Spent   bool
+	MinerTx bool
+	Height  uint64
+	KImage  crypto.Key
+}
