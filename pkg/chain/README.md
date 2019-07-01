@@ -43,30 +43,30 @@
 
 ## Storage Example
 
-* WalletInfoKey: **DATA**
+* WalletInfoKey: DATA
 
-* BlockReferenceKey: .....;.....;**0xa02b3f**;.....     ----------------\
-                                                                        |
-* LastBlockReferenceKey: .....                                          |
-                                                                        |
-* OutputReferenceKey: .....;**0xa02b3f09**;.....--------------------\   |
-                                                                    |   |
-* OutputTypeReferenceKey: **Cash**;**Token**;.....                  |   |
-                                                                    |   |
-* UnspentOutputReferenceKey: .....;.....;**0xa02b3f09**<------------|   |
-                                                                    |   |
-* TransactionInfoReferenceKey: .....;**Jxnw2ir!ir**;.....<-----\    |   |
-                                                                |   |   |    
-* Blk-0xa02b3f: **DATA** <----------------------------------------------|
-                                                                |   |   |
-* Txs-0xa02b3f: .....;**Jxnw2ir!ir**;.....<---------------------**+**-------/
-                                                                |   |
-* TxInfo-Jxnw2ir!ir: **DATA**<----------------------------------|   |
-                                                                |   |
-* TxOuts-Jxnw2ir!ir: .....;.....;.....;**0xa02b3f09**;.....<----**+**---|
-                                                                    |
-* Out-0xa02b3f09: **DATA** <----------------------------------------|
-                                                                    |
-* OutInfo-0xa02b3f09: **DATA** <------------------------------------|
-                                                                    |
-* Typ-Cash: .....;**0xa02b3f09**<-----------------------------------/
+* BlockReferenceKey: .....;.....;*0xa02b3f*;.....     
+                                                                        
+* LastBlockReferenceKey: .....                                          
+                                                                        
+* OutputReferenceKey: .....;**0xa02b3f09;.....  
+                                                                       
+* OutputTypeReferenceKey: Cash;Token;.....                     
+                                                                       
+* UnspentOutputReferenceKey: .....;.....;**0xa02b3f09   
+                                                                       
+* TransactionInfoReferenceKey: .....;**Jxnw2ir!ir**;.....    
+                                                                          
+* Blk-0xa02b3f: DATA 
+                                                                      
+* Txs-0xa02b3f: .....;**Jxnw2ir!ir**;.....
+                                                                   
+* TxInfo-Jxnw2ir!ir: DATA   
+                                                                   
+* TxOuts-Jxnw2ir!ir: .....;.....;.....;**0xa02b3f09;.....
+                                                                    
+* Out-0xa02b3f09: DATA
+                                                                    
+* OutInfo-0xa02b3f09: DATA
+                                                                    
+* Typ-Cash: .....;**0xa02b3f09
