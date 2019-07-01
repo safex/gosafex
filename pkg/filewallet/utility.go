@@ -1,4 +1,4 @@
-package chain
+package filewallet
 
 import (
 	"bytes"
@@ -7,15 +7,21 @@ import (
 	"errors"
 )
 
-type TransactionInfo struct {
-	version         uint64
-	unlockTime      uint64
-	extra           []byte
-	blockHeight     uint64
-	blockTimestamp  uint64
-	doubleSpendSeen bool
-	inPool          bool
-	txHash          string
+func packOutputIndex(blockHash string, localIndex uint64) (string, error) {
+	b := make([]byte, 8)
+	binary.LittleEndian.PutUint64(b, localIndex)
+	b = append(b, []byte(blockHash)...)
+	return hex.EncodeToString(b), nil
+}
+
+func unpackOutputIndex(outID string) (uint64, uint64, error) {
+	s, err := hex.DecodeString(outID)
+	if err != nil {
+		return 0, 0, err
+	}
+	globalIndex := binary.LittleEndian.Uint64(s[:8])
+	localIndex := binary.LittleEndian.Uint64(s[8:])
+	return globalIndex, localIndex, nil
 }
 
 func marshallTransactionInfo(txInfo *TransactionInfo) ([]byte, error) {
