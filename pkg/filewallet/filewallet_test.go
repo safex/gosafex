@@ -1,4 +1,4 @@
-package chain
+package filewallet
 
 import (
 	"fmt"
@@ -163,14 +163,14 @@ func TestBlockRW(t *testing.T) {
 		t.Fatalf("Read BlockHeader total length mismatch %d", len(data))
 	} else {
 		for i, el := range data {
-			if head, err := w.getBlockHeader(el); err != nil {
+			if head, err := w.GetBlockHeader(el); err != nil {
 				t.Fatalf("%s", err)
 			} else if head.GetHash() != arr[i].GetHash() {
 				t.Fatalf("Read BlockHeader data mismatch\nhash: %s\nread:%s", arr[i].GetHash(), head.GetHash())
 			}
 		}
 	}
-	if err := w.rewindBlockHeader("aaaab"); err != nil {
+	if err := w.RewindBlockHeader("aaaab"); err != nil {
 		t.Fatalf("%s", err)
 	}
 	if data, err := w.GetAllBlocks(); err != nil {
@@ -178,14 +178,14 @@ func TestBlockRW(t *testing.T) {
 	} else if len(data) != 1 {
 		t.Fatalf("Read BlockHeader total length mismatch %d", len(data))
 	} else {
-		head, err := w.getBlockHeader(head1.GetHash())
+		head, err := w.GetBlockHeader(head1.GetHash())
 		if err != nil {
 			t.Fatalf("%s", err)
 		}
 		if head.GetHash() != head1.GetHash() {
 			t.Fatalf("Error in block rewinding")
 		}
-		head, err = w.getBlockHeader(head2.GetHash())
+		head, err = w.GetBlockHeader(head2.GetHash())
 		if err == nil {
 			t.Fatalf("Block not rewinded")
 		}
@@ -232,7 +232,7 @@ func TestTransactionRW(t *testing.T) {
 	if len(transactionInfoArray) != 4 {
 		t.Fatalf("Read transaction  data mismatch %d", len(transactionInfoArray))
 	}
-	if err := w.rewindBlockHeader("aaaab"); err != nil {
+	if err := w.RewindBlockHeader("aaaab"); err != nil {
 		t.Fatalf("%s", err)
 	}
 	transactionInfoArray, err = w.GetAllTransactionInfos()
@@ -317,18 +317,18 @@ func TestOutputRW(t *testing.T) {
 		t.Fatalf("Output not read")
 	}
 
-	lock, err := w.getOutputLock(outID)
+	lock, err := w.GetOutputLock(outID)
 	if err != nil {
 		t.Fatalf("%s", err)
 	}
 	if lock != "U" {
 		t.Fatalf("Error in lock status consistency")
 	}
-	if err := w.lockOutput(outID); err != nil {
+	if err := w.LockOutput(outID); err != nil {
 		t.Fatalf("%s", err)
 	}
 
-	lock, err = w.getOutputLock(outID)
+	lock, err = w.GetOutputLock(outID)
 	if err != nil {
 		t.Fatalf("%s", err)
 	}
@@ -336,7 +336,7 @@ func TestOutputRW(t *testing.T) {
 		t.Fatalf("Error in changing lock status consistency")
 	}
 
-	if err := w.rewindBlockHeader("aaaab"); err != nil {
+	if err := w.RewindBlockHeader("aaaab"); err != nil {
 		t.Fatalf("%s", err)
 	}
 	out, err = w.GetAllOutputs()
