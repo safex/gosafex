@@ -49,11 +49,11 @@
                                                                         
 * LastBlockReferenceKey: .....                                          
                                                                         
-* OutputReferenceKey: .....;**0xa02b3f09;.....  
+* OutputReferenceKey: .....;**_0xa02b3f09_**;.....  
                                                                        
 * OutputTypeReferenceKey: Cash;Token;.....                     
                                                                        
-* UnspentOutputReferenceKey: .....;.....;**0xa02b3f09   
+* UnspentOutputReferenceKey: .....;.....;**_0xa02b3f09_**   
                                                                        
 * TransactionInfoReferenceKey: .....;**Jxnw2ir!ir**;.....    
                                                                           
@@ -63,10 +63,10 @@
                                                                    
 * TxInfo-Jxnw2ir!ir: DATA   
                                                                    
-* TxOuts-Jxnw2ir!ir: .....;.....;.....;**0xa02b3f09;.....
+* TxOuts-Jxnw2ir!ir: .....;.....;.....;**_0xa02b3f09_**;.....
                                                                     
 * Out-0xa02b3f09: DATA
                                                                     
 * OutInfo-0xa02b3f09: DATA
                                                                     
-* Typ-Cash: .....;**0xa02b3f09
+* Typ-Cash: .....;**_0xa02b3f09_**
