@@ -5,8 +5,10 @@ import (
 	"github.com/safex/gosafex/pkg/key"
 )
 
-const CRYPTONOTE_PUBLIC_ADDRESS_BASE58_PREFIX = 0x263b16 // SFXt
-const CRYPTONOTE_PUBLIC_INTEGRATED_ADDRESS_BASE58_PREFIX = 0xe05fb16
+const (
+	CRYPTONOTE_PUBLIC_ADDRESS_BASE58_PREFIX            uint64 = 0x10003798 // SFXt
+	CRYPTONOTE_PUBLIC_INTEGRATED_ADDRESS_BASE58_PREFIX uint64 = 0xa90a03798
+)
 
 // KeyLength is the alias for key.KeyLength.
 const KeyLength = key.KeyLength

@@ -2,6 +2,8 @@ package account
 
 import (
 	"bytes"
+	"encoding/binary"
+	"fmt"
 
 	"github.com/safex/gosafex/internal/crypto"
 	"github.com/safex/gosafex/internal/tools/base58"
@@ -104,7 +106,13 @@ func decodeBase58(b58string string) (result *Address, err error) {
 }
 
 func (adr *Address) encodeBase58() string {
-	raw := append(networkIDToBytes(adr.NetworkID))
+	raw := make([]byte, 8)
+	if adr.PaymentID != nil {
+		binary.PutUvarint(raw, CRYPTONOTE_PUBLIC_INTEGRATED_ADDRESS_BASE58_PREFIX)
+	} else {
+		binary.PutUvarint(raw, CRYPTONOTE_PUBLIC_ADDRESS_BASE58_PREFIX)
+	}
+	raw = append(raw, networkIDToBytes(adr.NetworkID)...)
 
 	bytes := adr.SpendKey.ToBytes()
 	raw = append(raw, bytes[:]...)
@@ -113,7 +121,8 @@ func (adr *Address) encodeBase58() string {
 
 	raw = append(raw, adr.PaymentID...)
 	raw = append(raw, computeChecksum(raw)...)
-
+	asd := crypto.NewDigest(raw)
+	fmt.Println(asd)
 	return base58.Encode(raw)
 }
 
