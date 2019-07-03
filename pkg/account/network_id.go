@@ -61,8 +61,8 @@ var (
 )
 
 func uint64ToNetworkID(rawInt uint64) (result *NetworkID, err error) {
-	buf := make([]byte, binary.MaxVarintLen64)
-	binary.LittleEndian.PutUint64(buf, rawInt)
+	buf := make([]byte, 8)
+	binary.PutUvarint(buf, rawInt)
 	return bytesToNetworkID(buf)
 }
 
@@ -80,10 +80,10 @@ func bytesToNetworkID(raw []byte) (result *NetworkID, err error) {
 }
 
 func networkIDToBytes(nid NetworkID) []byte {
-	buf := make([]byte, nid.Size+1, nid.Size+1)
-	size := binary.PutUvarint(buf, uint64(nid.Val))
+	buf := make([]byte, 8)
+	binary.PutUvarint(buf, uint64(nid.Val))
 
-	return buf[:size]
+	return buf
 }
 
 // AddressType will return the address Type
