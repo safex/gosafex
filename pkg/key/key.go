@@ -50,6 +50,12 @@ func NewPrivateKey(key *crypto.Key) *PrivateKey {
 	return &PrivateKey{*key}
 }
 
+// NewPrivateKey will construct a PrivateKey from a Key.
+func NewPrivateKeyFromBytes(raw [KeyLength]byte) *PrivateKey {
+	key := crypto.Key(raw)
+	return NewPrivateKey(&key)
+}
+
 // NewPublicKeyFromBytes will create a PublicKey from a raw bytes representation.
 func NewPublicKeyFromBytes(raw [KeyLength]byte) *PublicKey {
 	key := crypto.Key(raw)

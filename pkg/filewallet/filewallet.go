@@ -4,11 +4,18 @@ import (
 	"encoding/hex"
 
 	"github.com/safex/gosafex/internal/filestore"
+	"github.com/safex/gosafex/pkg/account"
+	"github.com/safex/gosafex/pkg/key"
 )
+
+type walletInfo struct {
+	name     string
+	keystore *account.Store
+}
 
 //FileWallet is a wrapper for an EncryptedDB that includes wallet specific data and operations
 type FileWallet struct {
-	name              string
+	info              walletInfo
 	db                *filestore.EncryptedDB
 	knownOutputs      []string //REMEMBER TO INITIALIZE THIS
 	unspentOutputs    []string
@@ -17,18 +24,6 @@ type FileWallet struct {
 }
 
 //In all read/write function we firstly go to hex to avoid confusion with special escape bytes
-
-//Loads a local wallet
-func loadWallet(accountName string, db *filestore.EncryptedDB) (*FileWallet, error) {
-	ret := &FileWallet{name: accountName, db: db}
-	if err := ret.db.SetBucket(accountName); err != nil {
-		err = ret.db.CreateBucket(accountName)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return ret, nil
-}
 
 //Finds a key in an appended list of keys in targetReference
 func (w *FileWallet) findKeyInReference(targetReference string, targetKey string) (int, error) {
@@ -94,9 +89,58 @@ func (w *FileWallet) readKey(key string) ([]byte, error) {
 	return hex.DecodeString(string(data))
 }
 
+func (w *FileWallet) putInfo(info *walletInfo) error {
+	if err := w.deleteKey(walletInfoKey); err != nil {
+		return err
+	}
+	if err := w.appendKey(walletInfoKey, []byte(info.name)); err != nil {
+		return err
+	}
+	if info.keystore != nil {
+		if err := w.appendKey(walletInfoKey, []byte(info.keystore.Address().String())); err != nil {
+			return err
+		}
+
+		b := info.keystore.PrivateViewKey().ToBytes()
+		if err := w.appendKey(walletInfoKey, b[:]); err != nil {
+			return err
+		}
+
+		b = info.keystore.PrivateSpendKey().ToBytes()
+		if err := w.appendKey(walletInfoKey, b[:]); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (w *FileWallet) getInfo() (*walletInfo, error) {
+	ret := &walletInfo{}
+
+	data, err := w.readAppendedKey(walletInfoKey)
+	if err != nil {
+		return nil, err
+	}
+
+	ret.name = string(data[0])
+	if len(data) > 2 {
+		addr, err := ret.keystore.Address().FromBase58(string(data[1]))
+		if err != nil {
+			return nil, err
+		}
+		var viewBytes [32]byte
+		var spendBytes [32]byte
+		copy(viewBytes[:], data[2])
+		copy(spendBytes[:], data[3])
+
+		ret.keystore = account.NewStore(addr, *key.NewPrivateKeyFromBytes(viewBytes), *key.NewPrivateKeyFromBytes(spendBytes))
+	}
+	return ret, nil
+}
+
 //PutData Writes data in a key in the generic data bucket
 func (w *FileWallet) PutData(key string, data []byte) error {
-	defer w.db.SetBucket(w.name)
+	defer w.db.SetBucket(w.info.name)
 	if err := w.db.SetBucket(genericDataBucketName); err == filestore.ErrBucketNotInit {
 		if err = w.db.CreateBucket(genericDataBucketName); err != nil {
 			return err
@@ -114,7 +158,7 @@ func (w *FileWallet) PutData(key string, data []byte) error {
 
 //GetData Reads data from a key in the generic data bucket
 func (w *FileWallet) GetData(key string) ([]byte, error) {
-	defer w.db.SetBucket(w.name)
+	defer w.db.SetBucket(w.info.name)
 	if err := w.db.SetBucket(genericDataBucketName); err != nil {
 		return nil, err
 	}
@@ -127,17 +171,26 @@ func (w *FileWallet) GetData(key string) ([]byte, error) {
 }
 
 //OpenAccount Opens an account and all the connected data
-func (w *FileWallet) OpenAccount(accountName string, createOnFail bool) error {
-	err := w.db.SetBucket(accountName)
+func (w *FileWallet) OpenAccount(accountInfo *walletInfo, createOnFail bool) error {
+	err := w.db.SetBucket(accountInfo.name)
 	if err == filestore.ErrBucketNotInit && createOnFail {
-		if err = w.db.CreateBucket(accountName); err != nil {
+		if err = w.db.CreateBucket(accountInfo.name); err != nil {
 			return err
 		}
-		if err = w.db.Write(walletInfoKey, []byte(accountName)); err != nil {
+		if err := w.db.SetBucket(accountInfo.name); err != nil {
 			return err
 		}
 	} else if err != nil {
 		return filestore.ErrBucketNotInit
+	}
+
+	if info, err := w.getInfo(); err == filestore.ErrKeyNotFound {
+		err = w.putInfo(accountInfo)
+		w.info = *accountInfo
+	} else if err != nil {
+		return err
+	} else {
+		w.info = *info
 	}
 
 	if err = w.loadOutputTypes(createOnFail); err != nil {
@@ -166,18 +219,16 @@ func (w *FileWallet) Close() {
 }
 
 //New Opens or creates a new wallet file. If the file exists it will be read, otherwise if createOnFail is set it will create it
-func New(file string, accountName string, masterkey string, createOnFail bool) (*FileWallet, error) {
+func New(file string, accountName string, masterkey string, createOnFail bool, keystore *account.Store) (*FileWallet, error) {
 	w := new(FileWallet)
 	var err error
 	if w.db, err = filestore.NewEncryptedDB(file, masterkey); err != nil {
 		return nil, err
 	}
 
-	if err = w.OpenAccount(accountName, createOnFail); err != nil {
+	if err = w.OpenAccount(&walletInfo{name: accountName, keystore: keystore}, createOnFail); err != nil {
 		return nil, err
 	}
-
-	w.name = accountName
 
 	return w, nil
 }

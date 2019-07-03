@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/safex/gosafex/pkg/safex"
+	"github.com/safex/gosafex/pkg/account"
 )
 
 const filename = "test.db"
@@ -67,7 +68,9 @@ func TestGenericDataRW(t *testing.T) {
 
 	prepareFolder()
 	fullpath := strings.Join([]string{foldername, filename}, "/")
-	w, err := New(fullpath, walletName, masterPass, true)
+	store,_ := account.GenerateAccount(false)
+	t.Fatalf("Address: %s\nPrivate Spend: %x\nPrivate View: %x\nPublic Spend: %x\nPublic View: %x", store.Address().String(),store.PrivateSpendKey().Digest(),store.PrivateViewKey().Digest(),store.PublicSpendKey().Digest(),store.PublicViewKey().Digest())
+	w, err := New(fullpath, walletName, masterPass, true, store)
 	defer CleanAfterTests(w, fullpath)
 
 	if err != nil {
@@ -135,7 +138,7 @@ func TestGenericDataRW(t *testing.T) {
 func TestBlockRW(t *testing.T) {
 	prepareFolder()
 	fullpath := strings.Join([]string{foldername, filename}, "/")
-	w, err := New(fullpath, walletName, masterPass, true)
+	w, err := New(fullpath, walletName, masterPass, true, nil)
 	if err != nil {
 		t.Fatalf("%s", err)
 	}
@@ -195,7 +198,7 @@ func TestBlockRW(t *testing.T) {
 func TestTransactionRW(t *testing.T) {
 	prepareFolder()
 	fullpath := strings.Join([]string{foldername, filename}, "/")
-	w, err := New(fullpath, walletName, masterPass, true)
+	w, err := New(fullpath, walletName, masterPass, true, nil)
 	if err != nil {
 		t.Fatalf("%s", err)
 	}
@@ -244,7 +247,7 @@ func TestTransactionRW(t *testing.T) {
 func TestOutputRW(t *testing.T) {
 	prepareFolder()
 	fullpath := strings.Join([]string{foldername, filename}, "/")
-	w, err := New(fullpath, walletName, masterPass, true)
+	w, err := New(fullpath, walletName, masterPass, true, nil)
 	if err != nil {
 		t.Fatalf("%s", err)
 	}
@@ -298,7 +301,7 @@ func TestOutputRW(t *testing.T) {
 
 	//Re-open just to read
 
-	w, err = New(fullpath, walletName, masterPass, true)
+	w, err = New(fullpath, walletName, masterPass, true, nil)
 	defer CleanAfterTests(w, fullpath)
 	if err != nil {
 		t.Fatalf("%s", err)

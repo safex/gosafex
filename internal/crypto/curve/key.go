@@ -76,8 +76,22 @@ func NewKeyFromSeed(seed *Seed) (pub, priv *Key) {
 	hashBuf := new(Key)
 	copy(hashBuf[:], digest[:])
 	GeScalarMultBase(A, hashBuf)
+	var publicKeyBytes Key
+	A.toBytes(&publicKeyBytes)
 
-	return pub, priv
+	tempBytes := seed[:]
+
+	privateKeyBytes := make([]byte, KeyLength*2)
+	copy(privateKeyBytes, tempBytes)
+	copy(privateKeyBytes[32:], publicKeyBytes[:])
+
+	var retPubBytes [32]byte
+	var retPrivBytes [32]byte
+
+	copy(retPrivBytes[:], privateKeyBytes[32:])
+	copy(retPubBytes[:], privateKeyBytes[:32])
+
+	return New(retPrivBytes), New(retPubBytes)
 }
 
 func (key *Key) toECPoint() (result *ExtendedGroupElement) {
