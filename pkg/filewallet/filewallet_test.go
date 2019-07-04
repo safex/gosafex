@@ -68,8 +68,7 @@ func TestGenericDataRW(t *testing.T) {
 
 	prepareFolder()
 	fullpath := strings.Join([]string{foldername, filename}, "/")
-	store, _ := account.GenerateAccount(true)
-	t.Fatalf("Address: %s\nPrivate Spend: %x\nPrivate View: %x\nPublic Spend: %x\nPublic View: %x", store.Address().ToBase58(), store.PrivateSpendKey().Digest(), store.PrivateViewKey().Digest(), store.PublicSpendKey().Digest(), store.PublicViewKey().Digest())
+	store, _ := account.GenerateAccount(false)
 	w, err := New(fullpath, walletName, masterPass, true, store)
 	defer CleanAfterTests(w, fullpath)
 
