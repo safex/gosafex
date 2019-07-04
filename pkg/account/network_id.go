@@ -36,12 +36,12 @@ const (
 // Network Prefixes:
 const (
 	// Mainnet:
-	MainnetRegularAddressPrefix    = 0x10003798  // should map to "Safex" in base58
-	MainnetIntegratedAddressPrefix = 0xa90a03798 // should map to "Safexi" in base58
+	MainnetRegularAddressPrefix    = 268449688   // should map to "Safex" in base58
+	MainnetIntegratedAddressPrefix = 45376092056 // should map to "Safexi" in base58
 	MainnetSubaddressPrefix        = 0x10e03798  // should map to "Safexs" in base58
 	// Testnet:
-	TestnetRegularAddressPrefix    = 0x263b16   // should map to "SFXt" in base58
-	TestnetIntegratedAddressPrefix = 0xe05fb16  // should map to "SFXi" in base58
+	TestnetRegularAddressPrefix    = 2505494    // should map to "SFXt" in base58
+	TestnetIntegratedAddressPrefix = 235272982  // should map to "SFXi" in base58
 	TestnetSubaddressPrefix        = 0x1905fb16 // should map to "SfXts" in base58
 	// Stagenet:
 	StageRegularAddressPrefix   = 0x25bb16   // should map to "SFXs" in base58

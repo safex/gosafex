@@ -104,13 +104,9 @@ func decodeBase58(b58string string) (result *Address, err error) {
 }
 
 func (adr *Address) encodeBase58() string {
-	raw := make([]byte, 8)
-	/*if adr.PaymentID != nil {
-		binary.PutUvarint(raw, CRYPTONOTE_PUBLIC_INTEGRATED_ADDRESS_BASE58_PREFIX)
-	} else {
-		binary.PutUvarint(raw, CRYPTONOTE_PUBLIC_ADDRESS_BASE58_PREFIX)
-	}*/
-	raw = append(raw, networkIDToBytes(adr.NetworkID)...)
+
+
+	raw = append(networkIDToBytes(adr.NetworkID)
 
 	bytes := adr.SpendKey.ToBytes()
 	raw = append(raw, bytes[:]...)
