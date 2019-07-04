@@ -124,7 +124,7 @@ func (w *FileWallet) getInfo() (*walletInfo, error) {
 
 	ret.name = string(data[0])
 	if len(data) > 2 {
-		addr, err := ret.keystore.Address().FromBase58(string(data[1]))
+		addr, err := account.FromBase58(string(data[1]))
 		if err != nil {
 			return nil, err
 		}

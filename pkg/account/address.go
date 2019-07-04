@@ -105,8 +105,7 @@ func decodeBase58(b58string string) (result *Address, err error) {
 
 func (adr *Address) encodeBase58() string {
 
-
-	raw = append(networkIDToBytes(adr.NetworkID)
+	raw := append(networkIDToBytes(adr.NetworkID))
 
 	bytes := adr.SpendKey.ToBytes()
 	raw = append(raw, bytes[:]...)
@@ -144,7 +143,7 @@ func NewRegularMainnetAdress(spendKey, viewKey PublicKey) *Address {
 }
 
 // FromBase58 will decode an address from a raw base 58 format. Returns an error if the address size is too short or if the network/payment ID's are not matching up
-func (adr *Address) FromBase58(str string) (result *Address, err error) { return decodeBase58(str) }
+func FromBase58(str string) (result *Address, err error) { return decodeBase58(str) }
 
 // ToBase58 will encode an address as a string of symbols in base 58 encoding
 func (adr *Address) ToBase58() string { return adr.encodeBase58() }

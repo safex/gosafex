@@ -14,6 +14,7 @@ const filename = "test.db"
 const blockFile = "blocks.test"
 const outputFile = "outputs.test"
 const walletName = "wallet1"
+const walletName2 = "wallet2"
 const masterPass = "masterpass"
 const foldername = "test"
 
@@ -137,7 +138,8 @@ func TestGenericDataRW(t *testing.T) {
 func TestBlockRW(t *testing.T) {
 	prepareFolder()
 	fullpath := strings.Join([]string{foldername, filename}, "/")
-	w, err := New(fullpath, walletName, masterPass, true, nil)
+	store, _ := account.GenerateAccount(false)
+	w, err := New(fullpath, walletName, masterPass, true, store)
 	if err != nil {
 		t.Fatalf("%s", err)
 	}
@@ -197,7 +199,8 @@ func TestBlockRW(t *testing.T) {
 func TestTransactionRW(t *testing.T) {
 	prepareFolder()
 	fullpath := strings.Join([]string{foldername, filename}, "/")
-	w, err := New(fullpath, walletName, masterPass, true, nil)
+	store, _ := account.GenerateAccount(false)
+	w, err := New(fullpath, walletName, masterPass, true, store)
 	if err != nil {
 		t.Fatalf("%s", err)
 	}
@@ -246,7 +249,9 @@ func TestTransactionRW(t *testing.T) {
 func TestOutputRW(t *testing.T) {
 	prepareFolder()
 	fullpath := strings.Join([]string{foldername, filename}, "/")
-	w, err := New(fullpath, walletName, masterPass, true, nil)
+	store, _ := account.GenerateAccount(false)
+	w, err := New(fullpath, walletName, masterPass, true, store)
+	defer CleanAfterTests(w,fullpath)
 	if err != nil {
 		t.Fatalf("%s", err)
 	}
@@ -347,5 +352,70 @@ func TestOutputRW(t *testing.T) {
 	}
 	if len(out) != 0 {
 		t.Fatalf("Error removing data")
+	}
+}
+
+func TestAccountSwitch(t *testing.T) {
+	prepareFolder()
+	fullpath := strings.Join([]string{foldername, filename}, "/")
+	store, _  := account.GenerateAccount(false)
+	store2, _ := account.GenerateAccount(false)
+	w, err := New(fullpath, walletName, masterPass, true, store)
+	defer CleanAfterTests(w,fullpath)
+	if err != nil {
+		t.Fatalf("%s", err)
+	}
+	head1 := &safex.BlockHeader{Depth: 10, Hash: "aaaab", PrevHash: ""}
+	head2 := &safex.BlockHeader{Depth: 11, Hash: "aaaac", PrevHash: "aaaab"}
+	tx1 := &TransactionInfo{version: 1, unlockTime: 10, extra: []byte("asdasd"), blockHeight: head2.GetDepth(), blockTimestamp: 5, doubleSpendSeen: false, inPool: false, txHash: "tx01"}
+	out1 := &safex.Txout{Amount: 20}
+
+	err = w.PutBlockHeader(head1)
+	if err != nil {
+		t.Fatalf("%s", err)
+	}
+	err = w.PutBlockHeader(head2)
+	if err != nil {
+		t.Fatalf("%s", err)
+	}
+	if err != nil {
+		t.Fatalf("%s", err)
+	}
+
+	err = w.PutTransactionInfo(tx1, head2.GetHash())
+	if err != nil {
+		t.Fatalf("%s", err)
+	}
+
+	outputInfo := &OutputInfo{"Cash", head2.GetHash(), "tx01", "U", "normal"}
+	_, err = w.AddOutput(out1, 1, outputInfo, "")
+	if err != nil {
+		t.Fatalf("%s", err)
+	}
+	if err = w.OpenAccount(&walletInfo{name: walletName2, keystore: store2}, true); err != nil{
+		t.Fatalf("%s", err)
+	}
+	if data, err := w.GetAllBlocks(); err != nil {
+		t.Fatalf("%s", err)
+	}else if len(data) != 0{
+		t.Fatalf("Error switching accounts, blocks still present")
+	}
+	if data, err := w.GetAllTransactionInfos(); err != nil {
+		t.Fatalf("%s", err)
+	}else if len(data) != 0{
+		t.Fatalf("Error switching accounts, transactions still present")
+	}
+	if data, err := w.GetAllOutputs(); err != nil {
+		t.Fatalf("%s", err)
+	}else if len(data) != 0{
+		t.Fatalf("Error switching accounts, outputs still present")
+	}
+	if err = w.OpenAccount(&walletInfo{name: walletName, keystore: store}, false); err != nil{
+		t.Fatalf("%s", err)
+	}
+	if data, err := w.GetAllOutputs(); err != nil {
+		t.Fatalf("%s", err)
+	}else if len(data) != 1{
+		t.Fatalf("Error switching accounts, outputs not found")
 	}
 }
