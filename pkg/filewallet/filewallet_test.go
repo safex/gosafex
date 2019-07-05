@@ -392,7 +392,7 @@ func TestAccountSwitch(t *testing.T) {
 	if err != nil {
 		t.Fatalf("%s", err)
 	}
-	if err = w.OpenAccount(&walletInfo{name: walletName2, keystore: store2}, true); err != nil{
+	if err = w.OpenAccount(&WalletInfo{Name: walletName2, Keystore: store2}, true); err != nil{
 		t.Fatalf("%s", err)
 	}
 	if data, err := w.GetAllBlocks(); err != nil {
@@ -410,7 +410,7 @@ func TestAccountSwitch(t *testing.T) {
 	}else if len(data) != 0{
 		t.Fatalf("Error switching accounts, outputs still present")
 	}
-	if err = w.OpenAccount(&walletInfo{name: walletName, keystore: store}, false); err != nil{
+	if err = w.OpenAccount(&WalletInfo{Name: walletName, Keystore: store}, false); err != nil{
 		t.Fatalf("%s", err)
 	}
 	if data, err := w.GetAllOutputs(); err != nil {

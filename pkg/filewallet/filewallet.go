@@ -8,14 +8,14 @@ import (
 	"github.com/safex/gosafex/pkg/key"
 )
 
-type walletInfo struct {
-	name     string
-	keystore *account.Store
+type WalletInfo struct {
+	Name     string
+	Keystore *account.Store
 }
 
 //FileWallet is a wrapper for an EncryptedDB that includes wallet specific data and operations
 type FileWallet struct {
-	info              walletInfo
+	info              WalletInfo
 	db                *filestore.EncryptedDB
 	knownOutputs      []string //REMEMBER TO INITIALIZE THIS
 	unspentOutputs    []string
@@ -89,40 +89,40 @@ func (w *FileWallet) readKey(key string) ([]byte, error) {
 	return hex.DecodeString(string(data))
 }
 
-func (w *FileWallet) putInfo(info *walletInfo) error {
-	if err := w.deleteKey(walletInfoKey); err != nil {
+func (w *FileWallet) putInfo(info *WalletInfo) error {
+	if err := w.deleteKey(WalletInfoKey); err != nil {
 		return err
 	}
-	if err := w.appendKey(walletInfoKey, []byte(info.name)); err != nil {
+	if err := w.appendKey(WalletInfoKey, []byte(info.Name)); err != nil {
 		return err
 	}
-	if info.keystore != nil {
-		if err := w.appendKey(walletInfoKey, []byte(info.keystore.Address().String())); err != nil {
+	if info.Keystore != nil {
+		if err := w.appendKey(WalletInfoKey, []byte(info.Keystore.Address().String())); err != nil {
 			return err
 		}
 
-		b := info.keystore.PrivateViewKey().ToBytes()
-		if err := w.appendKey(walletInfoKey, b[:]); err != nil {
+		b := info.Keystore.PrivateViewKey().ToBytes()
+		if err := w.appendKey(WalletInfoKey, b[:]); err != nil {
 			return err
 		}
 
-		b = info.keystore.PrivateSpendKey().ToBytes()
-		if err := w.appendKey(walletInfoKey, b[:]); err != nil {
+		b = info.Keystore.PrivateSpendKey().ToBytes()
+		if err := w.appendKey(WalletInfoKey, b[:]); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (w *FileWallet) getInfo() (*walletInfo, error) {
-	ret := &walletInfo{}
+func (w *FileWallet) getInfo() (*WalletInfo, error) {
+	ret := &WalletInfo{}
 
-	data, err := w.readAppendedKey(walletInfoKey)
+	data, err := w.readAppendedKey(WalletInfoKey)
 	if err != nil {
 		return nil, err
 	}
 
-	ret.name = string(data[0])
+	ret.Name = string(data[0])
 	if len(data) > 2 {
 		addr, err := account.FromBase58(string(data[1]))
 		if err != nil {
@@ -133,14 +133,14 @@ func (w *FileWallet) getInfo() (*walletInfo, error) {
 		copy(viewBytes[:], data[2])
 		copy(spendBytes[:], data[3])
 
-		ret.keystore = account.NewStore(addr, *key.NewPrivateKeyFromBytes(viewBytes), *key.NewPrivateKeyFromBytes(spendBytes))
+		ret.Keystore = account.NewStore(addr, *key.NewPrivateKeyFromBytes(viewBytes), *key.NewPrivateKeyFromBytes(spendBytes))
 	}
 	return ret, nil
 }
 
 //PutData Writes data in a key in the generic data bucket
 func (w *FileWallet) PutData(key string, data []byte) error {
-	defer w.db.SetBucket(w.info.name)
+	defer w.db.SetBucket(w.info.Name)
 	if err := w.db.SetBucket(genericDataBucketName); err == filestore.ErrBucketNotInit {
 		if err = w.db.CreateBucket(genericDataBucketName); err != nil {
 			return err
@@ -158,7 +158,7 @@ func (w *FileWallet) PutData(key string, data []byte) error {
 
 //GetData Reads data from a key in the generic data bucket
 func (w *FileWallet) GetData(key string) ([]byte, error) {
-	defer w.db.SetBucket(w.info.name)
+	defer w.db.SetBucket(w.info.Name)
 	if err := w.db.SetBucket(genericDataBucketName); err != nil {
 		return nil, err
 	}
@@ -171,13 +171,13 @@ func (w *FileWallet) GetData(key string) ([]byte, error) {
 }
 
 //OpenAccount Opens an account and all the connected data
-func (w *FileWallet) OpenAccount(accountInfo *walletInfo, createOnFail bool) error {
-	err := w.db.SetBucket(accountInfo.name)
+func (w *FileWallet) OpenAccount(accountInfo *WalletInfo, createOnFail bool) error {
+	err := w.db.SetBucket(accountInfo.Name)
 	if err == filestore.ErrBucketNotInit && createOnFail {
-		if err = w.db.CreateBucket(accountInfo.name); err != nil {
+		if err = w.db.CreateBucket(accountInfo.Name); err != nil {
 			return err
 		}
-		if err := w.db.SetBucket(accountInfo.name); err != nil {
+		if err := w.db.SetBucket(accountInfo.Name); err != nil {
 			return err
 		}
 	} else if err != nil {
@@ -226,7 +226,7 @@ func New(file string, accountName string, masterkey string, createOnFail bool, k
 		return nil, err
 	}
 
-	if err = w.OpenAccount(&walletInfo{name: accountName, keystore: keystore}, createOnFail); err != nil {
+	if err = w.OpenAccount(&WalletInfo{Name: accountName, Keystore: keystore}, createOnFail); err != nil {
 		return nil, err
 	}
 

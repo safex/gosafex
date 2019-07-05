@@ -1,10 +1,32 @@
 package chain
 
+import (
+	"github.com/safex/gosafex/pkg/account"
+	"github.com/safex/gosafex/pkg/filewallet"
+)
+
 // TODO: figure out where to place the wallet struct.
 
 // BlockFetchCnt is the the nubmer of blocks to fetch at once.
 // TODO: Move this to some config, or recalculate based on response time
 const BlockFetchCnt = 100
+
+func (w *Wallet) Recover(mnemonic *account.Mnemonic, walletName string, isTestnet bool) error {
+	store, err := account.FromMnemonic(mnemonic, isTestnet)
+	if err != nil {
+		return err
+	}
+	w.wallet.OpenAccount(&filewallet.WalletInfo{Name: walletName, Keystore: store}, true)
+	return nil
+}
+
+func (w *Wallet) Open(walletName string, filename string, masterkey string) error {
+	var err error
+	if w.wallet, err = filewallet.New(filename, walletName, masterkey, true, nil); err != nil {
+		return err
+	}
+	return nil
+}
 
 //func matchOutput(txOut *safex.Txout, index uint64, der [32]byte, outputKey *[32]byte) bool {
 //	derivatedPubKey := crypto.KeyDerivation_To_PublicKey(index, crypto.Key(der), w.Address.SpendKey.Public)
