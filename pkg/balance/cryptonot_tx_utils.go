@@ -53,12 +53,15 @@ func (w *Wallet) constructTxWithKey(
 	copy(tx.Extra[:], extra[:])
 
 	var txKeyPub [32]byte
+
+	// @todo Make sure that this is necessary once code started working,
+	// @warning This can be crucial thing regarding 
 	ok, extraMap := parseExtra(extra)
 
 	if ok {
 		if _, isThere := extraMap[Nonce]; isThere {
 			var paymentId [8]byte
-			if val, isThere := extraMap[NonceEncryptedPaymentId]; isThere {
+			if val, isThere1 := extraMap[NonceEncryptedPaymentId]; isThere1 {
 				viewKeyPub := GetDestinationViewKeyPub(destinations, changeAddr)
 				if viewKeyPub == nil {
 					log.Error("Destinations have to have exactly one output to support encrypted payment ids")
@@ -69,9 +72,15 @@ func (w *Wallet) constructTxWithKey(
 			}
 
 		}
-	} else {
+		// @todo set extra after public tx key calculation
 
+
+	} else {
+		log.Println("Failed to parse tx extra!")
+		return false
 	}
+
+	
 
  	return false
 }

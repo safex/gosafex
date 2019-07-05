@@ -16,3 +16,9 @@ func GenerateChaChaKeyFromSecretKeys(view *[32]byte, spend *[32]byte) (retKey [3
 	copy(retKey[:], temp[:])
 	return retKey
 }
+
+func GenerateChachaKey(data []byte) (retKey [32]byte) {
+	temp := cryptonight.Sum(data[:], 0)
+	copy(retKey[:], temp[:])
+	return retKey
+}
