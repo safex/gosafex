@@ -38,6 +38,7 @@ func NewRandomScalar() (result *Key) {
 	result = new(Key)
 	seq := randomGenerator.NewSequence()
 	ScReduce(result, seq)
+	ScReduce32(result)
 	return
 }
 
@@ -72,26 +73,11 @@ func NewKeyFromSeed(seed *Seed) (pub, priv *Key) {
 	digest[31] &= 127
 	digest[31] |= 64
 
-	A := new(ExtendedGroupElement)
-	hashBuf := new(Key)
-	copy(hashBuf[:], digest[:])
-	GeScalarMultBase(A, hashBuf)
-	var publicKeyBytes Key
-	A.toBytes(&publicKeyBytes)
+	priv1 := new(Key)
+	ScReduce(priv1, &digest)
+	ScReduce32(priv1)
 
-	tempBytes := seed[:]
-
-	privateKeyBytes := make([]byte, KeyLength*2)
-	copy(privateKeyBytes, tempBytes)
-	copy(privateKeyBytes[32:], publicKeyBytes[:])
-
-	var retPubBytes [32]byte
-	var retPrivBytes [32]byte
-
-	copy(retPrivBytes[:], privateKeyBytes[32:])
-	copy(retPubBytes[:], privateKeyBytes[:32])
-
-	return New(retPrivBytes), New(retPubBytes)
+	return priv1.ToPublic(), priv1
 }
 
 func (key *Key) toECPoint() (result *ExtendedGroupElement) {

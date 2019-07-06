@@ -70,7 +70,7 @@ func TestGenericDataRW(t *testing.T) {
 	prepareFolder()
 	fullpath := strings.Join([]string{foldername, filename}, "/")
 	store, _ := account.GenerateAccount(false)
-	w, err := New(fullpath, walletName, masterPass, true, store)
+	w, err := New(fullpath, walletName, masterPass, true, false, store)
 	defer CleanAfterTests(w, fullpath)
 
 	if err != nil {
@@ -139,7 +139,7 @@ func TestBlockRW(t *testing.T) {
 	prepareFolder()
 	fullpath := strings.Join([]string{foldername, filename}, "/")
 	store, _ := account.GenerateAccount(false)
-	w, err := New(fullpath, walletName, masterPass, true, store)
+	w, err := New(fullpath, walletName, masterPass, true, false, store)
 	if err != nil {
 		t.Fatalf("%s", err)
 	}
@@ -200,7 +200,7 @@ func TestTransactionRW(t *testing.T) {
 	prepareFolder()
 	fullpath := strings.Join([]string{foldername, filename}, "/")
 	store, _ := account.GenerateAccount(false)
-	w, err := New(fullpath, walletName, masterPass, true, store)
+	w, err := New(fullpath, walletName, masterPass, true, false, store)
 	if err != nil {
 		t.Fatalf("%s", err)
 	}
@@ -250,8 +250,8 @@ func TestOutputRW(t *testing.T) {
 	prepareFolder()
 	fullpath := strings.Join([]string{foldername, filename}, "/")
 	store, _ := account.GenerateAccount(false)
-	w, err := New(fullpath, walletName, masterPass, true, store)
-	defer CleanAfterTests(w,fullpath)
+	w, err := New(fullpath, walletName, masterPass, true, false, store)
+	defer CleanAfterTests(w, fullpath)
 	if err != nil {
 		t.Fatalf("%s", err)
 	}
@@ -305,7 +305,7 @@ func TestOutputRW(t *testing.T) {
 
 	//Re-open just to read
 
-	w, err = New(fullpath, walletName, masterPass, true, nil)
+	w, err = New(fullpath, walletName, masterPass, true, false, nil)
 	defer CleanAfterTests(w, fullpath)
 	if err != nil {
 		t.Fatalf("%s", err)
@@ -358,10 +358,10 @@ func TestOutputRW(t *testing.T) {
 func TestAccountSwitch(t *testing.T) {
 	prepareFolder()
 	fullpath := strings.Join([]string{foldername, filename}, "/")
-	store, _  := account.GenerateAccount(false)
+	store, _ := account.GenerateAccount(false)
 	store2, _ := account.GenerateAccount(false)
-	w, err := New(fullpath, walletName, masterPass, true, store)
-	defer CleanAfterTests(w,fullpath)
+	w, err := New(fullpath, walletName, masterPass, true, false, store)
+	defer CleanAfterTests(w, fullpath)
 	if err != nil {
 		t.Fatalf("%s", err)
 	}
@@ -392,30 +392,30 @@ func TestAccountSwitch(t *testing.T) {
 	if err != nil {
 		t.Fatalf("%s", err)
 	}
-	if err = w.OpenAccount(&WalletInfo{Name: walletName2, Keystore: store2}, true); err != nil{
+	if err = w.OpenAccount(&WalletInfo{Name: walletName2, Keystore: store2}, true, false); err != nil {
 		t.Fatalf("%s", err)
 	}
 	if data, err := w.GetAllBlocks(); err != nil {
 		t.Fatalf("%s", err)
-	}else if len(data) != 0{
+	} else if len(data) != 0 {
 		t.Fatalf("Error switching accounts, blocks still present")
 	}
 	if data, err := w.GetAllTransactionInfos(); err != nil {
 		t.Fatalf("%s", err)
-	}else if len(data) != 0{
+	} else if len(data) != 0 {
 		t.Fatalf("Error switching accounts, transactions still present")
 	}
 	if data, err := w.GetAllOutputs(); err != nil {
 		t.Fatalf("%s", err)
-	}else if len(data) != 0{
+	} else if len(data) != 0 {
 		t.Fatalf("Error switching accounts, outputs still present")
 	}
-	if err = w.OpenAccount(&WalletInfo{Name: walletName, Keystore: store}, false); err != nil{
+	if err = w.OpenAccount(&WalletInfo{Name: walletName, Keystore: store}, false, false); err != nil {
 		t.Fatalf("%s", err)
 	}
 	if data, err := w.GetAllOutputs(); err != nil {
 		t.Fatalf("%s", err)
-	}else if len(data) != 1{
+	} else if len(data) != 1 {
 		t.Fatalf("Error switching accounts, outputs not found")
 	}
 }

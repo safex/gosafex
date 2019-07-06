@@ -171,7 +171,7 @@ func (w *FileWallet) GetData(key string) ([]byte, error) {
 }
 
 //OpenAccount Opens an account and all the connected data
-func (w *FileWallet) OpenAccount(accountInfo *WalletInfo, createOnFail bool) error {
+func (w *FileWallet) OpenAccount(accountInfo *WalletInfo, createOnFail bool, isTestnet bool) error {
 	err := w.db.SetBucket(accountInfo.Name)
 	if err == filestore.ErrBucketNotInit && createOnFail {
 		if err = w.db.CreateBucket(accountInfo.Name); err != nil {
@@ -185,6 +185,12 @@ func (w *FileWallet) OpenAccount(accountInfo *WalletInfo, createOnFail bool) err
 	}
 
 	if info, err := w.getInfo(); err == filestore.ErrKeyNotFound {
+		if accountInfo.Keystore == nil {
+			accountInfo.Keystore, err = account.GenerateAccount(isTestnet)
+			if err != nil {
+				return err
+			}
+		}
 		err = w.putInfo(accountInfo)
 		w.info = *accountInfo
 	} else if err != nil {
@@ -219,14 +225,14 @@ func (w *FileWallet) Close() {
 }
 
 //New Opens or creates a new wallet file. If the file exists it will be read, otherwise if createOnFail is set it will create it
-func New(file string, accountName string, masterkey string, createOnFail bool, keystore *account.Store) (*FileWallet, error) {
+func New(file string, accountName string, masterkey string, createOnFail bool, isTestnet bool, keystore *account.Store) (*FileWallet, error) {
 	w := new(FileWallet)
 	var err error
 	if w.db, err = filestore.NewEncryptedDB(file, masterkey); err != nil {
 		return nil, err
 	}
 
-	if err = w.OpenAccount(&WalletInfo{Name: accountName, Keystore: keystore}, createOnFail); err != nil {
+	if err = w.OpenAccount(&WalletInfo{Name: accountName, Keystore: keystore}, createOnFail, isTestnet); err != nil {
 		return nil, err
 	}
 

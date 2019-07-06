@@ -16,16 +16,21 @@ func (w *Wallet) Recover(mnemonic *account.Mnemonic, walletName string, isTestne
 	if err != nil {
 		return err
 	}
-	w.wallet.OpenAccount(&filewallet.WalletInfo{Name: walletName, Keystore: store}, true)
+	w.wallet.OpenAccount(&filewallet.WalletInfo{Name: walletName, Keystore: store}, true, isTestnet)
 	return nil
 }
 
-func (w *Wallet) Open(walletName string, filename string, masterkey string) error {
+func (w *Wallet) Open(walletName string, filename string, masterkey string, isTestnet bool) error {
 	var err error
-	if w.wallet, err = filewallet.New(filename, walletName, masterkey, true, nil); err != nil {
+	if w.wallet, err = filewallet.New(filename, walletName, masterkey, true, isTestnet, nil); err != nil {
 		return err
 	}
 	return nil
+}
+
+func (w *Wallet) Status() string {
+	//TODO: Correct this once we get multithreading for golang
+	return "ready"
 }
 
 //func matchOutput(txOut *safex.Txout, index uint64, der [32]byte, outputKey *[32]byte) bool {
