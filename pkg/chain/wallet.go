@@ -22,6 +22,9 @@ func (w *Wallet) Recover(mnemonic *account.Mnemonic, walletName string, isTestne
 
 func (w *Wallet) Open(walletName string, filename string, masterkey string, isTestnet bool) error {
 	var err error
+	if w.wallet != nil {
+		w.Close()
+	}
 	if w.wallet, err = filewallet.New(filename, walletName, masterkey, true, isTestnet, nil); err != nil {
 		return err
 	}
@@ -30,11 +33,18 @@ func (w *Wallet) Open(walletName string, filename string, masterkey string, isTe
 
 func (w *Wallet) Status() string {
 	//TODO: Correct this once we get multithreading for golang
+	if w.wallet == nil {
+		return "not open"
+	}
 	return "ready"
 }
 
 func (w *Wallet) GetFilewallet() *filewallet.FileWallet {
 	return w.wallet
+}
+
+func (w *Wallet) Close() {
+	w.wallet.Close()
 }
 
 //func matchOutput(txOut *safex.Txout, index uint64, der [32]byte, outputKey *[32]byte) bool {
