@@ -33,6 +33,10 @@ func (w *Wallet) Status() string {
 	return "ready"
 }
 
+func (w *Wallet) GetFilewallet() *filewallet.FileWallet {
+	return w.wallet
+}
+
 //func matchOutput(txOut *safex.Txout, index uint64, der [32]byte, outputKey *[32]byte) bool {
 //	derivatedPubKey := crypto.KeyDerivation_To_PublicKey(index, crypto.Key(der), w.Address.SpendKey.Public)
 //	var outKeyTemp []byte
