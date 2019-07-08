@@ -373,7 +373,7 @@ func TestColdAccountCreation(t *testing.T){
 	}
 	w.Close()
 
-	w, err = NewClean(fullpath,masterPass, false)
+	w, err = NewClean (fullpath,masterPass, false)
 	defer CleanAfterTests(w, fullpath)
 	if err != nil{
 		t.Fatalf("%s",err)
@@ -382,8 +382,6 @@ func TestColdAccountCreation(t *testing.T){
 		t.Fatalf("%s",err)
 	}else if len(data) != 2{
 		t.Fatalf("Error retrieving account list")
-	}else{
-		t.Fatal(data)
 	}
 }
 

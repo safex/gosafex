@@ -170,25 +170,18 @@ func (w *FileWallet) GetData(key string) ([]byte, error) {
 	return data, nil
 }
 
-//OpenAccount Opens an account and all the connected data
-func (w *FileWallet) OpenAccount(accountInfo *WalletInfo, createOnFail bool, isTestnet bool) error {
-	err := w.db.SetBucket(accountInfo.Name)
-	if err == filestore.ErrBucketNotInit && createOnFail {
-		if err = w.db.CreateBucket(accountInfo.Name); err != nil {
-			return err
-		}
-		w.db.SetBucket(genericDataBucketName)
-		if err := w.appendKey(WalletListReferenceKey, []byte(accountInfo.Name)); err != nil {
-			return err
-		}
-		if err := w.db.SetBucket(accountInfo.Name); err != nil {
-			return err
-		}
-	} else if err != nil {
-		return filestore.ErrBucketNotInit
+func (w *FileWallet) CreateAccount(accountInfo *WalletInfo, isTestnet bool) error {
+	if err := w.db.CreateBucket(accountInfo.Name); err != nil {
+		return err
 	}
-
-	if info, err := w.getInfo(); err == filestore.ErrKeyNotFound {
+	w.db.SetBucket(genericDataBucketName)
+	if err := w.appendKey(WalletListReferenceKey, []byte(accountInfo.Name)); err != nil {
+		return err
+	}
+	if err := w.db.SetBucket(accountInfo.Name); err != nil {
+		return err
+	}
+	if _, err := w.getInfo(); err == filestore.ErrKeyNotFound {
 		if accountInfo.Keystore == nil {
 			accountInfo.Keystore, err = account.GenerateAccount(isTestnet)
 			if err != nil {
@@ -199,8 +192,22 @@ func (w *FileWallet) OpenAccount(accountInfo *WalletInfo, createOnFail bool, isT
 		w.info = accountInfo
 	} else if err != nil {
 		return err
-	} else {
-		w.info = info
+	}
+	return nil
+}
+
+//OpenAccount Opens an account and all the connected data
+func (w *FileWallet) OpenAccount(accountInfo *WalletInfo, createOnFail bool, isTestnet bool) error {
+	err := w.db.SetBucket(accountInfo.Name)
+	if err == filestore.ErrBucketNotInit && createOnFail {
+		w.CreateAccount(accountInfo, isTestnet)
+	} else if err != nil {
+		return filestore.ErrBucketNotInit
+	}
+
+	w.info, err = w.getInfo()
+	if err != nil {
+		return err
 	}
 
 	if err = w.loadOutputTypes(createOnFail); err != nil {
