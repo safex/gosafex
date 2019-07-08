@@ -20,6 +20,7 @@ func (w *Wallet) isOpen() bool {
 	return true
 }
 
+//Recover recreates a wallet starting from a mnemonic
 func (w *Wallet) Recover(mnemonic *account.Mnemonic, walletName string, isTestnet bool) error {
 	store, err := account.FromMnemonic(mnemonic, isTestnet)
 	if err != nil {
@@ -29,6 +30,7 @@ func (w *Wallet) Recover(mnemonic *account.Mnemonic, walletName string, isTestne
 	return nil
 }
 
+//OpenAndCreate Opens a filewallet and creates an account
 func (w *Wallet) OpenAndCreate(accountName string, filename string, masterkey string, isTestnet bool) error {
 	var err error
 	if w.isOpen() {
@@ -40,6 +42,7 @@ func (w *Wallet) OpenAndCreate(accountName string, filename string, masterkey st
 	return nil
 }
 
+//CreateAccount Creates and account in the locally open filewallet
 func (w *Wallet) CreateAccount(accountName string, isTestnet bool) error {
 	if !w.isOpen() {
 		return errors.New("FileWallet not open")
@@ -47,6 +50,7 @@ func (w *Wallet) CreateAccount(accountName string, isTestnet bool) error {
 	return w.wallet.CreateAccount(&filewallet.WalletInfo{Name: accountName, Keystore: nil}, isTestnet)
 }
 
+//OpenFile Opens a filewallet
 func (w *Wallet) OpenFile(filename string, masterkey string, isTestnet bool) error {
 	var err error
 	if w.isOpen() {
@@ -58,6 +62,7 @@ func (w *Wallet) OpenFile(filename string, masterkey string, isTestnet bool) err
 	return nil
 }
 
+//OpenAccount opens an account if it exists
 func (w *Wallet) OpenAccount(accountName string, isTestnet bool) error {
 	if !w.isOpen() {
 		return errors.New("FileWallet not open")
@@ -65,6 +70,7 @@ func (w *Wallet) OpenAccount(accountName string, isTestnet bool) error {
 	return w.wallet.OpenAccount(&filewallet.WalletInfo{Name: accountName, Keystore: nil}, false, isTestnet)
 }
 
+//GetAccounts returns a list of all known accounts
 func (w *Wallet) GetAccounts() ([]string, error) {
 	if !w.isOpen() {
 		return nil, errors.New("FileWallet not open")
@@ -72,6 +78,7 @@ func (w *Wallet) GetAccounts() ([]string, error) {
 	return w.wallet.GetAccounts()
 }
 
+//Status returns a local status for the wallet
 func (w *Wallet) Status() string {
 	//TODO: Correct this once we get multithreading for golang
 	if !w.isOpen() {
@@ -80,10 +87,23 @@ func (w *Wallet) Status() string {
 	return "ready"
 }
 
+//GetFilewallet returns an instance of the underlying filewallet
 func (w *Wallet) GetFilewallet() *filewallet.FileWallet {
 	return w.wallet
 }
 
+//GetKeys returns the keypair of the opened account
+func (w *Wallet) GetKeys() (*account.Store, error) {
+	if !w.isOpen() {
+		return nil, errors.New("FileWallet not open")
+	}
+	if w.wallet.GetAccount() == "" {
+		return nil, errors.New("No open account")
+	}
+	return w.wallet.GetKeys()
+}
+
+//Close closes the wallet
 func (w *Wallet) Close() {
 	w.wallet.Close()
 }

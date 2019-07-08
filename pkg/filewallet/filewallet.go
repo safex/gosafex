@@ -170,6 +170,22 @@ func (w *FileWallet) GetData(key string) ([]byte, error) {
 	return data, nil
 }
 
+func (w *FileWallet) GetKeys() (*account.Store, error) {
+	if info, err := w.getInfo(); err != nil {
+		return nil, err
+	} else {
+		return info.Keystore, nil
+	}
+}
+
+func (w *FileWallet) GetAccount() string {
+	if info, err := w.getInfo(); err != nil {
+		return ""
+	} else {
+		return info.Name
+	}
+}
+
 func (w *FileWallet) CreateAccount(accountInfo *WalletInfo, isTestnet bool) error {
 	if err := w.db.CreateBucket(accountInfo.Name); err != nil {
 		return err
