@@ -175,19 +175,19 @@ func (w *FileWallet) putOutputInfo(outID string, outInfo *OutputInfo) error {
 	if err := w.deleteKey(outputInfoPrefix + outID); err != nil {
 		return err
 	}
-	if err := w.appendKey(outputInfoPrefix+outID, []byte(outInfo.outputType)); err != nil {
+	if err := w.appendKey(outputInfoPrefix+outID, []byte(outInfo.OutputType)); err != nil {
 		return err
 	}
-	if err := w.appendKey(outputInfoPrefix+outID, []byte(outInfo.blockHash)); err != nil {
+	if err := w.appendKey(outputInfoPrefix+outID, []byte(outInfo.BlockHash)); err != nil {
 		return err
 	}
-	if err := w.appendKey(outputInfoPrefix+outID, []byte(outInfo.transactionID)); err != nil {
+	if err := w.appendKey(outputInfoPrefix+outID, []byte(outInfo.TransactionID)); err != nil {
 		return err
 	}
-	if err := w.appendKey(outputInfoPrefix+outID, []byte(outInfo.txLocked)); err != nil {
+	if err := w.appendKey(outputInfoPrefix+outID, []byte(outInfo.TxLocked)); err != nil {
 		return err
 	}
-	if err := w.appendKey(outputInfoPrefix+outID, []byte(outInfo.txType)); err != nil {
+	if err := w.appendKey(outputInfoPrefix+outID, []byte(outInfo.TxType)); err != nil {
 		return err
 	}
 	return nil
@@ -250,27 +250,27 @@ func (w *FileWallet) AddOutput(out *safex.Txout, localIndex uint64, outInfo *Out
 		}
 	}
 
-	if w.CheckIfBlockExists(outInfo.blockHash) < 0 {
+	if w.CheckIfBlockExists(outInfo.BlockHash) < 0 {
 		return "", ErrBlockNotFound
 	}
-	if w.CheckIfTransactionInfoExists(outInfo.transactionID) < 0 {
+	if w.CheckIfTransactionInfoExists(outInfo.TransactionID) < 0 {
 		return "", ErrTxInfoNotPresent
 	}
-	if w.CheckIfOutputTypeExists(outInfo.outputType) < 0 {
+	if w.CheckIfOutputTypeExists(outInfo.OutputType) < 0 {
 		return "", ErrOutputTypeNotPresent
 	}
 
 	//We put the output in it's own key and a reference in the global list
-	outID, err := w.putOutput(out, localIndex, outInfo.blockHash)
+	outID, err := w.putOutput(out, localIndex, outInfo.BlockHash)
 	if err != nil {
 		return "", err
 	}
 	//We put the reference in the type list
-	if err = w.putOutputInType(outID, outInfo.outputType); err != nil {
+	if err = w.putOutputInType(outID, outInfo.OutputType); err != nil {
 		return "", err
 	}
 	//We put the reference in the transaction list
-	if err = w.putOutputInTransaction(outID, outInfo.transactionID); err != nil {
+	if err = w.putOutputInTransaction(outID, outInfo.TransactionID); err != nil {
 		return "", err
 	}
 	//We put the info
@@ -318,11 +318,11 @@ func (w *FileWallet) DeleteOutput(outID string) error {
 		return err
 	}
 
-	if err = w.removeOutputFromTransaction(outID, OutInf.transactionID); err != nil {
+	if err = w.removeOutputFromTransaction(outID, OutInf.TransactionID); err != nil {
 		return err
 	}
 
-	if err = w.removeOutputFromType(outID, OutInf.outputType); err != nil {
+	if err = w.removeOutputFromType(outID, OutInf.OutputType); err != nil {
 		return err
 	}
 
@@ -391,7 +391,7 @@ func (w *FileWallet) GetOutputAge(outID string) (uint64, error) {
 	if err != nil {
 		return 0, err
 	}
-	head, err := w.GetBlockHeader(OutInf.blockHash)
+	head, err := w.GetBlockHeader(OutInf.BlockHash)
 	if err != nil {
 		return 0, err
 	}
@@ -404,7 +404,7 @@ func (w *FileWallet) GetOutputType(outID string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return OutInf.outputType, nil
+	return OutInf.OutputType, nil
 }
 
 //GetOutputTransactionType Returns the transaction type from which the given outputID originated
@@ -413,7 +413,7 @@ func (w *FileWallet) GetOutputTransactionType(outID string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return OutInf.txType, nil
+	return OutInf.TxType, nil
 }
 
 //GetOutputTx Returns the transactionID of the given outputID
@@ -422,7 +422,7 @@ func (w *FileWallet) GetOutputTx(outID string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return OutInf.transactionID, nil
+	return OutInf.TransactionID, nil
 }
 
 //GetOutputLock Returns the lock status of the given outputID
@@ -431,7 +431,7 @@ func (w *FileWallet) GetOutputLock(outID string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return OutInf.txLocked, nil
+	return OutInf.TxLocked, nil
 }
 
 //LockOutput Sets the lockStatus of the outputID as LockedStatus
@@ -440,7 +440,7 @@ func (w *FileWallet) LockOutput(outID string) error {
 	if err != nil {
 		return err
 	}
-	OutInf.txLocked = LockedStatus
+	OutInf.TxLocked = LockedStatus
 	return w.putOutputInfo(outID, OutInf)
 }
 
@@ -450,6 +450,6 @@ func (w *FileWallet) UnlockOutput(outID string) error {
 	if err != nil {
 		return err
 	}
-	OutInf.txLocked = UnlockedStatus
+	OutInf.TxLocked = UnlockedStatus
 	return w.putOutputInfo(outID, OutInf)
 }

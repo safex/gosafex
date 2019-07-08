@@ -2,11 +2,11 @@ package filewallet
 
 //OutputInfo is a syntesis of useful information to be stored concerning an output
 type OutputInfo struct {
-	outputType    string
-	blockHash     string
-	transactionID string
-	txLocked      string
-	txType        string
+	OutputType    string
+	BlockHash     string
+	TransactionID string
+	TxLocked      string
+	TxType        string
 }
 
 //TransactionInfo is a syntesis of useful information to be stored concerning a transaction

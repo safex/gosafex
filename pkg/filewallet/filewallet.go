@@ -264,8 +264,40 @@ func (w *FileWallet) GetAccounts() ([]string, error) {
 	return ret, nil
 }
 
+func (w *FileWallet) AccountExists(accountName string) bool{
+	if accs, err := w.GetAccounts();err != nil{
+		return false
+	}else{
+		for _, el := range accs{
+			if el == accountName{
+				return true
+			}
+		}
+	}
+	return false
+}
+
 //RemoveAccount DUMMY FUNCTION for now
-func (w *FileWallet) RemoveAccount(accoutName string) error {
+func (w *FileWallet) RemoveAccount(accountName string) error {
+	if !w.AccountExists(accountName){
+		return nil
+	}
+	if w.GetAccount() != accountName{
+		defer w.db.SetBucket(w.info.Name)
+	} else {
+		defer w.db.SetBucket(genericDataBucketName)
+	}
+	if err := w.db.SetBucket(accountName); err != nil{
+		return err
+	}
+	if err := w.db.DeleteBucket(); err != nil{
+		return err
+	}
+	if i, err := w.findKeyInReference(WalletListReferenceKey, accountName); err != nil{
+		return err
+	}else if err := w.deleteAppendedKey(WalletListReferenceKey,i); err != nil{
+		return err
+	}
 	return nil
 }
 
