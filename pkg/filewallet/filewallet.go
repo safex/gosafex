@@ -188,7 +188,9 @@ func (w *FileWallet) CreateAccount(accountInfo *WalletInfo, isTestnet bool) erro
 				return err
 			}
 		}
-		err = w.putInfo(accountInfo)
+		if err := w.putInfo(accountInfo); err != nil {
+			return err
+		}
 		w.info = accountInfo
 	} else if err != nil {
 		return err
