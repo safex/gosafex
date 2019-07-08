@@ -1,6 +1,8 @@
 package chain
 
 import (
+	"errors"
+
 	"github.com/safex/gosafex/pkg/account"
 	"github.com/safex/gosafex/pkg/filewallet"
 )
@@ -11,6 +13,13 @@ import (
 // TODO: Move this to some config, or recalculate based on response time
 const BlockFetchCnt = 100
 
+func (w *Wallet) isOpen() bool {
+	if w.wallet == nil {
+		return false
+	}
+	return true
+}
+
 func (w *Wallet) Recover(mnemonic *account.Mnemonic, walletName string, isTestnet bool) error {
 	store, err := account.FromMnemonic(mnemonic, isTestnet)
 	if err != nil {
@@ -20,20 +29,52 @@ func (w *Wallet) Recover(mnemonic *account.Mnemonic, walletName string, isTestne
 	return nil
 }
 
-func (w *Wallet) Open(walletName string, filename string, masterkey string, isTestnet bool) error {
+func (w *Wallet) OpenAndCreate(accountName string, filename string, masterkey string, isTestnet bool) error {
 	var err error
-	if w.wallet != nil {
+	if w.isOpen() {
 		w.Close()
 	}
-	if w.wallet, err = filewallet.New(filename, walletName, masterkey, true, isTestnet, nil); err != nil {
+	if w.wallet, err = filewallet.New(filename, accountName, masterkey, true, isTestnet, nil); err != nil {
 		return err
 	}
 	return nil
 }
 
+func (w *Wallet) CreateAccount(accountName string, isTestnet bool) error {
+	if !w.isOpen() {
+		return errors.New("FileWallet not open")
+	}
+	return w.wallet.CreateAccount(&filewallet.WalletInfo{Name: accountName, Keystore: nil}, isTestnet)
+}
+
+func (w *Wallet) OpenFile(filename string, masterkey string, isTestnet bool) error {
+	var err error
+	if w.isOpen() {
+		w.Close()
+	}
+	if w.wallet, err = filewallet.NewClean(filename, masterkey, isTestnet); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (w *Wallet) OpenAccount(accountName string, isTestnet bool) error {
+	if !w.isOpen() {
+		return errors.New("FileWallet not open")
+	}
+	return w.wallet.OpenAccount(&filewallet.WalletInfo{Name: accountName, Keystore: nil}, false, isTestnet)
+}
+
+func (w *Wallet) GetAccounts() ([]string, error) {
+	if !w.isOpen() {
+		return nil, errors.New("FileWallet not open")
+	}
+	return w.wallet.GetAccounts()
+}
+
 func (w *Wallet) Status() string {
 	//TODO: Correct this once we get multithreading for golang
-	if w.wallet == nil {
+	if !w.isOpen() {
 		return "not open"
 	}
 	return "ready"
