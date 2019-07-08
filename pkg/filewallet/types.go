@@ -30,6 +30,7 @@ const UnlockedStatus = "U"
 //Keys used in local filewallet, for definitions see README.md
 
 const WalletInfoKey = "WalletInfo"
+const WalletListReferenceKey = "WalletReference"
 const outputReferenceKey = "OutReference"
 const blockReferenceKey = "BlckReference"
 const lastBlockReferenceKey = "LSTBlckReference"

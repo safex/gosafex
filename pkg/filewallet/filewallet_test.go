@@ -355,6 +355,38 @@ func TestOutputRW(t *testing.T) {
 	}
 }
 
+func TestColdAccountCreation(t *testing.T){
+	prepareFolder()
+	fullpath := strings.Join([]string{foldername, filename}, "/")
+	store, _ := account.GenerateAccount(false)
+	store2, _ := account.GenerateAccount(false)
+	w, err := NewClean(fullpath, masterPass, false)
+	
+	if err != nil {
+		t.Fatalf("%s", err)
+	}
+	if err := w.OpenAccount(&WalletInfo{Name: "Wallet1", Keystore: store},true, false); err != nil{
+		t.Fatalf("%s", err)
+	}
+	if err := w.OpenAccount(&WalletInfo{Name: "Wallet2", Keystore: store2},true,false); err != nil{
+		t.Fatalf("%s", err)
+	}
+	w.Close()
+
+	w, err = NewClean(fullpath,masterPass, false)
+	defer CleanAfterTests(w, fullpath)
+	if err != nil{
+		t.Fatalf("%s",err)
+	}
+	if data, err := w.GetAccounts(); err != nil{
+		t.Fatalf("%s",err)
+	}else if len(data) != 2{
+		t.Fatalf("Error retrieving account list")
+	}else{
+		t.Fatal(data)
+	}
+}
+
 func TestAccountSwitch(t *testing.T) {
 	prepareFolder()
 	fullpath := strings.Join([]string{foldername, filename}, "/")
