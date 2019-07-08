@@ -1,35 +1,101 @@
 package main
 
 import (
-	"encoding/binary"
 	"bytes"
-	"fmt"
-	"unicode"
+	"encoding/binary"
+	"encoding/hex"
 )
 
 const (
-	
 	PORTABLE_STORAGE_FORMAT_VER byte = 1
 
-	//data types 
-	SERIALIZE_TYPE_INT64 		byte = 1
-	SERIALIZE_TYPE_INT32 		byte = 2
-	SERIALIZE_TYPE_INT16 		byte = 3
-	SERIALIZE_TYPE_INT8 		byte = 4
-	SERIALIZE_TYPE_UINT64 		byte = 5
-	SERIALIZE_TYPE_UINT32 		byte = 6
-	SERIALIZE_TYPE_UINT16 		byte = 7
-	SERIALIZE_TYPE_UINT8 		byte = 8
-	SERIALIZE_TYPE_DUOBLE 		byte = 9
-	SERIALIZE_TYPE_STRING 		byte = 10
-	SERIALIZE_TYPE_BOOL 		byte = 11
-	SERIALIZE_TYPE_OBJECT 		byte = 12
-	SERIALIZE_TYPE_ARRAY 		byte = 13
+	//data types
+	SERIALIZE_TYPE_INT64  byte = 1
+	SERIALIZE_TYPE_INT32  byte = 2
+	SERIALIZE_TYPE_INT16  byte = 3
+	SERIALIZE_TYPE_INT8   byte = 4
+	SERIALIZE_TYPE_UINT64 byte = 5
+	SERIALIZE_TYPE_UINT32 byte = 6
+	SERIALIZE_TYPE_UINT16 byte = 7
+	SERIALIZE_TYPE_UINT8  byte = 8
+	SERIALIZE_TYPE_DUOBLE byte = 9
+	SERIALIZE_TYPE_STRING byte = 10
+	SERIALIZE_TYPE_BOOL   byte = 11
+	SERIALIZE_TYPE_OBJECT byte = 12
+	SERIALIZE_TYPE_ARRAY  byte = 13
 
-	SERIALIZE_FLAG_ARRAY 		byte = 0x80
+	SERIALIZE_FLAG_ARRAY byte = 0x80
 )
 
+// Structure for storing deserialized data
 type StorageEntry map[string]interface{}
+
+func convertJSONMessageToByte(bah string) []byte {
+	ret := make([]byte, 0)
+	i := 1
+	for i < len(bah) {
+		if bah[i] == '\\' {
+			if bah[i+1] == 'u' {
+				byteHex, _ := hex.DecodeString(bah[i+4 : i+6])
+				ret = append(ret, byteHex...)
+				i += 6
+				continue
+			}
+
+			if bah[i+1] == 'b' {
+				ret = append(ret, 0x08)
+				i += 2
+				continue
+			}
+
+			if bah[i+1] == 'f' {
+				ret = append(ret, 0x0C)
+				i += 2
+				continue
+			}
+
+			if bah[i+1] == 'n' {
+				ret = append(ret, byte('\n'))
+				i += 2
+				continue
+			}
+
+			if bah[i+1] == 'r' {
+				ret = append(ret, byte('\r'))
+				i += 2
+				continue
+			}
+
+			if bah[i+1] == 't' {
+				ret = append(ret, byte('\t'))
+				i += 2
+				continue
+			}
+
+			if bah[i+1] == 'v' {
+				ret = append(ret, byte('\v'))
+				i += 2
+				continue
+			}
+
+			if bah[i+1] == '\\' && bah[i+2] == '"' {
+				ret = append(ret, byte('"'))
+				i += 3
+				continue
+			}
+
+			if bah[i+1] == '\\' {
+				ret = append(ret, '\\')
+				i += 2
+				continue
+			}
+		}
+		ret = append(ret, bah[i])
+		i++
+	}
+
+	return ret
+}
 
 func loadStorageArrayEntry(buf *bytes.Reader, entryType byte) {
 	panic("Not implemented!")
@@ -49,7 +115,6 @@ func readSection(buf *bytes.Reader) (ret StorageEntry) {
 
 func readString(buf *bytes.Reader) string {
 	strLen := readVarint(buf)
-	fmt.Println("StrLen: ", strLen)
 	tempStorage := make([]byte, strLen)
 	binary.Read(buf, binary.LittleEndian, &tempStorage)
 	return string(tempStorage)
@@ -59,8 +124,6 @@ func loadStorageEntry(buf *bytes.Reader) interface{} {
 	var entryType byte = 0
 	binary.Read(buf, binary.LittleEndian, &entryType)
 
-	
-	
 	switch entryType {
 	case SERIALIZE_TYPE_INT64:
 		var ret int64
@@ -101,7 +164,7 @@ func loadStorageEntry(buf *bytes.Reader) interface{} {
 	// ----------------------------- Non trivial data objects ------------------
 	case SERIALIZE_TYPE_STRING:
 		return readString(buf)
-		
+
 	// case SERIALIZE_TYPE_BOOL:
 	// 	var ret int64
 	// 	binary.Read(buf, binary.LittleEndian, &ret)
@@ -130,9 +193,10 @@ func getSectionName(buf *bytes.Reader) string {
 
 func readVarint(buf *bytes.Reader) uint64 {
 	var sizeMask uint8
-	var retSize uint64 = 0
-	
-	binary.Read(buf, binary.LittleEndian, &sizeMask)	
+	var retSize uint64
+
+	binary.Read(buf, binary.LittleEndian, &sizeMask)
+	buf.UnreadByte()
 
 	sizeMask = sizeMask & 0x03 // < PORTABLE_RAW_SIZE_MARK_MASK
 	switch sizeMask {
@@ -160,17 +224,4 @@ func readVarint(buf *bytes.Reader) uint64 {
 	retSize >>= 2
 
 	return retSize
-}
-
-func convertInputString(input string) []byte {
-	var buf bytes.Buffer
-	for _, char := range input {
-		if unicode.IsControl(char) {
-			fmt.Fprintf(&buf, "\\u%04X", char)
-		} else {
-			fmt.Fprintf(&buf, "%c", char)
-		}
-	}
-
-	return buf.Bytes()
 }
