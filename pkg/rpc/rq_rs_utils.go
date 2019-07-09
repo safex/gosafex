@@ -4,11 +4,14 @@ import (
 	"net/http"
 	"io/ioutil"
 	"encoding/json"
+	"encoding/hex"
 )
 
 type JSONElement = map[string]interface{}
 type JSONArray = []interface{}
-
+type IToBytes interface {
+    ToBytes() [32]byte
+}
 type JSONResponse struct {
 	Result 			JSONElement `json:"result"`
 	Status 			StatusCodeError `json:"status"`
@@ -42,4 +45,9 @@ func FormJSONResponse(result JSONElement,
 	res.JSONRpcVersion = "1.0.0"
 
 	json.NewEncoder(*w).Encode(res)
+}
+
+func getKeyString(key IToBytes) string {
+	temp := key.ToBytes()
+	return hex.EncodeToString(temp[:])
 }
