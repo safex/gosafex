@@ -22,6 +22,9 @@ func (e *EncryptedDB) CreateMasterBucket() error {
 	e.stream.targetBucket = []byte(masterbucketname)
 
 	err := e.stream.CreateBucket(nonce)
+
+	e.stream.targetKey = []byte(checkpassname)
+	e.stream.Write(encrypt([]byte(checkpassname), e.masterkey[:], e.masternonce[:]))
 	return err
 }
 
@@ -35,6 +38,15 @@ func (e *EncryptedDB) InitMaster() error {
 		if err != nil {
 			return err
 		}
+	} else {
+		e.stream.targetKey = []byte(checkpassname)
+		data, err := e.stream.Read()
+		if err != nil {
+			return err
+		}
+		if string(decrypt(data, e.masterkey[:])) != checkpassname {
+			return errors.New("Wrong masterkey")
+		}
 	}
 
 	e.stream.targetKey = []byte(noncename)
@@ -43,7 +55,7 @@ func (e *EncryptedDB) InitMaster() error {
 	if err != nil {
 		return err
 	}
-	copy(e.masternonce[:],data)
+	copy(e.masternonce[:], data)
 	return nil
 }
 
@@ -68,8 +80,8 @@ func (e *EncryptedDB) CreateBucket(bucket string) error {
 	if _, err := io.ReadFull(kdf, key[:]); err != nil {
 		return err
 	}
-	
-	e.stream.targetBucket = encrypt(pad([]byte(bucket),32), key[:], e.masternonce[:])
+
+	e.stream.targetBucket = encrypt(pad([]byte(bucket), 32), key[:], e.masternonce[:])
 
 	if e.stream.BucketExists() {
 		return ErrBucketAlreadyExists
@@ -96,7 +108,7 @@ func (e *EncryptedDB) SetBucket(bucket string) error {
 	if _, err := io.ReadFull(kdf, key[:]); err != nil {
 		return err
 	}
-	e.stream.targetBucket = encrypt(pad([]byte(bucket),32), key[:], e.masternonce[:])
+	e.stream.targetBucket = encrypt(pad([]byte(bucket), 32), key[:], e.masternonce[:])
 	if !e.stream.BucketExists() {
 		return ErrBucketNotInit
 	}
@@ -104,7 +116,6 @@ func (e *EncryptedDB) SetBucket(bucket string) error {
 	return nil
 
 }
-
 
 //GetNonce Checks the current bucketnonce
 func (e *EncryptedDB) GetNonce() ([]byte, error) {
@@ -207,7 +218,7 @@ func (e *EncryptedDB) Append(key string, newData []byte) error {
 	}
 
 	data = append(data, newData...)
-	
+
 	return e.Write(key, data)
 }
 
@@ -254,7 +265,7 @@ func (e *EncryptedDB) Delete(key string) error {
 		return err
 	}
 
-	var encryptedKey [keylength]byte 
+	var encryptedKey [keylength]byte
 	kdf := hkdf.New(sha512.New, e.masterkey[:], nonce, nil)
 
 	if _, err := io.ReadFull(kdf, encryptedKey[:]); err != nil {
@@ -280,7 +291,7 @@ func (e *EncryptedDB) DeleteAppendedKey(key string, target int) error {
 	for i, el := range data {
 		if i != target {
 			err = e.Append(key, el)
-			if err != nil{
+			if err != nil {
 				return err
 			}
 		}

@@ -2,11 +2,11 @@ package filewallet
 
 //OutputInfo is a syntesis of useful information to be stored concerning an output
 type OutputInfo struct {
-	outputType    string
-	blockHash     string
-	transactionID string
-	txLocked      string
-	txType        string
+	OutputType    string
+	BlockHash     string
+	TransactionID string
+	TxLocked      string
+	TxType        string
 }
 
 //TransactionInfo is a syntesis of useful information to be stored concerning a transaction
@@ -29,7 +29,8 @@ const UnlockedStatus = "U"
 
 //Keys used in local filewallet, for definitions see README.md
 
-const walletInfoKey = "WalletInfo"
+const WalletInfoKey = "WalletInfo"
+const WalletListReferenceKey = "WalletReference"
 const outputReferenceKey = "OutReference"
 const blockReferenceKey = "BlckReference"
 const lastBlockReferenceKey = "LSTBlckReference"

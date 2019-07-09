@@ -8,6 +8,7 @@ const keylength = 32
 const noncelength = 32
 
 const noncename = "masternonce"
+const checkpassname = "checkpasscheckpasscheckpasscheckpasscheckpasscheckpass"
 const masterbucketname = "master"
 
 const appendSeparator = byte('\n')

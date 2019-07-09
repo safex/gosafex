@@ -83,6 +83,13 @@ func (w *Wallet) ProcessTransaction(tx *safex.Transaction, minerTx bool) error {
 			keyimage := curve.KeyImage(ephemeralPublic, ephemeralSecret)
 
 			if _, ok := w.outputs[*keyimage]; !ok {
+				/*var typ string
+				if output.GetAmount() != 0 {
+					typ := "Cash"
+				} else {
+					typ := "Token"
+				}
+				w.wallet.AddOutput(output, uint64(index), &filewallet.OutputInfo{outputType: typ}, "")*/
 				w.outputs[*keyimage] = Transfer{output, false, minerTx, tx.BlockHeight, *keyimage}
 				w.balance.CashLocked += output.Amount
 				w.balance.TokenLocked += output.TokenAmount

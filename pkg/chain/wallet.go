@@ -1,10 +1,117 @@
 package chain
 
+import (
+	"errors"
+
+	"github.com/safex/gosafex/pkg/account"
+	"github.com/safex/gosafex/pkg/filewallet"
+)
+
 // TODO: figure out where to place the wallet struct.
 
 // BlockFetchCnt is the the nubmer of blocks to fetch at once.
 // TODO: Move this to some config, or recalculate based on response time
 const BlockFetchCnt = 100
+
+func (w *Wallet) isOpen() bool {
+	if w.wallet == nil {
+		return false
+	}
+	return true
+}
+
+//Recover recreates a wallet starting from a mnemonic
+func (w *Wallet) Recover(mnemonic *account.Mnemonic, walletName string, isTestnet bool) error {
+	store, err := account.FromMnemonic(mnemonic, isTestnet)
+	if err != nil {
+		return err
+	}
+	w.wallet.OpenAccount(&filewallet.WalletInfo{Name: walletName, Keystore: store}, true, isTestnet)
+	return nil
+}
+
+//OpenAndCreate Opens a filewallet and creates an account
+func (w *Wallet) OpenAndCreate(accountName string, filename string, masterkey string, isTestnet bool) error {
+	var err error
+	if w.isOpen() {
+		w.Close()
+	}
+	if w.wallet, err = filewallet.New(filename, accountName, masterkey, true, isTestnet, nil); err != nil {
+		return err
+	}
+	return nil
+}
+
+//CreateAccount Creates and account in the locally open filewallet
+func (w *Wallet) CreateAccount(accountName string, isTestnet bool) error {
+	if !w.isOpen() {
+		return errors.New("FileWallet not open")
+	}
+	return w.wallet.CreateAccount(&filewallet.WalletInfo{Name: accountName, Keystore: nil}, isTestnet)
+}
+
+//OpenFile Opens a filewallet
+func (w *Wallet) OpenFile(filename string, masterkey string, isTestnet bool) error {
+	var err error
+	if w.isOpen() {
+		w.Close()
+	}
+	if w.wallet, err = filewallet.NewClean(filename, masterkey, isTestnet); err != nil {
+		return err
+	}
+	return nil
+}
+
+//OpenAccount opens an account if it exists
+func (w *Wallet) OpenAccount(accountName string, isTestnet bool) error {
+	if !w.isOpen() {
+		return errors.New("FileWallet not open")
+	}
+	return w.wallet.OpenAccount(&filewallet.WalletInfo{Name: accountName, Keystore: nil}, false, isTestnet)
+}
+
+//RemoveAccount removes the given account
+func (w *Wallet) RemoveAccount(accountName string) error {
+	return w.wallet.RemoveAccount(accountName)
+}
+
+//GetAccounts returns a list of all known accounts
+func (w *Wallet) GetAccounts() ([]string, error) {
+	if !w.isOpen() {
+		return nil, errors.New("FileWallet not open")
+	}
+	return w.wallet.GetAccounts()
+}
+
+//Status returns a local status for the wallet
+func (w *Wallet) Status() string {
+	//TODO: Correct this once we get multithreading for golang
+	if !w.isOpen() {
+		return "not open"
+	}
+	return "ready"
+}
+
+//GetFilewallet returns an instance of the underlying filewallet
+func (w *Wallet) GetFilewallet() *filewallet.FileWallet {
+	return w.wallet
+}
+
+//GetKeys returns the keypair of the opened account
+func (w *Wallet) GetKeys() (*account.Store, error) {
+	if !w.isOpen() {
+		return nil, errors.New("FileWallet not open")
+	}
+	if w.wallet.GetAccount() == "" {
+		return nil, errors.New("No open account")
+	}
+	return w.wallet.GetKeys()
+}
+
+//Close closes the wallet
+func (w *Wallet) Close() {
+	w.wallet.Close()
+}
 
 //func matchOutput(txOut *safex.Txout, index uint64, der [32]byte, outputKey *[32]byte) bool {
 //	derivatedPubKey := crypto.KeyDerivation_To_PublicKey(index, crypto.Key(der), w.Address.SpendKey.Public)

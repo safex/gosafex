@@ -66,7 +66,7 @@ func GenerateAccount(isTestnet bool) (result *Store, err error) {
 // View keys are derived from spend keys.
 func FromSeed(seed *Seed, isTestnet bool) *Store {
 	keyset := key.SetFromSeed(seed)
-	adr := addressMaker(isTestnet)(keyset.View.Pub, keyset.Spend.Pub)
+	adr := addressMaker(isTestnet)(keyset.Spend.Pub, keyset.View.Pub)
 	return NewStore(adr, keyset.View.Priv, keyset.Spend.Priv)
 }
 

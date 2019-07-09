@@ -2,9 +2,9 @@ package chain
 
 import (
 	"github.com/safex/gosafex/internal/crypto"
-	"github.com/safex/gosafex/internal/filestore"
 	"github.com/safex/gosafex/pkg/account"
 	"github.com/safex/gosafex/pkg/balance"
+	"github.com/safex/gosafex/pkg/filewallet"
 	"github.com/safex/gosafex/pkg/key"
 	"github.com/safex/gosafex/pkg/safex"
 	"github.com/safex/gosafex/pkg/safexdrpc"
@@ -39,7 +39,7 @@ type Wallet struct {
 	account Account
 	client  *Client
 	outputs map[crypto.Key]Transfer
-	wallet  *FileWallet
+	wallet  *filewallet.FileWallet
 }
 type Balance struct {
 	CashUnlocked  uint64
@@ -53,16 +53,6 @@ type Transfer struct {
 	MinerTx bool
 	Height  uint64
 	KImage  crypto.Key
-}
-
-//FileWallet is a wrapper for an EncryptedDB that includes wallet specific data and operations
-type FileWallet struct {
-	name              string
-	db                *filestore.EncryptedDB
-	knownOutputs      []string //REMEMBER TO INITIALIZE THIS
-	unspentOutputs    []string
-	latestBlockNumber uint64
-	latestBlockHash   string
 }
 
 //OutputInfo is a syntesis of useful information to be stored concerning an output
@@ -85,23 +75,3 @@ type TransactionInfo struct {
 	inPool          bool
 	txHash          string
 }
-
-//Keys used in local filewallet, for definitions see README.md
-
-const walletInfoKey = "WalletInfo"
-const outputReferenceKey = "OutReference"
-const blockReferenceKey = "BlckReference"
-const lastBlockReferenceKey = "LSTBlckReference"
-const outputTypeReferenceKey = "OutTypeReference"
-const unspentOutputReferenceKey = "UnspentOutputReference"
-const transactionInfoReferenceKey = "TransactionInfoReference"
-
-const genericDataBucketName = "Generic"
-
-const outputKeyPrefix = "Out-"
-const outputInfoPrefix = "OutInfo-"
-const blockKeyPrefix = "Blk-"
-const transactionInfoKeyPrefix = "TxInfo-"
-const outputTypeKeyPrefix = "Typ-"
-const transactionOutputReferencePrefix = "TxOuts-"
-const blockTransactionReferencePrefix = "Txs-"

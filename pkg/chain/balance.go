@@ -86,7 +86,7 @@ func (w *Wallet) ProcessBlockRange(blocks safex.Blocks) bool {
 	return true
 }
 
-func (w *Wallet) GetBalance() (b balance.Balance, err error) {
+func (w *Wallet) UpdateBalance() (b balance.Balance, err error) {
 	w.outputs = make(map[crypto.Key]Transfer)
 	// Connect to node.
 	w.client = safexdrpc.InitClient("127.0.0.1", 38001)
