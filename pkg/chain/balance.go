@@ -49,16 +49,24 @@ func (t Transfer) IsUnlocked(height uint64) bool {
 // @todo:  Move this to some config, or recalculate based on response time
 const blockInterval = 100
 
-func (w *Wallet) ProcessBlockRange(blocks safex.Blocks) bool {
+func (w *Wallet) processBlockRange(blocks safex.Blocks) bool {
 	// @todo Here handle block metadata.
 
 	// @todo This must be refactored due new discoveries regarding get_tx_hash
 	// Get transaction hashes
 	var txs []string
 	var minerTxs []string
+	txblck := make(map[string]string)
 	for _, blck := range blocks.Block {
-		txs = append(txs, blck.Txs...)
+		if err := w.wallet.PutBlockHeader(blck.GetHeader()); err != nil {
+			continue
+		}
+		for _, el := range blck.Txs {
+			txblck[el] = blck.GetHeader().GetHash()
+			txs = append(txs, el)
+		}
 		minerTxs = append(minerTxs, blck.MinerTx)
+		txblck[blck.MinerTx] = blck.GetHeader().GetHash()
 	}
 
 	// Get transaction data and process.
@@ -68,7 +76,7 @@ func (w *Wallet) ProcessBlockRange(blocks safex.Blocks) bool {
 	}
 
 	for _, tx := range loadedTxs.Tx {
-		w.ProcessTransaction(tx, false)
+		w.ProcessTransaction(tx, txblck[tx.GetTxHash()], false)
 	}
 
 	mloadedTxs, err := w.client.GetTransactions(minerTxs)
@@ -80,7 +88,7 @@ func (w *Wallet) ProcessBlockRange(blocks safex.Blocks) bool {
 	fmt.Println("Len of mloadedTxs: ", len(mloadedTxs.Tx))
 
 	for _, tx := range mloadedTxs.Tx {
-		w.ProcessTransaction(tx, true)
+		w.ProcessTransaction(tx, txblck[tx.GetTxHash()], true)
 	}
 
 	return true
@@ -123,7 +131,7 @@ func (w *Wallet) UpdateBalance() (b balance.Balance, err error) {
 		}
 
 		// Process block
-		w.ProcessBlockRange(blocks)
+		w.processBlockRange(blocks)
 
 		curr = end
 	}

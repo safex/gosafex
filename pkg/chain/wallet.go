@@ -4,7 +4,9 @@ import (
 	"errors"
 
 	"github.com/safex/gosafex/pkg/account"
+	"github.com/safex/gosafex/pkg/balance"
 	"github.com/safex/gosafex/pkg/filewallet"
+	"github.com/safex/gosafex/pkg/safexdrpc"
 )
 
 // TODO: figure out where to place the wallet struct.
@@ -92,6 +94,15 @@ func (w *Wallet) Status() string {
 	return "ready"
 }
 
+//InitClient inits the rpc client and checks for connection
+func (w *Wallet) InitClient(client string, port uint) error {
+	w.client = safexdrpc.InitClient(client, port)
+	if _, err := w.client.GetDaemonInfo(); err != nil {
+		return err
+	}
+	return nil
+}
+
 //GetFilewallet returns an instance of the underlying filewallet
 func (w *Wallet) GetFilewallet() *filewallet.FileWallet {
 	return w.wallet
@@ -106,6 +117,11 @@ func (w *Wallet) GetKeys() (*account.Store, error) {
 		return nil, errors.New("No open account")
 	}
 	return w.wallet.GetKeys()
+}
+
+//GetBalance returns the keypair of the opened account
+func (w *Wallet) GetBalance() balance.Balance {
+	return w.balance
 }
 
 //Close closes the wallet

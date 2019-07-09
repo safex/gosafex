@@ -7,14 +7,14 @@ import (
 	"errors"
 )
 
-func packOutputIndex(blockHash string, localIndex uint64) (string, error) {
+func PackOutputIndex(blockHash string, localIndex uint64) (string, error) {
 	b := make([]byte, 8)
 	binary.LittleEndian.PutUint64(b, localIndex)
 	b = append(b, []byte(blockHash)...)
 	return hex.EncodeToString(b), nil
 }
 
-func unpackOutputIndex(outID string) (uint64, uint64, error) {
+func UnpackOutputIndex(outID string) (uint64, uint64, error) {
 	s, err := hex.DecodeString(outID)
 	if err != nil {
 		return 0, 0, err

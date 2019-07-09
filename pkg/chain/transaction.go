@@ -5,6 +5,7 @@ import (
 
 	"github.com/safex/gosafex/internal/crypto/curve"
 
+	"github.com/safex/gosafex/pkg/filewallet"
 	"github.com/safex/gosafex/pkg/safex"
 )
 
@@ -55,7 +56,7 @@ func (w *Wallet) matchOutput(txOut *safex.Txout, index uint64, der [crypto.KeyLe
 	return *outputKey == [crypto.KeyLength]byte(*derivatedPubKey)
 }
 
-func (w *Wallet) ProcessTransaction(tx *safex.Transaction, minerTx bool) error {
+func (w *Wallet) ProcessTransaction(tx *safex.Transaction, blckHash string, minerTx bool) error {
 	// @todo Process Unconfirmed.
 	// Process outputs
 	if len(tx.Vout) != 0 {
@@ -69,12 +70,22 @@ func (w *Wallet) ProcessTransaction(tx *safex.Transaction, minerTx bool) error {
 			return err
 		}
 		txPubKeyDerivation := ([crypto.KeyLength]byte)(*ret)
+		txPresent := false
 
 		for index, output := range tx.Vout {
 			var outputKey [crypto.KeyLength]byte
 			if !w.matchOutput(output, uint64(index), txPubKeyDerivation, &outputKey) {
 				continue
 			}
+			if !txPresent {
+				if inf, _ := w.wallet.GetTransactionInfo(tx.GetTxHash()); inf == nil {
+					if err := w.wallet.PutTransactionInfo(&filewallet.TransactionInfo{Version: tx.GetVersion(), UnlockTime: tx.GetUnlockTime(), Extra: tx.GetExtra(), BlockHeight: tx.GetBlockHeight(), BlockTimestamp: tx.GetBlockTimestamp(), DoubleSpendSeen: tx.GetDoubleSpendSeen(), InPool: tx.GetInPool(), TxHash: tx.GetTxHash()}, blckHash); err != nil {
+						return err
+					}
+					txPresent = true
+				}
+			}
+
 			tempPrivateSpendKey := curve.Key(w.account.PrivateSpendKey().ToBytes())
 			tempPublicSpendKey := curve.Key(w.account.PublicSpendKey().ToBytes())
 			temptxPubKeyDerivation := crypto.Key(txPubKeyDerivation)
@@ -83,13 +94,19 @@ func (w *Wallet) ProcessTransaction(tx *safex.Transaction, minerTx bool) error {
 			keyimage := curve.KeyImage(ephemeralPublic, ephemeralSecret)
 
 			if _, ok := w.outputs[*keyimage]; !ok {
-				/*var typ string
+				var typ string
 				if output.GetAmount() != 0 {
-					typ := "Cash"
+					typ = "Cash"
 				} else {
-					typ := "Token"
+					typ = "Token"
 				}
-				w.wallet.AddOutput(output, uint64(index), &filewallet.OutputInfo{outputType: typ}, "")*/
+				var txtyp string
+				if minerTx {
+					txtyp = "miner"
+				} else {
+					txtyp = "normal"
+				}
+				w.wallet.AddOutput(output, uint64(index), &filewallet.OutputInfo{OutputType: typ, BlockHash: blckHash, TransactionID: tx.GetTxHash(), TxLocked: filewallet.LockedStatus, TxType: txtyp}, "")
 				w.outputs[*keyimage] = Transfer{output, false, minerTx, tx.BlockHeight, *keyimage}
 				w.balance.CashLocked += output.Amount
 				w.balance.TokenLocked += output.TokenAmount
@@ -99,6 +116,7 @@ func (w *Wallet) ProcessTransaction(tx *safex.Transaction, minerTx bool) error {
 	}
 
 	if len(tx.Vin) != 0 {
+		txPresent := false
 		for _, input := range tx.Vin {
 			var kImage [crypto.KeyLength]byte
 			if input.TxinGen != nil {
@@ -108,6 +126,17 @@ func (w *Wallet) ProcessTransaction(tx *safex.Transaction, minerTx bool) error {
 				copy(kImage[:], input.TxinToKey.KImage[0:crypto.KeyLength])
 
 				if val, ok := w.outputs[crypto.Key(kImage)]; ok {
+					if !txPresent {
+						if inf, _ := w.wallet.GetTransactionInfo(tx.GetTxHash()); inf == nil {
+							if err := w.wallet.PutTransactionInfo(&filewallet.TransactionInfo{Version: tx.GetVersion(), UnlockTime: tx.GetUnlockTime(), Extra: tx.GetExtra(), BlockHeight: tx.GetBlockHeight(), BlockTimestamp: tx.GetBlockTimestamp(), DoubleSpendSeen: tx.GetDoubleSpendSeen(), InPool: tx.GetInPool(), TxHash: tx.GetTxHash()}, blckHash); err != nil {
+								return err
+							}
+							txPresent = true
+						}
+					}
+
+					outID, _ := filewallet.PackOutputIndex(blckHash, val.Height)
+					w.wallet.UnlockOutput(outID)
 					w.balance.CashLocked -= val.Output.Amount
 					val.Spent = true
 				}
@@ -115,6 +144,16 @@ func (w *Wallet) ProcessTransaction(tx *safex.Transaction, minerTx bool) error {
 				if input.TxinTokenToKey != nil {
 					copy(kImage[:], input.TxinTokenToKey.KImage[0:crypto.KeyLength])
 					if val, ok := w.outputs[crypto.Key(kImage)]; ok {
+						if !txPresent {
+							if inf, _ := w.wallet.GetTransactionInfo(tx.GetTxHash()); inf == nil {
+								if err := w.wallet.PutTransactionInfo(&filewallet.TransactionInfo{Version: tx.GetVersion(), UnlockTime: tx.GetUnlockTime(), Extra: tx.GetExtra(), BlockHeight: tx.GetBlockHeight(), BlockTimestamp: tx.GetBlockTimestamp(), DoubleSpendSeen: tx.GetDoubleSpendSeen(), InPool: tx.GetInPool(), TxHash: tx.GetTxHash()}, blckHash); err != nil {
+									return err
+								}
+								txPresent = true
+							}
+						}
+						outID, _ := filewallet.PackOutputIndex(blckHash, val.Height)
+						w.wallet.UnlockOutput(outID)
 						w.balance.TokenLocked -= val.Output.TokenAmount
 						val.Spent = true
 					}

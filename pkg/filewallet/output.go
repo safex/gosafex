@@ -12,7 +12,7 @@ func prepareOutput(out *safex.Txout, blockHash string, localIndex uint64) ([]byt
 	if err != nil {
 		return nil, "", err
 	}
-	outID, err := packOutputIndex(blockHash, localIndex)
+	outID, err := PackOutputIndex(blockHash, localIndex)
 	if err != nil {
 		return nil, "", err
 	}
