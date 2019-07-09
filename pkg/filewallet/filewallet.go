@@ -211,6 +211,13 @@ func (w *FileWallet) CreateAccount(accountInfo *WalletInfo, isTestnet bool) erro
 	} else if err != nil {
 		return err
 	}
+
+	if err := w.initOutputTypes(); err != nil {
+		return err
+	}
+	if err := w.initUnspentOutputs(); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -233,7 +240,7 @@ func (w *FileWallet) OpenAccount(accountInfo *WalletInfo, createOnFail bool, isT
 	}
 
 	err = w.loadLatestBlock()
-	if err != nil && err != filestore.ErrKeyNotFound {
+	if err != nil {
 		if err == filestore.ErrKeyNotFound {
 			w.latestBlockNumber = 0
 			w.latestBlockHash = ""
@@ -249,7 +256,7 @@ func (w *FileWallet) OpenAccount(accountInfo *WalletInfo, createOnFail bool, isT
 }
 
 func (w *FileWallet) GetAccounts() ([]string, error) {
-	if w.info != nil {
+	if w.info != nil && w.db.BucketExists(w.info.Name) {
 		defer w.db.SetBucket(w.info.Name)
 	}
 	w.db.SetBucket(genericDataBucketName)
@@ -264,12 +271,12 @@ func (w *FileWallet) GetAccounts() ([]string, error) {
 	return ret, nil
 }
 
-func (w *FileWallet) AccountExists(accountName string) bool{
-	if accs, err := w.GetAccounts();err != nil{
+func (w *FileWallet) AccountExists(accountName string) bool {
+	if accs, err := w.GetAccounts(); err != nil {
 		return false
-	}else{
-		for _, el := range accs{
-			if el == accountName{
+	} else {
+		for _, el := range accs {
+			if el == accountName {
 				return true
 			}
 		}
@@ -279,23 +286,24 @@ func (w *FileWallet) AccountExists(accountName string) bool{
 
 //RemoveAccount DUMMY FUNCTION for now
 func (w *FileWallet) RemoveAccount(accountName string) error {
-	if !w.AccountExists(accountName){
+	if !w.AccountExists(accountName) {
 		return nil
 	}
-	if w.GetAccount() != accountName{
+	if w.GetAccount() != accountName {
 		defer w.db.SetBucket(w.info.Name)
 	} else {
 		defer w.db.SetBucket(genericDataBucketName)
 	}
-	if err := w.db.SetBucket(accountName); err != nil{
+	if err := w.db.SetBucket(accountName); err != nil {
 		return err
 	}
-	if err := w.db.DeleteBucket(); err != nil{
+	if err := w.db.DeleteBucket(); err != nil {
 		return err
 	}
-	if i, err := w.findKeyInReference(WalletListReferenceKey, accountName); err != nil{
+	w.db.SetBucket(genericDataBucketName)
+	if i, err := w.findKeyInReference(WalletListReferenceKey, accountName); err != nil {
 		return err
-	}else if err := w.deleteAppendedKey(WalletListReferenceKey,i); err != nil{
+	} else if err := w.deleteAppendedKey(WalletListReferenceKey, i); err != nil {
 		return err
 	}
 	return nil

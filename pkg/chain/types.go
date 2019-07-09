@@ -75,23 +75,3 @@ type TransactionInfo struct {
 	inPool          bool
 	txHash          string
 }
-
-//Keys used in local filewallet, for definitions see README.md
-
-const WalletInfoKey = "WalletInfo"
-const outputReferenceKey = "OutReference"
-const blockReferenceKey = "BlckReference"
-const lastBlockReferenceKey = "LSTBlckReference"
-const outputTypeReferenceKey = "OutTypeReference"
-const unspentOutputReferenceKey = "UnspentOutputReference"
-const transactionInfoReferenceKey = "TransactionInfoReference"
-
-const genericDataBucketName = "Generic"
-
-const outputKeyPrefix = "Out-"
-const outputInfoPrefix = "OutInfo-"
-const blockKeyPrefix = "Blk-"
-const transactionInfoKeyPrefix = "TxInfo-"
-const outputTypeKeyPrefix = "Typ-"
-const transactionOutputReferencePrefix = "TxOuts-"
-const blockTransactionReferencePrefix = "Txs-"

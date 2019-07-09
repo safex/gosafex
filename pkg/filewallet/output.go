@@ -20,13 +20,24 @@ func prepareOutput(out *safex.Txout, blockHash string, localIndex uint64) ([]byt
 
 }
 
+func (w *FileWallet) initOutputTypes() error{
+	if err := w.AddOutputType("Cash"); err != nil{
+		return err
+	}
+	if err := w.AddOutputType("Token"); err != nil{
+		return err
+	}
+	return nil
+}
+
 //Loads known output types from storage
 func (w *FileWallet) loadOutputTypes(createOnFail bool) error {
 	w.knownOutputs = []string{}
-	data, err := w.readAppendedKey(outputTypeReferenceKey)
+	data, err := w.readAppendedKey(outputTypeReferenceKey) 
 	if err == filestore.ErrKeyNotFound && createOnFail {
-		w.AddOutputType("Cash")
-		w.AddOutputType("Token")
+		if err := w.initOutputTypes(); err != nil{
+			return err
+		}
 	} else if err != nil {
 		return err
 	} else {
@@ -36,11 +47,18 @@ func (w *FileWallet) loadOutputTypes(createOnFail bool) error {
 	}
 	return nil
 }
+
+func (w *FileWallet) initUnspentOutputs() error{
+	return w.writeKey(unspentOutputReferenceKey, []byte(""))
+}
+
 //Loads unspent outputs from the storage
 func (w *FileWallet) loadUnspentOutputs(createOnFail bool) error {
 	data, err := w.readAppendedKey(unspentOutputReferenceKey)
 	if err == filestore.ErrKeyNotFound && createOnFail {
-		w.writeKey(unspentOutputReferenceKey, []byte(""))
+		if err := w.initUnspentOutputs(); err != nil{
+			return err
+		}
 	} else if err != nil {
 		return err
 	} else {

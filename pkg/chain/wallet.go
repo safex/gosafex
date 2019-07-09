@@ -70,6 +70,11 @@ func (w *Wallet) OpenAccount(accountName string, isTestnet bool) error {
 	return w.wallet.OpenAccount(&filewallet.WalletInfo{Name: accountName, Keystore: nil}, false, isTestnet)
 }
 
+//RemoveAccount removes the given account
+func (w *Wallet) RemoveAccount(accountName string) error {
+	return w.wallet.RemoveAccount(accountName)
+}
+
 //GetAccounts returns a list of all known accounts
 func (w *Wallet) GetAccounts() ([]string, error) {
 	if !w.isOpen() {

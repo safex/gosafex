@@ -5,7 +5,7 @@ import (
 	"os"
 	"strings"
 	"testing"
-
+	"github.com/safex/gosafex/internal/filestore"
 	"github.com/safex/gosafex/pkg/account"
 	"github.com/safex/gosafex/pkg/safex"
 )
@@ -361,16 +361,34 @@ func TestColdAccountCreation(t *testing.T){
 	store, _ := account.GenerateAccount(false)
 	store2, _ := account.GenerateAccount(false)
 	w, err := NewClean(fullpath, masterPass, false)
+	head1 := &safex.BlockHeader{Depth: 10, Hash: "aaaab", PrevHash: ""}
+	head2 := &safex.BlockHeader{Depth: 11, Hash: "aaaac", PrevHash: "aaaab"}
 	
 	if err != nil {
 		t.Fatalf("%s", err)
 	}
-	if err := w.OpenAccount(&WalletInfo{Name: "Wallet1", Keystore: store},true, false); err != nil{
+	if err := w.CreateAccount(&WalletInfo{Name: "Wallet1", Keystore: store},true); err != nil{
 		t.Fatalf("%s", err)
 	}
-	if err := w.OpenAccount(&WalletInfo{Name: "Wallet2", Keystore: store2},true,false); err != nil{
+	if err := w.CreateAccount(&WalletInfo{Name: "Wallet2", Keystore: store2},true); err != nil{
 		t.Fatalf("%s", err)
 	}
+	if err := w.OpenAccount(&WalletInfo{Name: "Wallet1", Keystore: store},false,false); err != nil{
+		t.Fatalf("%s",err)
+	}
+	if err := w.PutBlockHeader(head1); err != nil{
+		t.Fatalf("%s",err)
+	}
+	if err := w.OpenAccount(&WalletInfo{Name: "Wallet2", Keystore: store2},false,false); err != nil{
+		t.Fatalf("%s",err)
+	}
+	if err := w.PutBlockHeader(head1); err != nil{
+		t.Fatalf("%s",err)
+	}
+	if err := w.PutBlockHeader(head2); err != nil{
+		t.Fatalf("%s",err)
+	}
+
 	w.Close()
 
 	w, err = NewClean (fullpath,masterPass, false)
@@ -383,6 +401,54 @@ func TestColdAccountCreation(t *testing.T){
 	}else if len(data) != 2{
 		t.Fatalf("Error retrieving account list")
 	}
+	
+	if err := w.OpenAccount(&WalletInfo{Name: "Wallet2", Keystore: store2},false,false); err != nil{
+		t.Fatalf("%s",err)
+	}
+	if data, err := w.GetAllBlocks(); err != nil{
+		t.Fatalf("%s",err)
+	}else if len(data) != 2{
+		t.Fatalf("Error reading blocks from account2")
+	}
+	if err := w.OpenAccount(&WalletInfo{Name: "Wallet1", Keystore: store},false,false); err != nil{
+		t.Fatalf("%s",err)
+	}
+	if data, err := w.GetAllBlocks(); err != nil{
+		t.Fatalf("%s",err)
+	}else if len(data) != 1{
+		t.Fatalf("Error reading blocks from account1")
+	}
+}
+
+func TestAccountDeletion(t *testing.T){
+	prepareFolder()
+	fullpath := strings.Join([]string{foldername, filename}, "/")
+	store, _ := account.GenerateAccount(false)
+	store2, _ := account.GenerateAccount(false)
+	w, err := NewClean(fullpath, masterPass, false)
+	defer CleanAfterTests(w, fullpath)
+	
+	if err != nil {
+		t.Fatalf("%s", err)
+	}
+	if err := w.CreateAccount(&WalletInfo{Name: "Wallet1", Keystore: store},true); err != nil{
+		t.Fatalf("%s", err)
+	}
+	if err := w.CreateAccount(&WalletInfo{Name: "Wallet2", Keystore: store2},true); err != nil{
+		t.Fatalf("%s", err)
+	}
+	if err := w.RemoveAccount("Wallet1"); err != nil{
+		t.Fatalf("%s",err)
+	}
+	if err := w.RemoveAccount("Wallet2"); err != nil{
+		t.Fatalf("%s",err)
+	}
+	if data, err := w.GetAccounts(); err != nil && err != filestore.ErrKeyNotFound{
+		t.Fatalf("%s",err)
+	}else if len(data) != 0{
+		t.Fatalf("Error retrieving account list")
+	}
+
 }
 
 func TestAccountSwitch(t *testing.T) {
