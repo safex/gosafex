@@ -140,7 +140,9 @@ func (w *FileWallet) getInfo() (*WalletInfo, error) {
 
 //PutData Writes data in a key in the generic data bucket
 func (w *FileWallet) PutData(key string, data []byte) error {
-	defer w.db.SetBucket(w.info.Name)
+	if w.info != nil{
+		defer w.db.SetBucket(w.info.Name)
+	}
 	if err := w.db.SetBucket(genericDataBucketName); err == filestore.ErrBucketNotInit {
 		if err = w.db.CreateBucket(genericDataBucketName); err != nil {
 			return err

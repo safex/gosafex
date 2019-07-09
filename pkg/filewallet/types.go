@@ -11,14 +11,14 @@ type OutputInfo struct {
 
 //TransactionInfo is a syntesis of useful information to be stored concerning a transaction
 type TransactionInfo struct {
-	version         uint64
-	unlockTime      uint64
-	extra           []byte
-	blockHeight     uint64
-	blockTimestamp  uint64
-	doubleSpendSeen bool
-	inPool          bool
-	txHash          string
+	Version         uint64
+	UnlockTime      uint64
+	Extra           []byte
+	BlockHeight     uint64
+	BlockTimestamp  uint64
+	DoubleSpendSeen bool
+	InPool          bool
+	TxHash          string
 }
 
 //LockedStatus of a transaction

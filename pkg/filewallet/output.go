@@ -96,8 +96,7 @@ func (w *FileWallet) GetOutputTypes() []string {
 	return w.knownOutputs
 }
 
-//CheckIfOutputTypeExists 
-
+//CheckIfOutputTypeExists .
 func (w *FileWallet) CheckIfOutputTypeExists(outputType string) int {
 	for in, el := range w.knownOutputs {
 		if outputType == el {
@@ -136,8 +135,7 @@ func (w *FileWallet) putOutputInTransaction(outID string, transactionID string) 
 	if w.CheckIfTransactionInfoExists(transactionID) < 0 {
 		return ErrOutputTypeNotPresent
 	}
-	w.appendKey(transactionOutputReferencePrefix+transactionID, []byte(outID))
-	return nil
+	return w.appendKey(transactionOutputReferencePrefix+transactionID, []byte(outID))
 }
 
 //FindOutputInTransaction Finds the position within the transaction reference of the given outputID
@@ -244,6 +242,7 @@ func (w *FileWallet) putOutput(out *safex.Txout, localIndex uint64, blockHash st
 		return "", err
 	}
 	if err = w.appendKey(outputReferenceKey, []byte(outID)); err != nil {
+		w.deleteKey(outputKeyPrefix+outID)
 		return "", err
 	}
 
@@ -285,17 +284,27 @@ func (w *FileWallet) AddOutput(out *safex.Txout, localIndex uint64, outInfo *Out
 	}
 	//We put the reference in the type list
 	if err = w.putOutputInType(outID, outInfo.OutputType); err != nil {
+		w.deleteKey(outputKeyPrefix+outID)
 		return "", err
 	}
 	//We put the reference in the transaction list
 	if err = w.putOutputInTransaction(outID, outInfo.TransactionID); err != nil {
+		w.deleteKey(outputKeyPrefix+outID)
+		w.removeOutputFromType(outID,outInfo.OutputType)
 		return "", err
 	}
 	//We put the info
 	if err = w.putOutputInfo(outID, outInfo); err != nil {
+		w.deleteKey(outputKeyPrefix+outID)
+		w.removeOutputFromType(outID,outInfo.OutputType)
+		w.removeOutputFromTransaction(outID, outInfo.TransactionID)
 		return "", err
 	}
 	if err = w.AddUnspentOutput(outID); err != nil {
+		w.deleteKey(outputKeyPrefix+outID)
+		w.removeOutputFromType(outID,outInfo.OutputType)
+		w.removeOutputFromTransaction(outID, outInfo.TransactionID)
+		w.removeOutputInfo(outID) 
 		return "", err
 	}
 	return outID, nil

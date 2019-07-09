@@ -77,9 +77,9 @@ func TestGenericDataRW(t *testing.T) {
 		t.Fatalf("%s", err)
 	}
 
-	head1 := &safex.BlockHeader{Depth: 10, Hash: "aaaab", PrevHash: ""}
+	head1 := &safex.BlockHeader{Depth: 10, Hash: "aaaab", PrevHash: ""} 
 	head2 := &safex.BlockHeader{Depth: 11, Hash: "aaaac", PrevHash: "aaaab"}
-	tx1 := &TransactionInfo{version: 1, unlockTime: 10, extra: []byte("asdasd"), blockHeight: head2.GetDepth(), blockTimestamp: 5, doubleSpendSeen: false, inPool: false, txHash: "tx01"}
+	tx1 := &TransactionInfo{Version: 1, UnlockTime: 10, Extra: []byte("asdasd"), BlockHeight: head2.GetDepth(), BlockTimestamp: 5, DoubleSpendSeen: false, InPool: false, TxHash: "tx01"}
 	out1 := &safex.Txout{Amount: 20}
 
 	err = w.PutBlockHeader(head1)
@@ -206,11 +206,11 @@ func TestTransactionRW(t *testing.T) {
 	}
 	defer CleanAfterTests(w, fullpath)
 	head1 := &safex.BlockHeader{Depth: 10, Hash: "aaaab", PrevHash: ""}
-	head2 := &safex.BlockHeader{Depth: 11, Hash: "aaaac", PrevHash: "aaaab"}
-	tx1 := &TransactionInfo{version: 1, unlockTime: 10, extra: []byte("asdasd"), blockHeight: head2.GetDepth(), blockTimestamp: 5, doubleSpendSeen: false, inPool: false, txHash: "tx01"}
-	tx2 := &TransactionInfo{version: 1, unlockTime: 10, extra: []byte("asdasd"), blockHeight: head2.GetDepth(), blockTimestamp: 5, doubleSpendSeen: false, inPool: false, txHash: "tx02"}
-	tx3 := &TransactionInfo{version: 1, unlockTime: 10, extra: []byte("asdasd"), blockHeight: head2.GetDepth(), blockTimestamp: 5, doubleSpendSeen: false, inPool: false, txHash: "tx03"}
-	tx4 := &TransactionInfo{version: 1, unlockTime: 10, extra: []byte("asdasd"), blockHeight: head2.GetDepth(), blockTimestamp: 5, doubleSpendSeen: false, inPool: false, txHash: "tx04"}
+	head2 := &safex.BlockHeader{Depth: 11, Hash: "aaaac", PrevHash: "aaaab"} 
+	tx1 := &TransactionInfo{Version: 1, UnlockTime: 10, Extra: []byte("asdasd"), BlockHeight: head2.GetDepth(), BlockTimestamp: 5, DoubleSpendSeen: false, InPool: false, TxHash: "tx01"}
+	tx2 := &TransactionInfo{Version: 1, UnlockTime: 10, Extra: []byte("asdasd"), BlockHeight: head2.GetDepth(), BlockTimestamp: 5, DoubleSpendSeen: false, InPool: false, TxHash: "tx02"}
+	tx3 := &TransactionInfo{Version: 1, UnlockTime: 10, Extra: []byte("asdasd"), BlockHeight: head2.GetDepth(), BlockTimestamp: 5, DoubleSpendSeen: false, InPool: false, TxHash: "tx03"}
+	tx4 := &TransactionInfo{Version: 1, UnlockTime: 10, Extra: []byte("asdasd"), BlockHeight: head2.GetDepth(), BlockTimestamp: 5, DoubleSpendSeen: false, InPool: false, TxHash: "tx04"}
 
 	if err = w.PutBlockHeader(head1); err != nil {
 		t.Fatalf("%s", err)
@@ -257,7 +257,7 @@ func TestOutputRW(t *testing.T) {
 	}
 	head1 := &safex.BlockHeader{Depth: 10, Hash: "aaaab", PrevHash: ""}
 	head2 := &safex.BlockHeader{Depth: 11, Hash: "aaaac", PrevHash: "aaaab"}
-	tx1 := &TransactionInfo{version: 1, unlockTime: 10, extra: []byte("asdasd"), blockHeight: head2.GetDepth(), blockTimestamp: 5, doubleSpendSeen: false, inPool: false, txHash: "tx01"}
+	tx1 := &TransactionInfo{Version: 1, UnlockTime: 10, Extra: []byte("asdasd"), BlockHeight: head2.GetDepth(), BlockTimestamp: 5, DoubleSpendSeen: false, InPool: false, TxHash: "tx01"}
 	out1 := &safex.Txout{Amount: 20}
 
 	err = w.PutBlockHeader(head1)
@@ -463,7 +463,7 @@ func TestAccountSwitch(t *testing.T) {
 	}
 	head1 := &safex.BlockHeader{Depth: 10, Hash: "aaaab", PrevHash: ""}
 	head2 := &safex.BlockHeader{Depth: 11, Hash: "aaaac", PrevHash: "aaaab"}
-	tx1 := &TransactionInfo{version: 1, unlockTime: 10, extra: []byte("asdasd"), blockHeight: head2.GetDepth(), blockTimestamp: 5, doubleSpendSeen: false, inPool: false, txHash: "tx01"}
+	tx1 := &TransactionInfo{Version: 1, UnlockTime: 10, Extra: []byte("asdasd"), BlockHeight: head2.GetDepth(), BlockTimestamp: 5, DoubleSpendSeen: false, InPool: false, TxHash: "tx01"}
 	out1 := &safex.Txout{Amount: 20}
 
 	err = w.PutBlockHeader(head1)

@@ -26,20 +26,24 @@ func (w *FileWallet) putTransactionInfoInBlock(transactionID string, blockHash s
 
 //PutTransactionInfo Inserts a new TransactionInfo
 func (w *FileWallet) PutTransactionInfo(txInfo *TransactionInfo, blockHash string) error {
-	if w.CheckIfTransactionInfoExists(txInfo.txHash) >= 0 {
+	if w.CheckIfTransactionInfoExists(txInfo.TxHash) >= 0 {
 		return ErrTxInfoPresent
 	}
 	data, err := marshallTransactionInfo(txInfo)
 	if err != nil {
 		return err
 	}
-	if err := w.writeKey(transactionInfoKeyPrefix+txInfo.txHash, data); err != nil {
+	if err := w.writeKey(transactionInfoKeyPrefix+txInfo.TxHash, data); err != nil {
 		return err
 	}
-	if err := w.appendKey(transactionInfoReferenceKey, []byte(txInfo.txHash)); err != nil {
+	if err := w.appendKey(transactionInfoReferenceKey, []byte(txInfo.TxHash)); err != nil {
+		w.deleteKey(transactionInfoKeyPrefix + txInfo.TxHash)
 		return err
 	}
-	if err := w.putTransactionInfoInBlock(txInfo.txHash, blockHash); err != nil {
+	if err := w.putTransactionInfoInBlock(txInfo.TxHash, blockHash); err != nil {
+		i, _ := w.findKeyInReference(transactionInfoReferenceKey, txInfo.TxHash)
+		w.deleteAppendedKey(transactionInfoReferenceKey, i)
+		w.deleteKey(transactionInfoKeyPrefix + txInfo.TxHash)
 		return err
 	}
 	return nil
