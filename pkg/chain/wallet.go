@@ -13,7 +13,7 @@ import (
 // TODO: Move this to some config, or recalculate based on response time
 const BlockFetchCnt = 100
 
-func (w *Wallet) isOpen() bool {
+func (w *Wallet) IsOpen() bool {
 	if w.wallet == nil {
 		return false
 	}
@@ -33,7 +33,7 @@ func (w *Wallet) Recover(mnemonic *account.Mnemonic, walletName string, isTestne
 //OpenAndCreate Opens a filewallet and creates an account
 func (w *Wallet) OpenAndCreate(accountName string, filename string, masterkey string, isTestnet bool) error {
 	var err error
-	if w.isOpen() {
+	if w.IsOpen() {
 		w.Close()
 	}
 	if w.wallet, err = filewallet.New(filename, accountName, masterkey, true, isTestnet, nil); err != nil {
@@ -44,16 +44,24 @@ func (w *Wallet) OpenAndCreate(accountName string, filename string, masterkey st
 
 //CreateAccount Creates and account in the locally open filewallet
 func (w *Wallet) CreateAccount(accountName string, isTestnet bool) error {
-	if !w.isOpen() {
+	if !w.IsOpen() {
 		return errors.New("FileWallet not open")
 	}
 	return w.wallet.CreateAccount(&filewallet.WalletInfo{Name: accountName, Keystore: nil}, isTestnet)
 }
 
+//CreateAccount Creates and account in the locally open filewallet
+func (w *Wallet) CreateAccountFromKeyStore(accountName string, store *account.Store, isTestnet bool) error {
+	if !w.IsOpen() {
+		return errors.New("FileWallet not open")
+	}
+	return w.wallet.CreateAccount(&filewallet.WalletInfo{Name: accountName, Keystore: store}, isTestnet)
+}
+
 //OpenFile Opens a filewallet
 func (w *Wallet) OpenFile(filename string, masterkey string, isTestnet bool) error {
 	var err error
-	if w.isOpen() {
+	if w.IsOpen() {
 		w.Close()
 	}
 	if w.wallet, err = filewallet.NewClean(filename, masterkey, isTestnet); err != nil {
@@ -64,7 +72,7 @@ func (w *Wallet) OpenFile(filename string, masterkey string, isTestnet bool) err
 
 //OpenAccount opens an account if it exists
 func (w *Wallet) OpenAccount(accountName string, isTestnet bool) error {
-	if !w.isOpen() {
+	if !w.IsOpen() {
 		return errors.New("FileWallet not open")
 	}
 	return w.wallet.OpenAccount(&filewallet.WalletInfo{Name: accountName, Keystore: nil}, false, isTestnet)
@@ -77,7 +85,7 @@ func (w *Wallet) RemoveAccount(accountName string) error {
 
 //GetAccounts returns a list of all known accounts
 func (w *Wallet) GetAccounts() ([]string, error) {
-	if !w.isOpen() {
+	if !w.IsOpen() {
 		return nil, errors.New("FileWallet not open")
 	}
 	return w.wallet.GetAccounts()
@@ -86,7 +94,7 @@ func (w *Wallet) GetAccounts() ([]string, error) {
 //Status returns a local status for the wallet
 func (w *Wallet) Status() string {
 	//TODO: Correct this once we get multithreading for golang
-	if !w.isOpen() {
+	if !w.IsOpen() {
 		return "not open"
 	}
 	return "ready"
@@ -97,9 +105,13 @@ func (w *Wallet) GetFilewallet() *filewallet.FileWallet {
 	return w.wallet
 }
 
+func (w *Wallet) GetOpenAccount() string {
+	return w.wallet.GetAccount()
+}
+
 //GetKeys returns the keypair of the opened account
 func (w *Wallet) GetKeys() (*account.Store, error) {
-	if !w.isOpen() {
+	if !w.IsOpen() {
 		return nil, errors.New("FileWallet not open")
 	}
 	if w.wallet.GetAccount() == "" {

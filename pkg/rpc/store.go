@@ -2,10 +2,11 @@ package SafexRPC
 
 import (
 	"net/http"
+	"fmt"
 )
 
 type StoreRq struct {
-	Key string `json:"key"`
+	Key string `json:"key" validate:"required"`
 	Value string `json:"value,omitempty"`
 }
 
@@ -16,6 +17,7 @@ func initGetStoreData(w *http.ResponseWriter, r *http.Request, rqData *StoreRq) 
 		FormJSONResponse(nil, statusErr, w)
 		return false
 	} 
+
 	return true
 }
 
@@ -26,10 +28,27 @@ func (w *WalletRPC) StoreData(rw http.ResponseWriter, r *http.Request) {
 		return 
 	}
 	
+
+	if w.wallet == nil || !w.wallet.IsOpen() {
+		FormJSONResponse(nil, WalletIsNotOpened , &rw)
+		return
+	}
+
 	var data JSONElement;
 	data = make(JSONElement)
-	data["msg"] = "Hello Store"
+	if rqData.Value == "" {
+		data["msg"] = "Missing value field!"
+		FormJSONResponse(nil, JSONRqMalformed , &rw)
+		return
+	}
 
+	fmt.Println(rqData.Value)
+	bah := []byte(rqData.Value)
+	err := w.wallet.GetFilewallet().PutData(rqData.Key, bah)
+	if err != nil {
+		FormJSONResponse(nil, FileStoreFailed , &rw)
+		return
+	}
 	FormJSONResponse(data, EverythingOK, &rw)
 
 }
@@ -41,10 +60,24 @@ func (w *WalletRPC) LoadData(rw http.ResponseWriter, r *http.Request) {
 		return 
 	}
 	
+	
+	if w.wallet == nil || !w.wallet.IsOpen() {
+		FormJSONResponse(nil, WalletIsNotOpened , &rw)
+		return
+	}
+
 	var data JSONElement;
 	data = make(JSONElement)
-	data["msg"] = "Hello Load"
+
+	fileWallet := w.wallet.GetFilewallet()
+	val, err := fileWallet.GetData(rqData.Key)
+	if err != nil {
+		FormJSONResponse(nil, FileLoadFailed , &rw)
+		return
+	}
+
+	data["key"] = rqData.Key
+	data["value"] = string(val)
 
 	FormJSONResponse(data, EverythingOK, &rw)
-
 }

@@ -10,7 +10,8 @@ type WalletDummy struct {
 }
 
 type WalletRPC struct {
-	wallet chain.Wallet
+	wallet *chain.Wallet
+	mainnet bool // false for testnet
 }
 
 // Getting status of current wallet. If its open, syncing etc.
