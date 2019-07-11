@@ -45,11 +45,14 @@ func (w *Wallet) OpenAndCreate(accountName string, filename string, masterkey st
 }
 
 //CreateAccount Creates and account in the locally open filewallet
-func (w *Wallet) CreateAccount(accountName string, isTestnet bool) error {
+func (w *Wallet) CreateAccount(accountName string, keystore *account.Store, isTestnet bool) error {
 	if !w.isOpen() {
 		return errors.New("FileWallet not open")
 	}
-	return w.wallet.CreateAccount(&filewallet.WalletInfo{Name: accountName, Keystore: nil}, isTestnet)
+	if err := w.wallet.CreateAccount(&filewallet.WalletInfo{Name: accountName, Keystore: keystore}, isTestnet); err != nil {
+		return err
+	}
+	return nil
 }
 
 //OpenFile Opens a filewallet
@@ -69,7 +72,14 @@ func (w *Wallet) OpenAccount(accountName string, isTestnet bool) error {
 	if !w.isOpen() {
 		return errors.New("FileWallet not open")
 	}
-	return w.wallet.OpenAccount(&filewallet.WalletInfo{Name: accountName, Keystore: nil}, false, isTestnet)
+	if err := w.wallet.OpenAccount(&filewallet.WalletInfo{Name: accountName, Keystore: nil}, false, isTestnet); err != nil {
+		return err
+	}
+	keystore := w.wallet.GetInfo().Keystore
+	if keystore != nil {
+		w.account = account.NewStore(keystore.Address(), keystore.PrivateViewKey(), keystore.PrivateSpendKey())
+	}
+	return nil
 }
 
 //RemoveAccount removes the given account

@@ -8,7 +8,6 @@ import (
 	"github.com/safex/gosafex/internal/crypto"
 	"github.com/safex/gosafex/pkg/balance"
 	"github.com/safex/gosafex/pkg/safex"
-	"github.com/safex/gosafex/pkg/safexdrpc"
 )
 
 func (t *Transfer) getRelatedness(input *Transfer) float32 {
@@ -59,6 +58,7 @@ func (w *Wallet) processBlockRange(blocks safex.Blocks) bool {
 	txblck := make(map[string]string)
 	for _, blck := range blocks.Block {
 		if err := w.wallet.PutBlockHeader(blck.GetHeader()); err != nil {
+			fmt.Print(err)
 			continue
 		}
 		for _, el := range blck.Txs {
@@ -97,7 +97,7 @@ func (w *Wallet) processBlockRange(blocks safex.Blocks) bool {
 func (w *Wallet) UpdateBalance() (b balance.Balance, err error) {
 	w.outputs = make(map[crypto.Key]Transfer)
 	// Connect to node.
-	w.client = safexdrpc.InitClient("127.0.0.1", 38001)
+	//w.client = safexdrpc.InitClient("127.0.0.1", 38001)
 
 	info, err := w.client.GetDaemonInfo()
 

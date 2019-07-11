@@ -88,8 +88,8 @@ func (w *FileWallet) GetBlockHeader(BlckHash string) (*safex.BlockHeader, error)
 //PutBlockHeader serializes and writes a blck
 func (w *FileWallet) PutBlockHeader(blck *safex.BlockHeader) error {
 	blockHash := blck.GetHash()
-
-	if blck.GetPrevHash() != w.latestBlockHash {
+	a := blck.GetPrevHash()
+	if a != w.latestBlockHash && w.latestBlockHash != "" {
 		return ErrMistmatchedBlock
 	}
 

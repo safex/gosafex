@@ -311,6 +311,10 @@ func (w *FileWallet) RemoveAccount(accountName string) error {
 	return nil
 }
 
+func (w *FileWallet) GetInfo() *WalletInfo{
+	return w.info
+}
+
 //Close close the wallet
 func (w *FileWallet) Close() {
 	w.db.Close()

@@ -65,6 +65,9 @@ func (w *Wallet) ProcessTransaction(tx *safex.Transaction, blckHash string, mine
 		// @todo uniform key structure.
 
 		tempKey := curve.Key(w.account.PublicViewKey().ToBytes())
+		a := tempKey.String()
+		if a == a {
+		}
 		ret, err := crypto.DeriveKey((*crypto.Key)(&pubTxKey), (*crypto.Key)(&tempKey))
 		if err != nil {
 			return err
