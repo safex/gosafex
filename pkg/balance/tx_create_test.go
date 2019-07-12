@@ -6,7 +6,7 @@ import (
 	"log"
 	"os"
 )
-m
+
 func TestTxCreate(t *testing.T) {
 	f, err := os.OpenFile("testlogfile", os.O_RDWR | os.O_CREATE | os.O_APPEND, 0666)
 	if err != nil {
@@ -21,6 +21,7 @@ func TestTxCreate(t *testing.T) {
 	wallet.Address.ViewKey.Private = HexToKey("9fde8d863a3040ff67ccc07c49b55ee4746d4db410fb18bdde7dbd7ccba4180e")
 	wallet.Address.SpendKey.Public = HexToKey("09917953e467c5cd62201ea63a93fcd123c754b249cb8e89d4251d67c907b169")
 	wallet.Address.SpendKey.Private = HexToKey("e6887bea1e8126e8160ceef01ec35c81dd3e86e9d0e7e3c47087c113731ae508")
+	wallet.Address.Address = "SFXtzR3hzrNfCpTAgJFfQyAoHHLhLhw53DLuWYSk3pz2adF7WQqdYJURUCptBkrR8WRmdsY1oVZX7j2QXerkynJ2iDzPsu68q9V"
 
 	_, _ = wallet.GetBalance()
 

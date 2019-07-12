@@ -1,5 +1,11 @@
 package balance
 
+import (	
+	"log"
+	"bytes"
+	"errors"
+	"fmt"
+)
 
 type ExtraTag byte
 
@@ -16,13 +22,14 @@ const (
 	MysteriousMinergate = 0xDE //
 	BitcoinHash = 0x10
 	MigrationPubkeys = 0x11
-	NoncePaymentId = 0x00
-	NonceEncryptedPaymentId = 0x01
+
+	NoncePaymentId = 0xF0
+	NonceEncryptedPaymentId = 0xF1
 )
 
 func ExtractTxPubKey(extra []byte) (pubTxKey [32]byte) {
 	// @todo Also if serialization is ok
-	if extra[0] == TX_EXTRA_TAG_PUBKEY {
+	if extra[0] == PubKey {
 		copy(pubTxKey[:], extra[1:33])
 	}
 	return pubTxKey
@@ -35,13 +42,42 @@ func ExtractTxPubKeys(extra []byte) (pubTxKeys [][32]byte) {
 
 func checkForError(err error, msg string) (r bool) {
 	if err != nil {
-		log.Error(msg)
+		log.Println(msg)
 		return true
 	}
 	return false
 }
 
 type ExtraMap map[ExtraTag]interface{}
+
+func getNonce(extraMap ExtraMap) []byte {
+	buf := bytes.NewBuffer(nil)
+
+	// if payment id are set, they replace nonce
+	// first place unencrypted payment id
+	if _, ok := extraMap[NoncePaymentId]; ok {
+		dataBytes := extraMap[NoncePaymentId].([]byte)
+		if len(dataBytes) == 32 { // payment id is valid
+			buf.WriteByte(0x00)
+			buf.Write(dataBytes)
+		} else {
+			log.Println("unencrypted payment id size mismatch expected")
+		}
+	}
+
+	// if encrypted nonce is provide, it will overwrite 32 byte nonce
+	if _, ok := extraMap[NonceEncryptedPaymentId]; ok {
+		dataBytes := extraMap[NonceEncryptedPaymentId].([]byte)
+		if len(dataBytes) == 8 { // payment id is valid
+			buf.WriteByte(0x01)
+			buf.Write(dataBytes)
+		} else {
+			log.Println("encrypted payment id size mismatch expected")
+		}
+	}
+
+	return buf.Bytes()
+}
 
 func ParseExtra(extra *[]byte) (r bool, extraMap ExtraMap) {
 	buf := bytes.NewReader(*extra)
@@ -50,14 +86,13 @@ func ParseExtra(extra *[]byte) (r bool, extraMap ExtraMap) {
 
 	readPortion := make([]byte, 1)
 
-	var readBytes int = 0
 	for ;; {
 
 		if buf.Len() == 0 {
 			return true, extraMap
 		}
 
-		readBytes, err = buf.Read(readPortion)
+		readBytes, err := buf.Read(readPortion)
 
 		switch ExtraTag(readPortion[0]) {
 		case Padding: 
@@ -95,8 +130,8 @@ func ParseExtra(extra *[]byte) (r bool, extraMap ExtraMap) {
 			nonce := make([]byte, length)
 			readBytes, err = buf.Read(nonce)
 			
-			if err != nil || n != int(length_int) {
-				rlog.Tracef(1, "Extra Nonce could not be read ")
+			if err != nil || readBytes != int(length) {
+				log.Println(1, "Extra Nonce could not be read ")
 				return false, extraMap
 			}
 
@@ -105,15 +140,16 @@ func ParseExtra(extra *[]byte) (r bool, extraMap ExtraMap) {
 				if nonce[0] == byte(NoncePaymentId) {
 					extraMap[NoncePaymentId] = nonce[1:]
 				} else {
-					checkForError(error{}, "Invalid PaymentId")
+					checkForError(errors.New(""), "Invalid PaymentId")
 					return false, extraMap
 				}
 
 			case 9: // encrypted 9 byte payment id
+				fmt.Println("EXTRA 9 fuck")
 				if nonce[0] == byte(NonceEncryptedPaymentId) {
-					extraMap[NonceEncryptedPaymentId] = extra[1:]
+					extraMap[NonceEncryptedPaymentId] = (*extra)[1:]
 				} else {
-					checkForError(error{}, "Invalid PaymentId")
+					checkForError(errors.New("Invalid PaymentId"), "Invalid PaymentId")
 					return false, extraMap
 				}
 
@@ -123,7 +159,7 @@ func ParseExtra(extra *[]byte) (r bool, extraMap ExtraMap) {
 			extraMap[Nonce] = nonce
 
 		default: // any any other unknown tag or data, fails the parsing
-			log.Error("Unhandled tag! ", readPortion[0])
+			log.Println("Unhandled tag! ", readPortion[0])
 
 			return false, extraMap
 
@@ -135,55 +171,30 @@ func SerializeExtra(extraMap ExtraMap) (bool, []byte) {
 	buf := bytes.NewBuffer(nil)
 
 	// this is mandatory
-	if _, ok := extraMap[TX_PUBLIC_KEY]; ok {
-		buf.WriteByte(byte(TX_PUBLIC_KEY)) // write marker
-		key := tx.Extra_map[TX_PUBLIC_KEY].(crypto.Key)
-		buf.Write(key[:]) // write the key
+	if _, ok := extraMap[PubKey]; ok {
+		buf.WriteByte(PubKey)
+		key := extraMap[PubKey].([32]byte)
+		buf.Write(key[:]) 
 	} else {
-		rlog.Tracef(1, "TX does not contain a Public Key, not possible, the transaction will be rejected")
-		return buf.Bytes() // as keys are not provided, no point adding other fields
+		log.Println("There is no TX public key")
+		return false, buf.Bytes()
 	}
 
-	// extra nonce should be serialized only if other nonce are not provided, tx should contain max 1 nonce
-	// it can be either, extra nonce, 32 byte payment id or 8 byte encrypted payment id
 
-	// if payment id are set, they replace nonce
-	// first place unencrypted payment id
-	if _, ok := tx.PaymentID_map[TX_EXTRA_NONCE_PAYMENT_ID]; ok {
-		data_bytes := tx.PaymentID_map[TX_EXTRA_NONCE_PAYMENT_ID].([]byte)
-		if len(data_bytes) == 32 { // payment id is valid
-			header := append([]byte{byte(TX_EXTRA_NONCE_PAYMENT_ID)}, data_bytes...)
-			tx.Extra_map[TX_EXTRA_NONCE] = header // overwrite extra nonce with this
-		}
-		rlog.Tracef(1, "unencrypted payment id size mismatch expected = %d actual %d", 32, len(data_bytes))
-	}
-
-	// if encrypted nonce is provide, it will overwrite 32 byte nonce
-	if _, ok := tx.PaymentID_map[TX_EXTRA_NONCE_ENCRYPTED_PAYMENT_ID]; ok {
-		data_bytes := tx.PaymentID_map[TX_EXTRA_NONCE_ENCRYPTED_PAYMENT_ID].([]byte)
-		if len(data_bytes) == 8 { // payment id is valid
-			header := append([]byte{byte(TX_EXTRA_NONCE_ENCRYPTED_PAYMENT_ID)}, data_bytes...)
-			tx.Extra_map[TX_EXTRA_NONCE] = header // overwrite extra nonce with this
-		}
-		rlog.Tracef(1, "unencrypted payment id size mismatch expected = %d actual %d", 8, len(data_bytes))
-	}
-
+	tempExtra := getNonce(extraMap)
+	dataExtra, additionalExtraNonce := extraMap[Nonce]
 	// TX_EXTRA_NONCE is optional
 	// if payment is present, it is packed as extra nonce
-	if _, ok := tx.Extra_map[TX_EXTRA_NONCE]; ok {
-		buf.WriteByte(byte(TX_EXTRA_NONCE)) // write marker
-		data_bytes := tx.Extra_map[TX_EXTRA_NONCE].([]byte)
-
-		if len(data_bytes) > 255 {
-			rlog.Tracef(1, "TX extra none is spilling, trimming the nonce to 254 bytes")
-			data_bytes = data_bytes[:254]
+	if additionalExtraNonce || len(tempExtra) > 0 {
+		buf.WriteByte(byte(Nonce)) // write marker
+		tempExtra = append(tempExtra, dataExtra.([]byte)...)
+		if len(tempExtra) > 255 {
+			log.Println("TX extra none is spilling, trimming the nonce to 254 bytes")
+			tempExtra = tempExtra[:254]
 		}
-		buf.WriteByte(byte(len(data_bytes))) // write length of extra nonce single byte
-		buf.Write(data_bytes[:])             // write the nonce data
+		buf.WriteByte(byte(len(tempExtra))) // write length of extra nonce single byte
+		buf.Write(tempExtra[:])             // write the nonce data
 	}
-
-	// NOTE: we do not support adding padding for the sake of it
-
-	return buf.Bytes()
+	return true, buf.Bytes()
 
 }

@@ -107,3 +107,35 @@ func HashToEC(p Key) (result *ExtendedGroupElement) {
 	p2.ToExtended(result)
 	return
 }
+
+func ScalarmultBase(a Key) (aG Key) {
+	reduce32copy := a
+	ScReduce32(&reduce32copy)
+	point := new(ExtendedGroupElement)
+	GeScalarMultBase(point, &a)
+	point.ToBytes(&aG)
+	return aG
+}
+
+// DerivationToPublicKey TODO: comment function
+func DerivationToPublicKey(idx uint64, der, base *Key) (result *Key, err error) {
+	point1 := new(ExtendedGroupElement)
+	point2 := new(ExtendedGroupElement)
+	point3 := new(CachedGroupElement)
+	point4 := new(CompletedGroupElement)
+	point5 := new(ProjectiveGroupElement)
+	keyBuf := new(Key)
+
+	copy(keyBuf[:], base[:]) // TODO: prevent copying.
+	if !point1.fromBytes(keyBuf) {
+		return nil, ErrInvalidPubKey
+	}
+
+	scalar := derivationToScalar(idx, der)
+	GeScalarMultBase(point2, scalar)
+	point2.toCached(point3)
+	geAdd(point4, point1, point3)
+	point4.toProjective(point5)
+	point5.toBytes(keyBuf)
+	return keyBuf, nil
+}

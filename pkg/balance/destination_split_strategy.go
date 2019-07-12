@@ -5,7 +5,7 @@ type digitSplitStrategyHandler func(uint64)
 func DecomposeAmountIntoDigits(
 	amount uint64, 
 	dustThreshold uint64, 
-	splitHandler digitSplitStrategyHandler, 
+	chunkHandler digitSplitStrategyHandler, 
 	dustHandler digitSplitStrategyHandler) {
 
 	if amount == 0 {
@@ -33,8 +33,8 @@ func DecomposeAmountIntoDigits(
 		}
 	}
 
-	if !isDustHandler && dust != 0 {
-		dustHandler(dustHandler)
+	if !isDustHandled && dust != 0 {
+		dustHandler(dust)
 	}
 }
 
@@ -49,6 +49,21 @@ func DigitSplitStrategy(
 	*dustDsts = nil
 
 	for _,val := range(*dsts) {
-		DecomposeAmountIntoDigits()
+		if val.TokenTransaction {
+			DecomposeAmountIntoDigits(val.TokenAmount, 0, 
+			func(input uint64) {
+				*splittedDsts = append(*splittedDsts, DestinationEntry{0, input, val.Address, false, true})
+			}, func(input uint64){
+				*dustDsts = append(*dustDsts, DestinationEntry{0, input, val.Address, false, true})
+			})
+		} else {
+			DecomposeAmountIntoDigits(val.TokenAmount, 0, 
+				func(input uint64) {
+					*splittedDsts = append(*splittedDsts, DestinationEntry{input, 0, val.Address, false, false})
+				}, func(input uint64){
+					*dustDsts = append(*dustDsts, DestinationEntry{input, 0, val.Address, false, false})
+				})
+		}
+		
 	}
 }

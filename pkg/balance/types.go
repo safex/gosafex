@@ -94,7 +94,7 @@ type PendingTx struct {
 
 type TxOutputEntry struct {
 	Index uint64
-	Key [32]byte
+	Key [32]byte	
 }
 
 
@@ -103,6 +103,8 @@ type TxSourceEntry struct {
 	RealOutput uint64
 	RealOutTxKey [32]byte
 	RealOutAdditionalTxKeys [][32]byte
+	KeyImage [32]byte
+	RealOutputInTxIndex int
 	Amount uint64
 	TokenAmount uint64
 	TokenTx bool
@@ -115,4 +117,12 @@ type TX struct {
 	Tx                safex.Transaction
 	PendingTx         PendingTx
 	bytes             uint64
+}
+
+// Instead of having 
+type TxInToKey struct {
+	Amount uint64
+	KeyOffsets []uint64
+	KeyImage [32]byte
+	TokenKey bool
 }

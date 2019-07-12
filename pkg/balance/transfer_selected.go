@@ -2,8 +2,21 @@ package balance
 
 import (
 	"fmt"
+	"log"
+
+	"github.com/safex/gosafex/pkg/account"
 	"github.com/safex/gosafex/pkg/safex"
 )
+
+func convertAddress(input Address) *account.Address {
+	acc, err := account.FromBase58(input.Address)
+	if err != nil {
+		fmt.Println("String: ", input.Address)
+		fmt.Println("err: ", err)
+		return nil
+	}
+	return acc
+}
 
 func (w *Wallet) transferSelected(dsts *[]DestinationEntry, selectedTransfers *[]Transfer, fakeOutsCount int, outs *[][]OutsEntry,
 	unlockTime uint64, fee uint64, extra *[]byte, tx *safex.Transaction, ptx *PendingTx, outType safex.TxOutType) { // destination_split_strategy, // dust_policy
@@ -48,7 +61,7 @@ func (w *Wallet) transferSelected(dsts *[]DestinationEntry, selectedTransfers *[
 	var sources []TxSourceEntry
 	var outIndex uint64 = 0
 	var i uint64 = 0
-	for index, val := range(*selectedTransfers) {
+	for _, val := range(*selectedTransfers) {
 		src := TxSourceEntry{}
 		src.Amount = GetOutputAmount(val.Output, safex.OutCash)
 		src.TokenAmount = GetOutputAmount(val.Output, safex.OutToken)
@@ -56,15 +69,16 @@ func (w *Wallet) transferSelected(dsts *[]DestinationEntry, selectedTransfers *[
 
 		for n := 0; n <= fakeOutsCount; n++ {
 			var oe TxOutputEntry
-			oe.Index = outs[outIndex][n].Index
-			oe.Key = outs[outIndex][n].PubKey
+			oe.Index = (*outs)[outIndex][n].Index
+			oe.Key = (*outs)[outIndex][n].PubKey
 			src.Outputs = append(src.Outputs, oe)
 			i++
 		}
 
 		var realIndex int = -1
-		for i1, v1 := range(src.Outputs) {
+		for _, v1 := range(src.Outputs) {
 			if v1.Index == val.GlobalIndex {
+				realIndex = 1
 				break;
 			}
 		}
@@ -75,23 +89,28 @@ func (w *Wallet) transferSelected(dsts *[]DestinationEntry, selectedTransfers *[
 
 		realOE := TxOutputEntry{}
 		realOE.Index = val.GlobalIndex
-		realOE.Key = GetOutputKey(val.Output, outType)
+		keyTemp := GetOutputKey(val.Output, outType)
+		copy(realOE.Key[:], keyTemp) 
 		src.Outputs[realIndex] = realOE
 
 		src.RealOutTxKey = ExtractTxPubKey(val.Extra)
 		src.RealOutAdditionalTxKeys = ExtractTxPubKeys(val.Extra)
-		src.RealOutput = realIndex
+		src.RealOutput = uint64(realIndex)
 		src.RealOutputInTxIndex = val.LocalIndex
+		copy(src.KeyImage[:], val.KImage[:])
+		sources = append(sources, src)
 		outIndex++
 	}
 
 	log.Println("Outputs prepared!!!")
 
 	var changeDts DestinationEntry
-	var changeTokenDts DestinationEntry
+	// fvar changeTokenDts DestinationEntry
 	
 	if neededMoney < foundMoney {
-		changeDts.Address = w.Address
+		tempAddr := convertAddress(w.Address)
+		fmt.Println(tempAddr)
+		changeDts.Address = *tempAddr
 		changeDts.Amount = foundMoney - neededMoney
 	}
 
@@ -107,9 +126,12 @@ func (w *Wallet) transferSelected(dsts *[]DestinationEntry, selectedTransfers *[
 		
 	// @warning @todo Implement dust policy 
 	
-	var splittedDsts []DestinationEntry
-	var dustDsts []DestinationEntry
+	// var splittedDsts []DestinationEntry
+	// var dustDsts []DestinationEntry
 
 	var txKey [32]byte
-	 r := constructTxAndGetTxKey(&sources, )
+
+	// @todo consider here if we need to send dsts or splitted dsts
+	r := w.constructTxAndGetTxKey(&sources, dsts, &(changeDts.Address), extra, tx, unlockTime, &txKey)
+	fmt.Println(r)
 }
