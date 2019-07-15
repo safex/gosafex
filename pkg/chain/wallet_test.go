@@ -99,11 +99,9 @@ func TestUpdateBalance(t *testing.T) {
 		t.Fatalf("%s", err)
 	}
 	defer CleanAfterTests(w, fullpath)
-
 	if err := w.InitClient(clientAddress, clientPort); err != nil {
 		t.Fatalf("%s", err)
 	}
-
 	pubViewKey, err := curve.NewFromString(wallet1pubview)
 	if err != nil {
 		t.Fatalf("%s", err)
@@ -120,11 +118,11 @@ func TestUpdateBalance(t *testing.T) {
 	if err != nil {
 		t.Fatalf("%s", err)
 	}
-	//@todo t3v4
+
 	a := account.NewStore(account.NewRegularTestnetAddress(*key.NewPublicKey(pubSpendKey), *key.NewPublicKey(pubViewKey)), *key.NewPrivateKey(privViewKey), *key.NewPrivateKey(privSpendKey))
+
 	//pubspendbytes := a.PublicSpendKey().ToBytes()
 	//pubviewbytes := a.PublicViewKey().ToBytes()
-
 	if err := w.CreateAccount(accountName1, a, true); err != nil {
 		t.Fatalf("%s", err)
 	}
@@ -133,7 +131,9 @@ func TestUpdateBalance(t *testing.T) {
 	}
 	if b, err := w.UpdateBalance(); err != nil {
 		t.Fatalf("%s", err)
+	} else if b.CashUnlocked == 0 && b.CashLocked == 0 && b.TokenUnlocked == 0 && b.TokenLocked == 0 {
+		t.Fatalf("Got null balance\n")
 	} else {
-		t.Fatal(b)
+		t.Fatalf("Locked Cash:%v\nUnlocked Cash:%v\nLocked Tokens:%v\nUnlocked Tokens:%v", float64(b.CashLocked)/10e9, float64(b.CashUnlocked)/10e9, float64(b.TokenLocked)/10e9, float64(b.TokenUnlocked)/10e9)
 	}
 }

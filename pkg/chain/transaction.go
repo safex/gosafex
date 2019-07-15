@@ -64,10 +64,8 @@ func (w *Wallet) ProcessTransaction(tx *safex.Transaction, blckHash string, mine
 
 		// @todo uniform key structure.
 
-		tempKey := curve.Key(w.account.PublicViewKey().ToBytes())
-		a := tempKey.String()
-		if a == a {
-		}
+		tempKey := curve.Key(w.account.PrivateViewKey().ToBytes())
+
 		ret, err := crypto.DeriveKey((*crypto.Key)(&pubTxKey), (*crypto.Key)(&tempKey))
 		if err != nil {
 			return err
@@ -140,7 +138,7 @@ func (w *Wallet) ProcessTransaction(tx *safex.Transaction, blckHash string, mine
 
 					outID, _ := filewallet.PackOutputIndex(blckHash, val.Height)
 					w.wallet.UnlockOutput(outID)
-					w.balance.CashLocked -= val.Output.Amount
+					w.balance.CashUnlocked -= val.Output.Amount
 					val.Spent = true
 				}
 			} else {
@@ -157,7 +155,7 @@ func (w *Wallet) ProcessTransaction(tx *safex.Transaction, blckHash string, mine
 						}
 						outID, _ := filewallet.PackOutputIndex(blckHash, val.Height)
 						w.wallet.UnlockOutput(outID)
-						w.balance.TokenLocked -= val.Output.TokenAmount
+						w.balance.TokenUnlocked -= val.Output.TokenAmount
 						val.Spent = true
 					}
 				}

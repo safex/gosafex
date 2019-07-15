@@ -195,17 +195,26 @@ func (w *FileWallet) putOutputInfo(outID string, outInfo *OutputInfo) error {
 		return err
 	}
 	if err := w.appendKey(outputInfoPrefix+outID, []byte(outInfo.BlockHash)); err != nil {
+		w.deleteKey(outputInfoPrefix + outID)
 		return err
 	}
 	if err := w.appendKey(outputInfoPrefix+outID, []byte(outInfo.TransactionID)); err != nil {
+		w.deleteKey(outputInfoPrefix + outID)
 		return err
 	}
 	if err := w.appendKey(outputInfoPrefix+outID, []byte(outInfo.TxLocked)); err != nil {
+		w.deleteKey(outputInfoPrefix + outID)
 		return err
 	}
 	if err := w.appendKey(outputInfoPrefix+outID, []byte(outInfo.TxType)); err != nil {
+		w.deleteKey(outputInfoPrefix + outID)
 		return err
 	}
+
+	if outInfo.TxLocked == LockedStatus{
+		w.lockedOutputs = append(w.lockedOutputs,outID)
+	}
+
 	return nil
 }
 
@@ -467,8 +476,13 @@ func (w *FileWallet) LockOutput(outID string) error {
 	if err != nil {
 		return err
 	}
-	OutInf.TxLocked = LockedStatus
-	return w.putOutputInfo(outID, OutInf)
+	if OutInf.TxLocked != LockedStatus{
+		OutInf.TxLocked = LockedStatus
+		w.lockedOutputs = append(w.lockedOutputs, outID)
+		return w.putOutputInfo(outID, OutInf)
+	}
+	return nil
+	
 }
 
 //UnlockOutput Sets the lockStatus of the outputID as UnlockedStatus
@@ -476,7 +490,15 @@ func (w *FileWallet) UnlockOutput(outID string) error {
 	OutInf, err := w.GetOutputInfo(outID)
 	if err != nil {
 		return err
+	}	
+	if OutInf.TxLocked != UnlockedStatus{
+		OutInf.TxLocked = UnlockedStatus
+		for i, el := range w.lockedOutputs {
+			if el == outID{
+				w.lockedOutputs = append(w.lockedOutputs[:i],w.lockedOutputs[i+1:]...)
+			}
+		}
+		return w.putOutputInfo(outID, OutInf)
 	}
-	OutInf.TxLocked = UnlockedStatus
-	return w.putOutputInfo(outID, OutInf)
+	return nil
 }

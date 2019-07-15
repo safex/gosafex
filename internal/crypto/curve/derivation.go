@@ -46,12 +46,10 @@ func hashToEC(data []byte) (result *ExtendedGroupElement) {
 // Returns ErrInvalidPrivKey if the given private key (secret) is invalid.
 // Returns ErrInvalidPubKey if the given public key is invalid.
 func DeriveKey(pub, priv *Key) (result *Key, err error) {
-	a := priv.String()
-	b := pub.String()
-	if a == a {
-	}
-	if b == b {
-	}
+	pubkey := pub.String()
+	privkey := priv.String()
+	if pubkey == pubkey{}
+	if privkey == privkey{}
 	point := new(ExtendedGroupElement)
 	point2 := new(ProjectiveGroupElement)
 	point3 := new(CompletedGroupElement)
@@ -68,7 +66,7 @@ func DeriveKey(pub, priv *Key) (result *Key, err error) {
 	copy(keyBuf[:], priv[:])
 	GeScalarMult(point2, keyBuf, point)
 	GeMul8(point3, point2)
-	point3.toProjective(point2)
+	point3.toProjective(point2) 
 
 	point2.toBytes(keyBuf)
 	return keyBuf, nil

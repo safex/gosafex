@@ -19,6 +19,7 @@ type FileWallet struct {
 	db                *filestore.EncryptedDB
 	knownOutputs      []string //REMEMBER TO INITIALIZE THIS
 	unspentOutputs    []string
+	lockedOutputs	  []string
 	latestBlockNumber uint64
 	latestBlockHash   string
 }
@@ -313,6 +314,10 @@ func (w *FileWallet) RemoveAccount(accountName string) error {
 
 func (w *FileWallet) GetInfo() *WalletInfo{
 	return w.info
+}
+
+func (w *FileWallet) GetLockedOutputs() []string{
+	return w.lockedOutputs
 }
 
 //Close close the wallet
