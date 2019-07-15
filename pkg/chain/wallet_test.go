@@ -16,6 +16,8 @@ const accountName1 = "account1"
 const accountName2 = "account2"
 const masterPass = "masterpass"
 const foldername = "test"
+
+//change this address and port
 const clientAddress = "192.168.119.129"
 const clientPort = 37001
 
@@ -88,7 +90,7 @@ func TestRPC(t *testing.T) {
 		t.Fatal(info)
 	}
 }
-
+//this test for now fails to check balance
 func TestUpdateBalance(t *testing.T) {
 	prepareFolder()
 
