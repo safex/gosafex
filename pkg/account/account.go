@@ -74,11 +74,14 @@ func FromSeed(seed *Seed, isTestnet bool) *Store {
 // If testnet is true it will generate a testnet account
 // View keys are derived from spend keys.
 // Returns an error if the mnemonic is invalid or cannot be parsed.
-func FromMnemonic(mnemonic *Mnemonic, isTestnet bool) (result *Store, err error) {
+func FromMnemonic(mnemonic *Mnemonic, password string, isTestnet bool) (result *Store, err error) {
 	seed, err := mnemonic.ToSeed()
 	if err != nil {
 		return nil, err
 	}
+	encPass := cn_slow_hash([]byte(password))
+	scSub(*seed, *seed, encPass)
+
 	//We can use unsafe since we are sure of the underlying type
 	result = FromSeed((*Seed)(unsafe.Pointer(seed)), isTestnet)
 	return
