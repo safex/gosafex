@@ -39,6 +39,27 @@ func extractTxPubKey(extra []byte) (pubTxKey [crypto.KeyLength]byte) {
 	return pubTxKey
 }
 
+func (w *Wallet) addOutput(output *safex.Txout, index uint64, minertx bool, blckHash string, txHash string, height uint64, keyimage *crypto.Key) {
+	var typ string
+	var txtyp string
+	if output.GetAmount() != 0 {
+		typ = "Cash"
+	} else {
+		typ = "Token"
+	}
+	if minertx {
+		txtyp = "miner"
+	} else {
+		txtyp = "normal"
+	}
+
+	w.wallet.AddOutput(output, uint64(index), &filewallet.OutputInfo{OutputType: typ, BlockHash: blckHash, TransactionID: txHash, TxLocked: filewallet.LockedStatus, TxType: txtyp}, "")
+	w.outputs[*keyimage] = Transfer{output, false, minertx, height, *keyimage}
+	w.balance.CashLocked += output.Amount
+	w.balance.TokenLocked += output.TokenAmount
+
+}
+
 func (w *Wallet) matchOutput(txOut *safex.Txout, index uint64, der [crypto.KeyLength]byte, outputKey *[crypto.KeyLength]byte) bool {
 	tempKeyA := crypto.Key(der)
 	tempKeyB := curve.Key(w.account.Address().SpendKey.ToBytes())
@@ -60,90 +81,79 @@ func (w *Wallet) ProcessTransaction(tx *safex.Transaction, blckHash string, mine
 	// @todo Process Unconfirmed.
 	// Process outputs
 	if len(tx.Vout) != 0 {
-		pubTxKey := extractTxPubKey(tx.Extra)
-
-		// @todo uniform key structure.
-
-		tempKey := curve.Key(w.account.PrivateViewKey().ToBytes())
-
-		ret, err := crypto.DeriveKey((*crypto.Key)(&pubTxKey), (*crypto.Key)(&tempKey))
+		accs, err := w.GetAccounts()
 		if err != nil {
 			return err
 		}
-		txPubKeyDerivation := ([crypto.KeyLength]byte)(*ret)
-		txPresent := false
+		for _, acc := range accs {
+			err := w.OpenAccount(acc, w.testnet)
 
-		for index, output := range tx.Vout {
-			var outputKey [crypto.KeyLength]byte
-			if !w.matchOutput(output, uint64(index), txPubKeyDerivation, &outputKey) {
+			if err != nil {
 				continue
 			}
-			if !txPresent {
-				if inf, _ := w.wallet.GetTransactionInfo(tx.GetTxHash()); inf == nil {
-					if err := w.wallet.PutTransactionInfo(&filewallet.TransactionInfo{Version: tx.GetVersion(), UnlockTime: tx.GetUnlockTime(), Extra: tx.GetExtra(), BlockHeight: tx.GetBlockHeight(), BlockTimestamp: tx.GetBlockTimestamp(), DoubleSpendSeen: tx.GetDoubleSpendSeen(), InPool: tx.GetInPool(), TxHash: tx.GetTxHash()}, blckHash); err != nil {
-						return err
+
+			pubTxKey := extractTxPubKey(tx.Extra)
+
+			// @todo uniform key structure.
+
+			tempKey := curve.Key(w.account.PrivateViewKey().ToBytes())
+
+			ret, err := crypto.DeriveKey((*crypto.Key)(&pubTxKey), (*crypto.Key)(&tempKey))
+			if err != nil {
+				return err
+			}
+			txPubKeyDerivation := ([crypto.KeyLength]byte)(*ret)
+			txPresent := false
+
+			for index, output := range tx.Vout {
+				var outputKey [crypto.KeyLength]byte
+				if !w.matchOutput(output, uint64(index), txPubKeyDerivation, &outputKey) {
+					continue
+				}
+				if !txPresent {
+					if inf, _ := w.wallet.GetTransactionInfo(tx.GetTxHash()); inf == nil {
+						if err := w.wallet.PutTransactionInfo(&filewallet.TransactionInfo{Version: tx.GetVersion(), UnlockTime: tx.GetUnlockTime(), Extra: tx.GetExtra(), BlockHeight: tx.GetBlockHeight(), BlockTimestamp: tx.GetBlockTimestamp(), DoubleSpendSeen: tx.GetDoubleSpendSeen(), InPool: tx.GetInPool(), TxHash: tx.GetTxHash()}, blckHash); err != nil {
+							return err
+						}
+						txPresent = true
 					}
-					txPresent = true
 				}
+
+				tempPrivateSpendKey := curve.Key(w.account.PrivateSpendKey().ToBytes())
+				tempPublicSpendKey := curve.Key(w.account.PublicSpendKey().ToBytes())
+				temptxPubKeyDerivation := crypto.Key(txPubKeyDerivation)
+				ephemeralSecret := curve.DerivationToPrivateKey(uint64(index), &tempPrivateSpendKey, &temptxPubKeyDerivation)
+				ephemeralPublic, _ := curve.DerivationToPublicKey(uint64(index), &temptxPubKeyDerivation, &tempPublicSpendKey) //TODO: Manage error
+				keyimage := curve.KeyImage(ephemeralPublic, ephemeralSecret)
+
+				if _, ok := w.outputs[*keyimage]; !ok {
+					w.addOutput(output, uint64(index), minerTx, blckHash, tx.GetTxHash(), tx.BlockHeight, keyimage)
+				}
+
 			}
-
-			tempPrivateSpendKey := curve.Key(w.account.PrivateSpendKey().ToBytes())
-			tempPublicSpendKey := curve.Key(w.account.PublicSpendKey().ToBytes())
-			temptxPubKeyDerivation := crypto.Key(txPubKeyDerivation)
-			ephemeralSecret := curve.DerivationToPrivateKey(uint64(index), &tempPrivateSpendKey, &temptxPubKeyDerivation)
-			ephemeralPublic, _ := curve.DerivationToPublicKey(uint64(index), &temptxPubKeyDerivation, &tempPublicSpendKey) //TODO: Manage error
-			keyimage := curve.KeyImage(ephemeralPublic, ephemeralSecret)
-
-			if _, ok := w.outputs[*keyimage]; !ok {
-				var typ string
-				if output.GetAmount() != 0 {
-					typ = "Cash"
-				} else {
-					typ = "Token"
-				}
-				var txtyp string
-				if minerTx {
-					txtyp = "miner"
-				} else {
-					txtyp = "normal"
-				}
-				w.wallet.AddOutput(output, uint64(index), &filewallet.OutputInfo{OutputType: typ, BlockHash: blckHash, TransactionID: tx.GetTxHash(), TxLocked: filewallet.LockedStatus, TxType: txtyp}, "")
-				w.outputs[*keyimage] = Transfer{output, false, minerTx, tx.BlockHeight, *keyimage}
-				w.balance.CashLocked += output.Amount
-				w.balance.TokenLocked += output.TokenAmount
-			}
-
 		}
 	}
 
 	if len(tx.Vin) != 0 {
-		txPresent := false
-		for _, input := range tx.Vin {
-			var kImage [crypto.KeyLength]byte
-			if input.TxinGen != nil {
+
+		accs, err := w.GetAccounts()
+		if err != nil {
+			return err
+		}
+		for _, acc := range accs {
+			err := w.OpenAccount(acc, w.testnet)
+			if err != nil {
 				continue
 			}
-			if input.TxinToKey != nil {
-				copy(kImage[:], input.TxinToKey.KImage[0:crypto.KeyLength])
-
-				if val, ok := w.outputs[crypto.Key(kImage)]; ok {
-					if !txPresent {
-						if inf, _ := w.wallet.GetTransactionInfo(tx.GetTxHash()); inf == nil {
-							if err := w.wallet.PutTransactionInfo(&filewallet.TransactionInfo{Version: tx.GetVersion(), UnlockTime: tx.GetUnlockTime(), Extra: tx.GetExtra(), BlockHeight: tx.GetBlockHeight(), BlockTimestamp: tx.GetBlockTimestamp(), DoubleSpendSeen: tx.GetDoubleSpendSeen(), InPool: tx.GetInPool(), TxHash: tx.GetTxHash()}, blckHash); err != nil {
-								return err
-							}
-							txPresent = true
-						}
-					}
-
-					outID, _ := filewallet.PackOutputIndex(blckHash, val.Height)
-					w.wallet.UnlockOutput(outID)
-					w.balance.CashUnlocked -= val.Output.Amount
-					val.Spent = true
+			txPresent := false
+			for _, input := range tx.Vin {
+				var kImage [crypto.KeyLength]byte
+				if input.TxinGen != nil {
+					continue
 				}
-			} else {
-				if input.TxinTokenToKey != nil {
-					copy(kImage[:], input.TxinTokenToKey.KImage[0:crypto.KeyLength])
+				if input.TxinToKey != nil {
+					copy(kImage[:], input.TxinToKey.KImage[0:crypto.KeyLength])
+
 					if val, ok := w.outputs[crypto.Key(kImage)]; ok {
 						if !txPresent {
 							if inf, _ := w.wallet.GetTransactionInfo(tx.GetTxHash()); inf == nil {
@@ -153,10 +163,24 @@ func (w *Wallet) ProcessTransaction(tx *safex.Transaction, blckHash string, mine
 								txPresent = true
 							}
 						}
-						outID, _ := filewallet.PackOutputIndex(blckHash, val.Height)
-						w.wallet.UnlockOutput(outID)
-						w.balance.TokenUnlocked -= val.Output.TokenAmount
+						w.balance.CashUnlocked -= val.Output.Amount
 						val.Spent = true
+					}
+				} else {
+					if input.TxinTokenToKey != nil {
+						copy(kImage[:], input.TxinTokenToKey.KImage[0:crypto.KeyLength])
+						if val, ok := w.outputs[crypto.Key(kImage)]; ok {
+							if !txPresent {
+								if inf, _ := w.wallet.GetTransactionInfo(tx.GetTxHash()); inf == nil {
+									if err := w.wallet.PutTransactionInfo(&filewallet.TransactionInfo{Version: tx.GetVersion(), UnlockTime: tx.GetUnlockTime(), Extra: tx.GetExtra(), BlockHeight: tx.GetBlockHeight(), BlockTimestamp: tx.GetBlockTimestamp(), DoubleSpendSeen: tx.GetDoubleSpendSeen(), InPool: tx.GetInPool(), TxHash: tx.GetTxHash()}, blckHash); err != nil {
+										return err
+									}
+									txPresent = true
+								}
+							}
+							w.balance.TokenUnlocked -= val.Output.TokenAmount
+							val.Spent = true
+						}
 					}
 				}
 			}

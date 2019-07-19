@@ -312,6 +312,10 @@ func (w *FileWallet) RemoveAccount(accountName string) error {
 	return nil
 }
 
+func (w *FileWallet) GetLatestBlockHeight() uint64{
+	return w.latestBlockNumber
+}
+
 func (w *FileWallet) GetInfo() *WalletInfo{
 	return w.info
 }
@@ -337,6 +341,13 @@ func New(file string, accountName string, masterkey string, createOnFail bool, i
 			return nil, err
 		}
 	}
+
+	if !w.db.BucketExists(genericBlockBucketName) {
+		if err := w.db.CreateBucket(genericBlockBucketName); err != nil {
+			return nil, err
+		}
+	}
+
 	if err = w.OpenAccount(&WalletInfo{Name: accountName, Keystore: keystore}, createOnFail, isTestnet); err != nil {
 		return nil, err
 	}
@@ -351,6 +362,12 @@ func NewClean(file string, masterkey string, isTestnet bool) (*FileWallet, error
 	if w.db, err = filestore.NewEncryptedDB(file, masterkey); err != nil {
 		return nil, err
 	}
+	if !w.db.BucketExists(genericBlockBucketName) {
+		if err := w.db.CreateBucket(genericBlockBucketName); err != nil {
+			return nil, err
+		}
+	}
+
 	if !w.db.BucketExists(genericDataBucketName) {
 		if err := w.db.CreateBucket(genericDataBucketName); err != nil {
 			return nil, err

@@ -10,6 +10,18 @@ import (
 
 //loads from the storage the latest block
 func (w *FileWallet) loadLatestBlock() error {
+
+	prevBucket, err := w.db.GetCurrentBucket()
+
+	if err == nil && prevBucket != genericBlockBucketName {
+		defer w.db.SetBucket(prevBucket)
+	}
+	if prevBucket != genericBlockBucketName {
+		if err := w.db.SetBucket(genericBlockBucketName); err != nil {
+			return err
+		}
+	}
+
 	tempData, err := w.readKey(lastBlockReferenceKey)
 	if err != nil {
 		return err
@@ -21,14 +33,38 @@ func (w *FileWallet) loadLatestBlock() error {
 
 //CheckIfBlockExists returns the index of the block in the local reference if it exists, -1 if not
 func (w *FileWallet) CheckIfBlockExists(blockHash string) int {
+
+	prevBucket, err := w.db.GetCurrentBucket()
+
+	if err == nil && prevBucket != genericBlockBucketName {
+		defer w.db.SetBucket(prevBucket)
+	}
+	if prevBucket != genericBlockBucketName {
+		if err := w.db.SetBucket(genericBlockBucketName); err != nil {
+			return -1
+		}
+	}
+
 	i, _ := w.findKeyInReference(blockReferenceKey, blockHash)
 	return i
 }
 
 //RewindBlockHeader rewinds all blocks up until the target block, removing transactions and outputs accordingly
 func (w *FileWallet) RewindBlockHeader(targetHash string) error {
+
 	if w.latestBlockHash == "" {
 		return ErrNoBlocks
+	}
+
+	prevBucket, err := w.db.GetCurrentBucket()
+
+	if err == nil && prevBucket != genericBlockBucketName {
+		defer w.db.SetBucket(prevBucket)
+	}
+	if prevBucket != genericBlockBucketName {
+		if err := w.db.SetBucket(genericBlockBucketName); err != nil {
+			return nil
+		}
 	}
 	actHash := w.latestBlockHash
 	header := &safex.BlockHeader{}
@@ -50,12 +86,19 @@ func (w *FileWallet) RewindBlockHeader(targetHash string) error {
 		if err := w.deleteAppendedKey(blockReferenceKey, i); err != nil {
 			return err
 		}
+		if err := w.db.SetBucket(prevBucket); err != nil {
+			return err
+		}
 		transactions, err := w.readAppendedKey(blockTransactionReferencePrefix + actHash)
 		if err != nil && err != filestore.ErrKeyNotFound { //Key could be absent
 			return err
 		}
 		for _, el := range transactions {
 			w.RemoveTransactionInfo(string(el))
+		}
+
+		if err := w.db.SetBucket(genericBlockBucketName); err != nil {
+			return nil
 		}
 		if err := w.deleteKey(blockTransactionReferencePrefix + actHash); err != nil {
 			return err
@@ -74,6 +117,17 @@ func (w *FileWallet) RewindBlockHeader(targetHash string) error {
 
 //GetBlockHeader returns the blockHeader associated with the BlckHash
 func (w *FileWallet) GetBlockHeader(BlckHash string) (*safex.BlockHeader, error) {
+
+	prevBucket, err := w.db.GetCurrentBucket()
+
+	if err == nil && prevBucket != genericBlockBucketName {
+		defer w.db.SetBucket(prevBucket)
+	}
+	if prevBucket != genericBlockBucketName {
+		if err := w.db.SetBucket(genericBlockBucketName); err != nil {
+			return nil, err
+		}
+	}
 	data, err := w.readKey(blockKeyPrefix + BlckHash)
 	if err != nil {
 		return nil, err
@@ -87,6 +141,17 @@ func (w *FileWallet) GetBlockHeader(BlckHash string) (*safex.BlockHeader, error)
 
 //PutBlockHeader serializes and writes a blck
 func (w *FileWallet) PutBlockHeader(blck *safex.BlockHeader) error {
+
+	prevBucket, err := w.db.GetCurrentBucket()
+
+	if err == nil && prevBucket != genericBlockBucketName {
+		defer w.db.SetBucket(prevBucket)
+	}
+	if prevBucket != genericBlockBucketName {
+		if err := w.db.SetBucket(genericBlockBucketName); err != nil {
+			return err
+		}
+	}
 	blockHash := blck.GetHash()
 	a := blck.GetPrevHash()
 	if a != w.latestBlockHash && w.latestBlockHash != "" {
@@ -122,6 +187,16 @@ func (w *FileWallet) PutBlockHeader(blck *safex.BlockHeader) error {
 
 //GetAllBlocks returns an array of blockHashes
 func (w *FileWallet) GetAllBlocks() ([]string, error) {
+	prevBucket, err := w.db.GetCurrentBucket()
+
+	if err == nil && prevBucket != genericBlockBucketName {
+		defer w.db.SetBucket(prevBucket)
+	}
+	if prevBucket != genericBlockBucketName {
+		if err := w.db.SetBucket(genericBlockBucketName); err != nil {
+			return nil, err
+		}
+	}
 	data, err := w.readAppendedKey(blockReferenceKey)
 	if err != nil {
 		if err == filestore.ErrKeyNotFound {

@@ -39,6 +39,7 @@ const unspentOutputReferenceKey = "UnspentOutputReference"
 const transactionInfoReferenceKey = "TransactionInfoReference"
 
 const genericDataBucketName = "Generic"
+const genericBlockBucketName = "Blocks"
 
 const outputKeyPrefix = "Out-"
 const outputInfoPrefix = "OutInfo-"

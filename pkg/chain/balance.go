@@ -45,9 +45,6 @@ func (t Transfer) IsUnlocked(height uint64) bool {
 	}
 }
 
-// @todo:  Move this to some config, or recalculate based on response time
-const blockInterval = 100
-
 func (w *Wallet) processBlockRange(blocks safex.Blocks) bool {
 	// @todo Here handle block metadata.
 

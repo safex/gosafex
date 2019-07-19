@@ -15,6 +15,38 @@ import (
 // TODO: Move this to some config, or recalculate based on response time
 const BlockFetchCnt = 100
 
+func (w *Wallet) updateBlock() error {
+	if w.client == nil{
+		return errors.New("Client not initialized")
+	}
+	info, err := w.client.GetDaemonInfo()
+	if err != nil {
+		return err
+	}
+
+	knownHeight := w.wallet.GetLatestBlockHeight()
+	bcHeight := info.Height
+
+	var targetBlock uint64
+
+	for knownHeight != bcHeight-1 {
+		//do the needed update
+		if knownHeight+blockInterval >= bcHeight-1 {
+			targetBlock = bcHeight - 1
+		} else {
+			targetBlock = knownHeight + blockInterval
+		}
+		blocks, err := w.client.GetBlocks(bcHeight, targetBlock)
+		if err != nil {
+			return err
+		}
+		w.processBlockRange(blocks)
+		knownHeight = w.wallet.GetLatestBlockHeight()
+	}
+
+	return w.UnlockBalance(knownHeight)
+}
+
 func (w *Wallet) isOpen() bool {
 	if w.wallet == nil {
 		return false
