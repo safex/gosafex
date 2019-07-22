@@ -106,7 +106,6 @@ func decodeBase58(b58string string) (result *Address, err error) {
 func (adr *Address) encodeBase58() string {
 
 	raw := networkIDToBytes(adr.NetworkID)
-
 	bytes := adr.SpendKey.ToBytes()
 	raw = append(raw, bytes[:]...)
 	bytes = adr.ViewKey.ToBytes()

@@ -16,7 +16,7 @@ import (
 const BlockFetchCnt = 100
 
 func (w *Wallet) updateBlock() error {
-	if w.client == nil{
+	if w.client == nil {
 		return errors.New("Client not initialized")
 	}
 	info, err := w.client.GetDaemonInfo()
@@ -55,12 +55,12 @@ func (w *Wallet) isOpen() bool {
 }
 
 //Recover recreates a wallet starting from a mnemonic
-func (w *Wallet) Recover(mnemonic *account.Mnemonic, walletName string, isTestnet bool) error {
-	store, err := account.FromMnemonic(mnemonic, isTestnet)
+func (w *Wallet) Recover(mnemonic *account.Mnemonic, password string, accountName string, isTestnet bool) error {
+	store, err := account.FromMnemonic(mnemonic, password, isTestnet)
 	if err != nil {
 		return err
 	}
-	w.wallet.OpenAccount(&filewallet.WalletInfo{Name: walletName, Keystore: store}, true, isTestnet)
+	w.wallet.OpenAccount(&filewallet.WalletInfo{Name: accountName, Keystore: store}, true, isTestnet)
 	return nil
 }
 

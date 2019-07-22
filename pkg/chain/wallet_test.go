@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/safex/gosafex/internal/crypto/curve"
+	"github.com/safex/gosafex/internal/mnemonic"
 	"github.com/safex/gosafex/pkg/account"
 	"github.com/safex/gosafex/pkg/key"
 )
@@ -26,6 +27,10 @@ const wallet1pubspend = "a8e16a10c45be469b591bc1f1a5a514fd950d8536dd808cd40e30dd
 const wallet1privview = "1ddc70c705ca023ccb08cf8d912f58d815b8e154a201902c0fc67cde52b61909"
 const wallet1privspend = "c55a2fa96b04b8f019afeaca883fdfd1e7ee775486eec32648579e9c0fab950c"
 
+const mnemonic_seed = "shrugged january avatar fungal pawnshop thwart grunt yoga stunning honked befit already ungainly fancy camp liquid revamp evaluate height evolved bowling knife gasp gotten honked"
+const mnemonic_key = "ace8f0a434437935b01ca3d2aa7438f1ec27d7dc02a33b8d7a62dfda1fe13907"
+const mnemonic_address = "Safex5zgYGP2tyGNaqkrAoirRqrEw8Py79KPLRhwqEHbDcnPVvSwvCx2iTUbTR6PVMHR9qapyAq6Fj5TF9ATn5iq27YPrxCkJyD11"
+
 func prepareFolder() {
 
 	fullpath := strings.Join([]string{foldername, filename}, "/")
@@ -44,6 +49,38 @@ func CleanAfterTests(w *Wallet, fullpath string) {
 	if err != nil {
 		fmt.Println(err)
 	}
+}
+
+func TestRecoverFromMnemonic(t *testing.T) {
+	prepareFolder()
+
+	w := new(Wallet)
+	fullpath := strings.Join([]string{foldername, filename}, "/")
+
+	if err := w.OpenFile(fullpath, masterPass, false); err != nil {
+		t.Fatalf("%s", err)
+	}
+	defer CleanAfterTests(w, fullpath)
+
+	mnem, err := mnemonic.FromString(mnemonic_seed)
+
+	if err != nil {
+		t.Fatalf("%s", err)
+	}
+
+	w.Recover(mnem, "", "wallet2", false)
+
+	_, err = w.GetAccounts()
+	if err != nil {
+		t.Fatalf("%s", err)
+	}
+	store, err := w.GetKeys()
+	if err != nil {
+		t.Fatalf("%s", err)
+	}
+	asd, _ := mnem.ToSeed()
+	//I make this test fail here just to dump some data
+	t.Fatalf("%s\n%s\n%s", store.Address().String(), store.PublicViewKey().String(), curve.New(*asd).ToPublic().String())
 }
 
 func TestOpenCreate(t *testing.T) {
@@ -90,6 +127,7 @@ func TestRPC(t *testing.T) {
 		t.Fatal(info)
 	}
 }
+
 //this test for now fails to check balance
 func TestUpdateBalance(t *testing.T) {
 	prepareFolder()
