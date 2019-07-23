@@ -82,18 +82,14 @@ func FromMnemonic(mnemonic *Mnemonic, password string, isTestnet bool) (*Store, 
 		encPass := cn_slow_hash([]byte(password))
 		scSub(*seed, *seed, encPass)
 	}
-
 	privSpend := key.NewPrivateKey(curve.New(*seed))
 	spend := key.NewPair(privSpend.Public(), privSpend)
-	//Problem here
-	//Expect secret: 67b384375d041b7a938d187d196a73e6385f6b690286c54b5aa84870dd6b0c05
-	//Got    secret: 96ce14367f46e542c94abc7daa2608cc395f6b690286c54b5aa84870dd6b0cb5
-	privView := key.NewPrivateKey(curve.New(Seed(privSpend.Digest())))
+	privSeed := curve.New(privSpend.Digest())
+	curve.ScReduce32(privSeed)
+	privView := key.NewPrivateKey(privSeed)
 	view := key.NewPair(privView.Public(), privView)
-
 	keyset := key.NewSet(view, spend)
 	adr := addressMaker(isTestnet)(keyset.Spend.Pub, keyset.View.Pub)
-	//We can use unsafe since we are sure of the underlying type
 
 	return NewStore(adr, keyset.View.Priv, keyset.Spend.Priv), nil
 }

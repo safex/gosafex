@@ -78,9 +78,10 @@ func TestRecoverFromMnemonic(t *testing.T) {
 	if err != nil {
 		t.Fatalf("%s", err)
 	}
-	asd, _ := mnem.ToSeed()
-	//I make this test fail here just to dump some data
-	t.Fatalf("%s\n%s\n%s", store.Address().String(), store.PublicViewKey().String(), curve.New(*asd).ToPublic().String())
+
+	if store.Address().String() != mnemonic_address {
+		t.Fatalf("Addresses do not match")
+	}
 }
 
 func TestOpenCreate(t *testing.T) {

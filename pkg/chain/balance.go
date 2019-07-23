@@ -91,6 +91,43 @@ func (w *Wallet) processBlockRange(blocks safex.Blocks) bool {
 	return true
 }
 
+func (w *Wallet) LoadBalance() error {
+	w.balance.CashUnlocked = 0
+	w.balance.CashLocked = 0
+	w.balance.TokenUnlocked = 0
+	w.balance.TokenLocked = 0
+
+	height := w.wallet.GetLatestBlockHeight()
+
+	for _, el := range w.wallet.GetUnspentOutputs() {
+		age, _ := w.wallet.GetOutputAge(el)
+		txtyp, _ := w.wallet.GetOutputTransactionType(el)
+		typ, _ := w.wallet.GetOutputType(el)
+		out, _ := w.wallet.GetOutput(el)
+		if txtyp == "miner" && height-age > 60 {
+			if typ == "Cash" {
+				w.balance.CashLocked += out.GetAmount()
+				w.balance.CashUnlocked += out.GetAmount()
+			} else {
+				w.balance.TokenLocked += out.GetTokenAmount()
+				w.balance.TokenUnlocked += out.GetTokenAmount()
+			}
+		} else if height-age > 10 {
+			if err := w.wallet.UnlockOutput(el); err != nil {
+				return err
+			}
+			if typ == "Cash" {
+				w.balance.CashLocked -= out.GetAmount()
+				w.balance.CashUnlocked += out.GetAmount()
+			} else {
+				w.balance.TokenLocked -= out.GetTokenAmount()
+				w.balance.TokenUnlocked += out.GetTokenAmount()
+			}
+		}
+	}
+	return nil
+}
+
 func (w *Wallet) UnlockBalance(height uint64) error {
 	for _, el := range w.wallet.GetLockedOutputs() {
 		age, _ := w.wallet.GetOutputAge(el)

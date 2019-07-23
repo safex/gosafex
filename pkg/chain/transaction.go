@@ -39,7 +39,7 @@ func extractTxPubKey(extra []byte) (pubTxKey [crypto.KeyLength]byte) {
 	return pubTxKey
 }
 
-func (w *Wallet) addOutput(output *safex.Txout, index uint64, minertx bool, blckHash string, txHash string, height uint64, keyimage *crypto.Key) {
+func (w *Wallet) addOutput(output *safex.Txout, accountName string, index uint64, minertx bool, blckHash string, txHash string, height uint64, keyimage *crypto.Key) error {
 	var typ string
 	var txtyp string
 	if output.GetAmount() != 0 {
@@ -52,12 +52,15 @@ func (w *Wallet) addOutput(output *safex.Txout, index uint64, minertx bool, blck
 	} else {
 		txtyp = "normal"
 	}
+	prevAcc := w.wallet.GetAccount()
+	if err := w.wallet.OpenAccount(&filewallet.WalletInfo{accountName, nil}, false, w.testnet); err != nil {
+		return err
+	}
+	defer w.wallet.OpenAccount(&filewallet.WalletInfo{prevAcc, nil}, false, w.testnet)
 
 	w.wallet.AddOutput(output, uint64(index), &filewallet.OutputInfo{OutputType: typ, BlockHash: blckHash, TransactionID: txHash, TxLocked: filewallet.LockedStatus, TxType: txtyp}, "")
 	w.outputs[*keyimage] = Transfer{output, false, minertx, height, *keyimage}
-	w.balance.CashLocked += output.Amount
-	w.balance.TokenLocked += output.TokenAmount
-
+	return nil
 }
 
 func (w *Wallet) matchOutput(txOut *safex.Txout, index uint64, der [crypto.KeyLength]byte, outputKey *[crypto.KeyLength]byte) bool {
@@ -127,7 +130,7 @@ func (w *Wallet) ProcessTransaction(tx *safex.Transaction, blckHash string, mine
 				keyimage := curve.KeyImage(ephemeralPublic, ephemeralSecret)
 
 				if _, ok := w.outputs[*keyimage]; !ok {
-					w.addOutput(output, uint64(index), minerTx, blckHash, tx.GetTxHash(), tx.BlockHeight, keyimage)
+					w.addOutput(output, acc, uint64(index), minerTx, blckHash, tx.GetTxHash(), tx.BlockHeight, keyimage)
 				}
 
 			}
@@ -163,6 +166,7 @@ func (w *Wallet) ProcessTransaction(tx *safex.Transaction, blckHash string, mine
 								txPresent = true
 							}
 						}
+						//Put output in spent
 						w.balance.CashUnlocked -= val.Output.Amount
 						val.Spent = true
 					}
