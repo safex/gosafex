@@ -36,7 +36,7 @@ func NewStore(adr *Address, viewPriv, spendPriv PrivateKey) *Store {
 }
 
 // AddressMaker is a type of function that returns an address from view/spend public keys.
-type AddressMaker = func(viewPub, spendPub PublicKey) *Address
+type AddressMaker = func(spendPub, viewPub PublicKey) *Address
 
 func addressMaker(testnet bool) AddressMaker {
 	if testnet {
@@ -74,24 +74,18 @@ func FromSeed(seed *Seed, isTestnet bool) *Store {
 // View keys are derived from spend keys.
 // Returns an error if the mnemonic is invalid or cannot be parsed.
 func FromMnemonic(mnemonic *Mnemonic, password string, isTestnet bool) (*Store, error) {
-	seed, err := mnemonic.ToSeed()
+	seedBytes, err := mnemonic.ToSeed()
 	if err != nil {
 		return nil, err
 	}
 	if password != "" {
 		encPass := cn_slow_hash([]byte(password))
-		scSub(*seed, *seed, encPass)
+		scSub(*seedBytes, *seedBytes, encPass)
 	}
-	privSpend := key.NewPrivateKey(curve.New(*seed))
-	spend := key.NewPair(privSpend.Public(), privSpend)
-	privSeed := curve.New(privSpend.Digest())
-	curve.ScReduce32(privSeed)
-	privView := key.NewPrivateKey(privSeed)
-	view := key.NewPair(privView.Public(), privView)
-	keyset := key.NewSet(view, spend)
-	adr := addressMaker(isTestnet)(keyset.Spend.Pub, keyset.View.Pub)
-
-	return NewStore(adr, keyset.View.Priv, keyset.Spend.Priv), nil
+	seed := curve.Seed(*seedBytes)
+	set := key.SetFromSeed(&seed)
+	adr := addressMaker(isTestnet)(set.Spend.Pub, set.View.Pub)
+	return NewStore(adr, set.View.Priv, set.Spend.Priv), nil
 }
 
 // Address implements Account. It returns the account's address.
