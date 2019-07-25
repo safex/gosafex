@@ -37,12 +37,13 @@ type TxOut = safex.Txout
 const blockInterval = 100
 
 type Wallet struct {
-	balance balance.Balance
-	account Account
-	client  *Client
-	outputs map[crypto.Key]Transfer
-	wallet  *filewallet.FileWallet
-	testnet bool
+	balance        balance.Balance
+	account        Account
+	client         *Client
+	outputs        map[crypto.Key]Transfer
+	countedOutputs []string
+	wallet         *filewallet.FileWallet
+	testnet        bool
 }
 
 type Balance struct {

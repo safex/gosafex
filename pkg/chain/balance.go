@@ -91,41 +91,66 @@ func (w *Wallet) processBlockRange(blocks safex.Blocks) bool {
 	return true
 }
 
-func (w *Wallet) LoadBalance() error {
-	w.balance.CashUnlocked = 0
-	w.balance.CashLocked = 0
-	w.balance.TokenUnlocked = 0
-	w.balance.TokenLocked = 0
+func (w *Wallet) seenOutput(outID string) bool {
+	for _, el := range w.countedOutputs {
+		if el == outID {
+			return true
+		}
+	}
+	return false
+}
 
+func (w *Wallet) LoadBalance() error {
+	w.resetBalance()
 	height := w.wallet.GetLatestBlockHeight()
 
 	for _, el := range w.wallet.GetUnspentOutputs() {
+		if w.seenOutput(el) {
+			continue
+		}
 		age, _ := w.wallet.GetOutputAge(el)
 		txtyp, _ := w.wallet.GetOutputTransactionType(el)
 		typ, _ := w.wallet.GetOutputType(el)
 		out, _ := w.wallet.GetOutput(el)
-		if txtyp == "miner" && height-age > 60 {
+		if height-age > 60 {
+			if txtyp == "miner" {
+				if typ == "Cash" {
+					w.balance.CashUnlocked += out.GetAmount()
+				} else {
+					w.balance.TokenUnlocked += out.GetTokenAmount()
+				}
+			} else {
+				if typ == "Cash" {
+					w.balance.CashLocked += out.GetAmount()
+				} else {
+					w.balance.TokenLocked += out.GetTokenAmount()
+				}
+			}
+			w.countedOutputs = append(w.countedOutputs)
+		} else if height-age > 10 {
+			if typ == "Cash" {
+				w.balance.CashUnlocked += out.GetAmount()
+			} else {
+				w.balance.TokenUnlocked += out.GetTokenAmount()
+			}
+		} else {
 			if typ == "Cash" {
 				w.balance.CashLocked += out.GetAmount()
-				w.balance.CashUnlocked += out.GetAmount()
 			} else {
 				w.balance.TokenLocked += out.GetTokenAmount()
-				w.balance.TokenUnlocked += out.GetTokenAmount()
-			}
-		} else if height-age > 10 {
-			if err := w.wallet.UnlockOutput(el); err != nil {
-				return err
-			}
-			if typ == "Cash" {
-				w.balance.CashLocked -= out.GetAmount()
-				w.balance.CashUnlocked += out.GetAmount()
-			} else {
-				w.balance.TokenLocked -= out.GetTokenAmount()
-				w.balance.TokenUnlocked += out.GetTokenAmount()
 			}
 		}
+
+		w.countedOutputs = append(w.countedOutputs)
 	}
 	return nil
+}
+
+func (w *Wallet) resetBalance() {
+	w.balance.CashUnlocked = 0
+	w.balance.CashLocked = 0
+	w.balance.TokenUnlocked = 0
+	w.balance.TokenLocked = 0
 }
 
 func (w *Wallet) UnlockBalance(height uint64) error {

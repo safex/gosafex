@@ -60,7 +60,13 @@ func (w *Wallet) Recover(mnemonic *account.Mnemonic, password string, accountNam
 	if err != nil {
 		return err
 	}
-	w.wallet.OpenAccount(&filewallet.WalletInfo{Name: accountName, Keystore: store}, true, isTestnet)
+	if err := w.wallet.OpenAccount(&filewallet.WalletInfo{Name: accountName, Keystore: store}, true, isTestnet); err != nil {
+		return err
+	}
+	w.countedOutputs = []string{}
+	if err := w.LoadBalance(); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -73,6 +79,7 @@ func (w *Wallet) OpenAndCreate(accountName string, filename string, masterkey st
 	if w.wallet, err = filewallet.New(filename, accountName, masterkey, true, isTestnet, nil); err != nil {
 		return err
 	}
+	w.countedOutputs = []string{}
 	return nil
 }
 
@@ -84,6 +91,7 @@ func (w *Wallet) CreateAccount(accountName string, keystore *account.Store, isTe
 	if err := w.wallet.CreateAccount(&filewallet.WalletInfo{Name: accountName, Keystore: keystore}, isTestnet); err != nil {
 		return err
 	}
+	w.countedOutputs = []string{}
 	return nil
 }
 
@@ -96,6 +104,7 @@ func (w *Wallet) OpenFile(filename string, masterkey string, isTestnet bool) err
 	if w.wallet, err = filewallet.NewClean(filename, masterkey, isTestnet); err != nil {
 		return err
 	}
+	w.countedOutputs = []string{}
 	return nil
 }
 
@@ -110,6 +119,10 @@ func (w *Wallet) OpenAccount(accountName string, isTestnet bool) error {
 	keystore := w.wallet.GetInfo().Keystore
 	if keystore != nil {
 		w.account = account.NewStore(keystore.Address(), keystore.PrivateViewKey(), keystore.PrivateSpendKey())
+	}
+	w.countedOutputs = []string{}
+	if err := w.LoadBalance(); err != nil {
+		return err
 	}
 	return nil
 }
