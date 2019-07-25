@@ -7,14 +7,14 @@ import (
 	"errors"
 )
 
-func packOutputIndex(blockHash string, localIndex uint64) (string, error) {
+func PackOutputIndex(blockHash string, localIndex uint64) (string, error) {
 	b := make([]byte, 8)
 	binary.LittleEndian.PutUint64(b, localIndex)
 	b = append(b, []byte(blockHash)...)
 	return hex.EncodeToString(b), nil
 }
 
-func unpackOutputIndex(outID string) (uint64, uint64, error) {
+func UnpackOutputIndex(outID string) (uint64, uint64, error) {
 	s, err := hex.DecodeString(outID)
 	if err != nil {
 		return 0, 0, err
@@ -27,40 +27,40 @@ func unpackOutputIndex(outID string) (uint64, uint64, error) {
 func marshallTransactionInfo(txInfo *TransactionInfo) ([]byte, error) {
 	var ret []byte
 	temp := make([]byte, 8)
-	binary.LittleEndian.PutUint64(temp, txInfo.version)
+	binary.LittleEndian.PutUint64(temp, txInfo.Version)
 	tempEncoded := make([]byte, hex.EncodedLen(len(temp)))
 	hex.Encode(tempEncoded, temp)
 	ret = append(ret, tempEncoded...)
 	ret = append(ret, byte(10))
 
 	temp = make([]byte, 8)
-	binary.LittleEndian.PutUint64(temp, txInfo.unlockTime)
+	binary.LittleEndian.PutUint64(temp, txInfo.UnlockTime)
 	tempEncoded = make([]byte, hex.EncodedLen(len(temp)))
 	hex.Encode(tempEncoded, temp)
 	ret = append(ret, tempEncoded...)
 	ret = append(ret, byte(10))
 
-	tempEncoded = make([]byte, hex.EncodedLen(len(txInfo.extra)))
-	hex.Encode(tempEncoded, txInfo.extra)
+	tempEncoded = make([]byte, hex.EncodedLen(len(txInfo.Extra)))
+	hex.Encode(tempEncoded, txInfo.Extra)
 	ret = append(ret, tempEncoded...)
 	ret = append(ret, byte(10))
 
 	temp = make([]byte, 8)
-	binary.LittleEndian.PutUint64(temp, txInfo.blockHeight)
+	binary.LittleEndian.PutUint64(temp, txInfo.BlockHeight)
 	tempEncoded = make([]byte, hex.EncodedLen(len(temp)))
 	hex.Encode(tempEncoded, temp)
 	ret = append(ret, tempEncoded...)
 	ret = append(ret, byte(10))
 
 	temp = make([]byte, 8)
-	binary.LittleEndian.PutUint64(temp, txInfo.blockTimestamp)
+	binary.LittleEndian.PutUint64(temp, txInfo.BlockTimestamp)
 	tempEncoded = make([]byte, hex.EncodedLen(len(temp)))
 	hex.Encode(tempEncoded, temp)
 	ret = append(ret, tempEncoded...)
 	ret = append(ret, byte(10))
 
 	tempEncoded = make([]byte, hex.EncodedLen(1))
-	if txInfo.doubleSpendSeen {
+	if txInfo.DoubleSpendSeen {
 		hex.Encode(tempEncoded, []byte{byte('T')})
 	} else {
 		hex.Encode(tempEncoded, []byte{byte('F')})
@@ -69,7 +69,7 @@ func marshallTransactionInfo(txInfo *TransactionInfo) ([]byte, error) {
 	ret = append(ret, byte(10))
 
 	tempEncoded = make([]byte, hex.EncodedLen(1))
-	if txInfo.inPool {
+	if txInfo.InPool {
 		hex.Encode(tempEncoded, []byte{byte('T')})
 	} else {
 		hex.Encode(tempEncoded, []byte{byte('F')})
@@ -77,7 +77,7 @@ func marshallTransactionInfo(txInfo *TransactionInfo) ([]byte, error) {
 	ret = append(ret, tempEncoded...)
 	ret = append(ret, byte(10))
 
-	temp = []byte(txInfo.txHash)
+	temp = []byte(txInfo.TxHash)
 	tempEncoded = make([]byte, hex.EncodedLen(len(temp)))
 	hex.Encode(tempEncoded, []byte(temp))
 	ret = append(ret, tempEncoded...)
@@ -94,41 +94,41 @@ func unmarshallTransactionInfo(input []byte) (*TransactionInfo, error) {
 	temp := make([]byte, len(out[0]))
 
 	hex.Decode(temp, out[0])
-	ret.version = binary.LittleEndian.Uint64(temp)
+	ret.Version = binary.LittleEndian.Uint64(temp)
 
 	temp = make([]byte, len(out[1]))
 	hex.Decode(temp, out[1])
-	ret.unlockTime = binary.LittleEndian.Uint64(temp)
+	ret.UnlockTime = binary.LittleEndian.Uint64(temp)
 
 	temp = make([]byte, len(out[2]))
 	hex.Decode(temp, out[2])
-	ret.extra = temp
+	ret.Extra = temp
 
 	temp = make([]byte, len(out[3]))
 	hex.Decode(temp, out[3])
-	ret.blockHeight = binary.LittleEndian.Uint64(temp)
+	ret.BlockHeight = binary.LittleEndian.Uint64(temp)
 
 	temp = make([]byte, len(out[4]))
 	hex.Decode(temp, out[4])
-	ret.blockTimestamp = binary.LittleEndian.Uint64(temp)
+	ret.BlockTimestamp = binary.LittleEndian.Uint64(temp)
 
 	temp = make([]byte, len(out[5]))
 	hex.Decode(temp, out[5])
 	if string(temp) == "F" {
-		ret.doubleSpendSeen = false
+		ret.DoubleSpendSeen = false
 	} else {
-		ret.doubleSpendSeen = true
+		ret.DoubleSpendSeen = true
 	}
 	temp = make([]byte, len(out[6]))
 	hex.Decode(temp, out[6])
 	if string(temp) == "F" {
-		ret.inPool = false
+		ret.InPool = false
 	} else {
-		ret.inPool = true
+		ret.InPool = true
 	}
 	temp = make([]byte, len(out[7]))
 	hex.Decode(temp, out[7])
-	ret.txHash = string(temp)
+	ret.TxHash = string(temp)
 
 	return ret, nil
 }

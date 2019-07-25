@@ -62,7 +62,7 @@ func DeriveKey(pub, priv *Key) (result *Key, err error) {
 	copy(keyBuf[:], priv[:])
 	GeScalarMult(point2, keyBuf, point)
 	GeMul8(point3, point2)
-	point3.toProjective(point2)
+	point3.toProjective(point2) 
 
 	point2.toBytes(keyBuf)
 	return keyBuf, nil

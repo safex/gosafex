@@ -4,7 +4,9 @@ import (
 	"errors"
 
 	"github.com/safex/gosafex/pkg/account"
+	"github.com/safex/gosafex/pkg/balance"
 	"github.com/safex/gosafex/pkg/filewallet"
+	"github.com/safex/gosafex/pkg/safexdrpc"
 )
 
 // TODO: figure out where to place the wallet struct.
@@ -12,6 +14,38 @@ import (
 // BlockFetchCnt is the the nubmer of blocks to fetch at once.
 // TODO: Move this to some config, or recalculate based on response time
 const BlockFetchCnt = 100
+
+func (w *Wallet) updateBlock() error {
+	if w.client == nil {
+		return errors.New("Client not initialized")
+	}
+	info, err := w.client.GetDaemonInfo()
+	if err != nil {
+		return err
+	}
+
+	knownHeight := w.wallet.GetLatestBlockHeight()
+	bcHeight := info.Height
+
+	var targetBlock uint64
+
+	for knownHeight != bcHeight-1 {
+		//do the needed update
+		if knownHeight+blockInterval >= bcHeight-1 {
+			targetBlock = bcHeight - 1
+		} else {
+			targetBlock = knownHeight + blockInterval
+		}
+		blocks, err := w.client.GetBlocks(bcHeight, targetBlock)
+		if err != nil {
+			return err
+		}
+		w.processBlockRange(blocks)
+		knownHeight = w.wallet.GetLatestBlockHeight()
+	}
+
+	return w.UnlockBalance(knownHeight)
+}
 
 func (w *Wallet) IsOpen() bool {
 	if w.wallet == nil {
@@ -21,12 +55,18 @@ func (w *Wallet) IsOpen() bool {
 }
 
 //Recover recreates a wallet starting from a mnemonic
-func (w *Wallet) Recover(mnemonic *account.Mnemonic, walletName string, isTestnet bool) error {
-	store, err := account.FromMnemonic(mnemonic, isTestnet)
+func (w *Wallet) Recover(mnemonic *account.Mnemonic, password string, accountName string, isTestnet bool) error {
+	store, err := account.FromMnemonic(mnemonic, password, isTestnet)
 	if err != nil {
 		return err
 	}
-	w.wallet.OpenAccount(&filewallet.WalletInfo{Name: walletName, Keystore: store}, true, isTestnet)
+	if err := w.wallet.OpenAccount(&filewallet.WalletInfo{Name: accountName, Keystore: store}, true, isTestnet); err != nil {
+		return err
+	}
+	w.countedOutputs = []string{}
+	if err := w.LoadBalance(); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -39,15 +79,20 @@ func (w *Wallet) OpenAndCreate(accountName string, filename string, masterkey st
 	if w.wallet, err = filewallet.New(filename, accountName, masterkey, true, isTestnet, nil); err != nil {
 		return err
 	}
+	w.countedOutputs = []string{}
 	return nil
 }
 
 //CreateAccount Creates and account in the locally open filewallet
-func (w *Wallet) CreateAccount(accountName string, isTestnet bool) error {
+func (w *Wallet) CreateAccount(accountName string, keystore *account.Store, isTestnet bool) error {
 	if !w.IsOpen() {
 		return errors.New("FileWallet not open")
 	}
-	return w.wallet.CreateAccount(&filewallet.WalletInfo{Name: accountName, Keystore: nil}, isTestnet)
+	if err := w.wallet.CreateAccount(&filewallet.WalletInfo{Name: accountName, Keystore: keystore}, isTestnet); err != nil {
+		return err
+	}
+	w.countedOutputs = []string{}
+	return nil
 }
 
 //CreateAccount Creates and account in the locally open filewallet
@@ -67,6 +112,7 @@ func (w *Wallet) OpenFile(filename string, masterkey string, isTestnet bool) err
 	if w.wallet, err = filewallet.NewClean(filename, masterkey, isTestnet); err != nil {
 		return err
 	}
+	w.countedOutputs = []string{}
 	return nil
 }
 
@@ -75,7 +121,18 @@ func (w *Wallet) OpenAccount(accountName string, isTestnet bool) error {
 	if !w.IsOpen() {
 		return errors.New("FileWallet not open")
 	}
-	return w.wallet.OpenAccount(&filewallet.WalletInfo{Name: accountName, Keystore: nil}, false, isTestnet)
+	if err := w.wallet.OpenAccount(&filewallet.WalletInfo{Name: accountName, Keystore: nil}, false, isTestnet); err != nil {
+		return err
+	}
+	keystore := w.wallet.GetInfo().Keystore
+	if keystore != nil {
+		w.account = account.NewStore(keystore.Address(), keystore.PrivateViewKey(), keystore.PrivateSpendKey())
+	}
+	w.countedOutputs = []string{}
+	if err := w.LoadBalance(); err != nil {
+		return err
+	}
+	return nil
 }
 
 //RemoveAccount removes the given account
@@ -100,6 +157,15 @@ func (w *Wallet) Status() string {
 	return "ready"
 }
 
+//InitClient inits the rpc client and checks for connection
+func (w *Wallet) InitClient(client string, port uint) error {
+	w.client = safexdrpc.InitClient(client, port)
+	if _, err := w.client.GetDaemonInfo(); err != nil {
+		return err
+	}
+	return nil
+}
+
 //GetFilewallet returns an instance of the underlying filewallet
 func (w *Wallet) GetFilewallet() *filewallet.FileWallet {
 	return w.wallet
@@ -118,6 +184,11 @@ func (w *Wallet) GetKeys() (*account.Store, error) {
 		return nil, errors.New("No open account")
 	}
 	return w.wallet.GetKeys()
+}
+
+//GetBalance returns the keypair of the opened account
+func (w *Wallet) GetBalance() balance.Balance {
+	return w.balance
 }
 
 //Close closes the wallet

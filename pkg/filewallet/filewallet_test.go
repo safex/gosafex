@@ -77,9 +77,9 @@ func TestGenericDataRW(t *testing.T) {
 		t.Fatalf("%s", err)
 	}
 
-	head1 := &safex.BlockHeader{Depth: 10, Hash: "aaaab", PrevHash: ""}
+	head1 := &safex.BlockHeader{Depth: 10, Hash: "aaaab", PrevHash: ""} 
 	head2 := &safex.BlockHeader{Depth: 11, Hash: "aaaac", PrevHash: "aaaab"}
-	tx1 := &TransactionInfo{version: 1, unlockTime: 10, extra: []byte("asdasd"), blockHeight: head2.GetDepth(), blockTimestamp: 5, doubleSpendSeen: false, inPool: false, txHash: "tx01"}
+	tx1 := &TransactionInfo{Version: 1, UnlockTime: 10, Extra: []byte("asdasd"), BlockHeight: head2.GetDepth(), BlockTimestamp: 5, DoubleSpendSeen: false, InPool: false, TxHash: "tx01"}
 	out1 := &safex.Txout{Amount: 20}
 
 	err = w.PutBlockHeader(head1)
@@ -206,11 +206,11 @@ func TestTransactionRW(t *testing.T) {
 	}
 	defer CleanAfterTests(w, fullpath)
 	head1 := &safex.BlockHeader{Depth: 10, Hash: "aaaab", PrevHash: ""}
-	head2 := &safex.BlockHeader{Depth: 11, Hash: "aaaac", PrevHash: "aaaab"}
-	tx1 := &TransactionInfo{version: 1, unlockTime: 10, extra: []byte("asdasd"), blockHeight: head2.GetDepth(), blockTimestamp: 5, doubleSpendSeen: false, inPool: false, txHash: "tx01"}
-	tx2 := &TransactionInfo{version: 1, unlockTime: 10, extra: []byte("asdasd"), blockHeight: head2.GetDepth(), blockTimestamp: 5, doubleSpendSeen: false, inPool: false, txHash: "tx02"}
-	tx3 := &TransactionInfo{version: 1, unlockTime: 10, extra: []byte("asdasd"), blockHeight: head2.GetDepth(), blockTimestamp: 5, doubleSpendSeen: false, inPool: false, txHash: "tx03"}
-	tx4 := &TransactionInfo{version: 1, unlockTime: 10, extra: []byte("asdasd"), blockHeight: head2.GetDepth(), blockTimestamp: 5, doubleSpendSeen: false, inPool: false, txHash: "tx04"}
+	head2 := &safex.BlockHeader{Depth: 11, Hash: "aaaac", PrevHash: "aaaab"} 
+	tx1 := &TransactionInfo{Version: 1, UnlockTime: 10, Extra: []byte("asdasd"), BlockHeight: head2.GetDepth(), BlockTimestamp: 5, DoubleSpendSeen: false, InPool: false, TxHash: "tx01"}
+	tx2 := &TransactionInfo{Version: 1, UnlockTime: 10, Extra: []byte("asdasd"), BlockHeight: head2.GetDepth(), BlockTimestamp: 5, DoubleSpendSeen: false, InPool: false, TxHash: "tx02"}
+	tx3 := &TransactionInfo{Version: 1, UnlockTime: 10, Extra: []byte("asdasd"), BlockHeight: head2.GetDepth(), BlockTimestamp: 5, DoubleSpendSeen: false, InPool: false, TxHash: "tx03"}
+	tx4 := &TransactionInfo{Version: 1, UnlockTime: 10, Extra: []byte("asdasd"), BlockHeight: head2.GetDepth(), BlockTimestamp: 5, DoubleSpendSeen: false, InPool: false, TxHash: "tx04"}
 
 	if err = w.PutBlockHeader(head1); err != nil {
 		t.Fatalf("%s", err)
@@ -257,7 +257,7 @@ func TestOutputRW(t *testing.T) {
 	}
 	head1 := &safex.BlockHeader{Depth: 10, Hash: "aaaab", PrevHash: ""}
 	head2 := &safex.BlockHeader{Depth: 11, Hash: "aaaac", PrevHash: "aaaab"}
-	tx1 := &TransactionInfo{version: 1, unlockTime: 10, extra: []byte("asdasd"), blockHeight: head2.GetDepth(), blockTimestamp: 5, doubleSpendSeen: false, inPool: false, txHash: "tx01"}
+	tx1 := &TransactionInfo{Version: 1, UnlockTime: 10, Extra: []byte("asdasd"), BlockHeight: head2.GetDepth(), BlockTimestamp: 5, DoubleSpendSeen: false, InPool: false, TxHash: "tx01"}
 	out1 := &safex.Txout{Amount: 20}
 
 	err = w.PutBlockHeader(head1)
@@ -363,7 +363,7 @@ func TestColdAccountCreation(t *testing.T){
 	w, err := NewClean(fullpath, masterPass, false)
 	head1 := &safex.BlockHeader{Depth: 10, Hash: "aaaab", PrevHash: ""}
 	head2 := &safex.BlockHeader{Depth: 11, Hash: "aaaac", PrevHash: "aaaab"}
-	
+	defer CleanAfterTests(w, fullpath)
 	if err != nil {
 		t.Fatalf("%s", err)
 	}
@@ -380,9 +380,6 @@ func TestColdAccountCreation(t *testing.T){
 		t.Fatalf("%s",err)
 	}
 	if err := w.OpenAccount(&WalletInfo{Name: "Wallet2", Keystore: store2},false,false); err != nil{
-		t.Fatalf("%s",err)
-	}
-	if err := w.PutBlockHeader(head1); err != nil{
 		t.Fatalf("%s",err)
 	}
 	if err := w.PutBlockHeader(head2); err != nil{
@@ -408,15 +405,15 @@ func TestColdAccountCreation(t *testing.T){
 	if data, err := w.GetAllBlocks(); err != nil{
 		t.Fatalf("%s",err)
 	}else if len(data) != 2{
-		t.Fatalf("Error reading blocks from account2")
+		t.Fatalf("Error while reading blocks from account2")
 	}
 	if err := w.OpenAccount(&WalletInfo{Name: "Wallet1", Keystore: store},false,false); err != nil{
 		t.Fatalf("%s",err)
 	}
 	if data, err := w.GetAllBlocks(); err != nil{
 		t.Fatalf("%s",err)
-	}else if len(data) != 1{
-		t.Fatalf("Error reading blocks from account1")
+	}else if len(data) != 2{
+		t.Fatalf("Error while reading blocks from account1")
 	}
 }
 
@@ -427,7 +424,6 @@ func TestAccountDeletion(t *testing.T){
 	store2, _ := account.GenerateAccount(false)
 	w, err := NewClean(fullpath, masterPass, false)
 	defer CleanAfterTests(w, fullpath)
-	
 	if err != nil {
 		t.Fatalf("%s", err)
 	}
@@ -463,7 +459,7 @@ func TestAccountSwitch(t *testing.T) {
 	}
 	head1 := &safex.BlockHeader{Depth: 10, Hash: "aaaab", PrevHash: ""}
 	head2 := &safex.BlockHeader{Depth: 11, Hash: "aaaac", PrevHash: "aaaab"}
-	tx1 := &TransactionInfo{version: 1, unlockTime: 10, extra: []byte("asdasd"), blockHeight: head2.GetDepth(), blockTimestamp: 5, doubleSpendSeen: false, inPool: false, txHash: "tx01"}
+	tx1 := &TransactionInfo{Version: 1, UnlockTime: 10, Extra: []byte("asdasd"), BlockHeight: head2.GetDepth(), BlockTimestamp: 5, DoubleSpendSeen: false, InPool: false, TxHash: "tx01"}
 	out1 := &safex.Txout{Amount: 20}
 
 	err = w.PutBlockHeader(head1)
@@ -490,11 +486,6 @@ func TestAccountSwitch(t *testing.T) {
 	}
 	if err = w.OpenAccount(&WalletInfo{Name: walletName2, Keystore: store2}, true, false); err != nil {
 		t.Fatalf("%s", err)
-	}
-	if data, err := w.GetAllBlocks(); err != nil {
-		t.Fatalf("%s", err)
-	} else if len(data) != 0 {
-		t.Fatalf("Error switching accounts, blocks still present")
 	}
 	if data, err := w.GetAllTransactionInfos(); err != nil {
 		t.Fatalf("%s", err)

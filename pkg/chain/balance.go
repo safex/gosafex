@@ -8,7 +8,6 @@ import (
 	"github.com/safex/gosafex/internal/crypto"
 	"github.com/safex/gosafex/pkg/balance"
 	"github.com/safex/gosafex/pkg/safex"
-	"github.com/safex/gosafex/pkg/safexdrpc"
 )
 
 func (t *Transfer) getRelatedness(input *Transfer) float32 {
@@ -46,19 +45,25 @@ func (t Transfer) IsUnlocked(height uint64) bool {
 	}
 }
 
-// @todo:  Move this to some config, or recalculate based on response time
-const blockInterval = 100
-
-func (w *Wallet) ProcessBlockRange(blocks safex.Blocks) bool {
+func (w *Wallet) processBlockRange(blocks safex.Blocks) bool {
 	// @todo Here handle block metadata.
 
 	// @todo This must be refactored due new discoveries regarding get_tx_hash
 	// Get transaction hashes
 	var txs []string
 	var minerTxs []string
+	txblck := make(map[string]string)
 	for _, blck := range blocks.Block {
-		txs = append(txs, blck.Txs...)
+		if err := w.wallet.PutBlockHeader(blck.GetHeader()); err != nil {
+			fmt.Print(err)
+			continue
+		}
+		for _, el := range blck.Txs {
+			txblck[el] = blck.GetHeader().GetHash()
+			txs = append(txs, el)
+		}
 		minerTxs = append(minerTxs, blck.MinerTx)
+		txblck[blck.MinerTx] = blck.GetHeader().GetHash()
 	}
 
 	// Get transaction data and process.
@@ -68,7 +73,7 @@ func (w *Wallet) ProcessBlockRange(blocks safex.Blocks) bool {
 	}
 
 	for _, tx := range loadedTxs.Tx {
-		w.ProcessTransaction(tx, false)
+		w.ProcessTransaction(tx, txblck[tx.GetTxHash()], false)
 	}
 
 	mloadedTxs, err := w.client.GetTransactions(minerTxs)
@@ -80,16 +85,111 @@ func (w *Wallet) ProcessBlockRange(blocks safex.Blocks) bool {
 	fmt.Println("Len of mloadedTxs: ", len(mloadedTxs.Tx))
 
 	for _, tx := range mloadedTxs.Tx {
-		w.ProcessTransaction(tx, true)
+		w.ProcessTransaction(tx, txblck[tx.GetTxHash()], true)
 	}
 
 	return true
 }
 
+func (w *Wallet) seenOutput(outID string) bool {
+	for _, el := range w.countedOutputs {
+		if el == outID {
+			return true
+		}
+	}
+	return false
+}
+
+func (w *Wallet) LoadBalance() error {
+	w.resetBalance()
+	height := w.wallet.GetLatestBlockHeight()
+
+	for _, el := range w.wallet.GetUnspentOutputs() {
+		if w.seenOutput(el) {
+			continue
+		}
+		age, _ := w.wallet.GetOutputAge(el)
+		txtyp, _ := w.wallet.GetOutputTransactionType(el)
+		typ, _ := w.wallet.GetOutputType(el)
+		out, _ := w.wallet.GetOutput(el)
+		if height-age > 60 {
+			if txtyp == "miner" {
+				if typ == "Cash" {
+					w.balance.CashUnlocked += out.GetAmount()
+				} else {
+					w.balance.TokenUnlocked += out.GetTokenAmount()
+				}
+			} else {
+				if typ == "Cash" {
+					w.balance.CashLocked += out.GetAmount()
+				} else {
+					w.balance.TokenLocked += out.GetTokenAmount()
+				}
+			}
+			w.countedOutputs = append(w.countedOutputs)
+		} else if height-age > 10 {
+			if typ == "Cash" {
+				w.balance.CashUnlocked += out.GetAmount()
+			} else {
+				w.balance.TokenUnlocked += out.GetTokenAmount()
+			}
+		} else {
+			if typ == "Cash" {
+				w.balance.CashLocked += out.GetAmount()
+			} else {
+				w.balance.TokenLocked += out.GetTokenAmount()
+			}
+		}
+
+		w.countedOutputs = append(w.countedOutputs)
+	}
+	return nil
+}
+
+func (w *Wallet) resetBalance() {
+	w.balance.CashUnlocked = 0
+	w.balance.CashLocked = 0
+	w.balance.TokenUnlocked = 0
+	w.balance.TokenLocked = 0
+}
+
+func (w *Wallet) UnlockBalance(height uint64) error {
+	for _, el := range w.wallet.GetLockedOutputs() {
+		age, _ := w.wallet.GetOutputAge(el)
+		txtyp, _ := w.wallet.GetOutputTransactionType(el)
+		typ, _ := w.wallet.GetOutputType(el)
+		out, _ := w.wallet.GetOutput(el)
+		if txtyp == "miner" && height-age > 60 {
+			if err := w.wallet.UnlockOutput(el); err != nil {
+				return err
+			}
+			if typ == "Cash" {
+				w.balance.CashLocked += out.GetAmount()
+				w.balance.CashUnlocked += out.GetAmount()
+			} else {
+				w.balance.TokenLocked += out.GetTokenAmount()
+				w.balance.TokenUnlocked += out.GetTokenAmount()
+			}
+		} else if height-age > 10 {
+			if err := w.wallet.UnlockOutput(el); err != nil {
+				return err
+			}
+			if typ == "Cash" {
+				w.balance.CashLocked -= out.GetAmount()
+				w.balance.CashUnlocked += out.GetAmount()
+			} else {
+				w.balance.TokenLocked -= out.GetTokenAmount()
+				w.balance.TokenUnlocked += out.GetTokenAmount()
+			}
+		}
+	}
+	return nil
+}
+
 func (w *Wallet) UpdateBalance() (b balance.Balance, err error) {
 	w.outputs = make(map[crypto.Key]Transfer)
 	// Connect to node.
-	w.client = safexdrpc.InitClient("127.0.0.1", 38001)
+	//w.client = safexdrpc.InitClient("127.0.0.1", 38001)
 
 	info, err := w.client.GetDaemonInfo()
 
@@ -123,9 +223,10 @@ func (w *Wallet) UpdateBalance() (b balance.Balance, err error) {
 		}
 
 		// Process block
-		w.ProcessBlockRange(blocks)
+		w.processBlockRange(blocks)
 
 		curr = end
+		w.UnlockBalance(curr)
 	}
 
 	return w.balance, nil

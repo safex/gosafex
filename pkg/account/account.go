@@ -1,8 +1,7 @@
 package account
 
 import (
-	"unsafe"
-
+	"github.com/safex/gosafex/internal/crypto/curve"
 	"github.com/safex/gosafex/pkg/key"
 )
 
@@ -74,14 +73,25 @@ func FromSeed(seed *Seed, isTestnet bool) *Store {
 // If testnet is true it will generate a testnet account
 // View keys are derived from spend keys.
 // Returns an error if the mnemonic is invalid or cannot be parsed.
-func FromMnemonic(mnemonic *Mnemonic, isTestnet bool) (result *Store, err error) {
+func FromMnemonic(mnemonic *Mnemonic, password string, isTestnet bool) (*Store, error) {
 	seed, err := mnemonic.ToSeed()
 	if err != nil {
 		return nil, err
 	}
-	//We can use unsafe since we are sure of the underlying type
-	result = FromSeed((*Seed)(unsafe.Pointer(seed)), isTestnet)
-	return
+	if password != "" {
+		encPass := cn_slow_hash([]byte(password))
+		scSub(*seed, *seed, encPass)
+	}
+	privSpend := key.NewPrivateKey(curve.New(*seed))
+	spend := key.NewPair(privSpend.Public(), privSpend)
+	privSeed := curve.New(privSpend.Digest())
+	curve.ScReduce32(privSeed)
+	privView := key.NewPrivateKey(privSeed)
+	view := key.NewPair(privView.Public(), privView)
+	keyset := key.NewSet(view, spend)
+	adr := addressMaker(isTestnet)(keyset.Spend.Pub, keyset.View.Pub)
+
+	return NewStore(adr, keyset.View.Priv, keyset.Spend.Priv), nil
 }
 
 // Address implements Account. It returns the account's address.
