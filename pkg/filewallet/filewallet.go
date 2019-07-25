@@ -161,7 +161,9 @@ func (w *FileWallet) PutData(key string, data []byte) error {
 
 //GetData Reads data from a key in the generic data bucket
 func (w *FileWallet) GetData(key string) ([]byte, error) {
-	defer w.db.SetBucket(w.info.Name)
+	if w.info != nil{
+        defer w.db.SetBucket(w.info.Name)
+    }
 	if err := w.db.SetBucket(genericDataBucketName); err != nil {
 		return nil, err
 	}
