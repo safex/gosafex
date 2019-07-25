@@ -46,10 +46,6 @@ func hashToEC(data []byte) (result *ExtendedGroupElement) {
 // Returns ErrInvalidPrivKey if the given private key (secret) is invalid.
 // Returns ErrInvalidPubKey if the given public key is invalid.
 func DeriveKey(pub, priv *Key) (result *Key, err error) {
-	pubkey := pub.String()
-	privkey := priv.String()
-	if pubkey == pubkey{}
-	if privkey == privkey{}
 	point := new(ExtendedGroupElement)
 	point2 := new(ProjectiveGroupElement)
 	point3 := new(CompletedGroupElement)
