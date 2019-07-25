@@ -89,7 +89,7 @@ func TestOpenCreate(t *testing.T) {
 	w := new(Wallet)
 	fullpath := strings.Join([]string{foldername, filename}, "/")
 
-	if w.isOpen() != false {
+	if w.IsOpen() != false {
 		t.Fatalf("Error in open status")
 	}
 	if err := w.OpenFile(fullpath, masterPass, false); err != nil {
