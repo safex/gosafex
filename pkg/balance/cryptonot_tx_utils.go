@@ -1,36 +1,39 @@
 package balance
 
 import (
-	"github.com/safex/gosafex/internal/crypto/derivation"
+	"encoding/hex"
+
 	"github.com/safex/gosafex/internal/crypto"
+	"github.com/safex/gosafex/internal/crypto/derivation"
 	"github.com/safex/gosafex/pkg/account"
 	"github.com/safex/gosafex/pkg/safex"
+	"github.com/safex/gosafex/pkg/serialization"
 
+	"bytes"
 	"fmt"
 	"log"
-	"sort"
 	"math/rand"
+	"sort"
 	"time"
-	"bytes"
 )
 
 // Interface for sorting offsets.
 type IOffsetsSort []uint64
-func (offs IOffsetsSort) Len() int { return len(offs)}
-func (offs IOffsetsSort) Swap(i, j int) { offs[i], offs[j] = offs[j], offs[i]}
-func (offs IOffsetsSort) Less(i, j int) bool { return offs[i] < offs[j]}
 
+func (offs IOffsetsSort) Len() int           { return len(offs) }
+func (offs IOffsetsSort) Swap(i, j int)      { offs[i], offs[j] = offs[j], offs[i] }
+func (offs IOffsetsSort) Less(i, j int) bool { return offs[i] < offs[j] }
 
 const EncryptedPaymentIdTail byte = 0x8d
 
-func EncryptPaymentId(paymentId [8]byte, pub [32]byte, priv [32]byte) ([8]byte){
+func EncryptPaymentId(paymentId [8]byte, pub [32]byte, priv [32]byte) [8]byte {
 	var derivation1 [32]byte
 	var hash []byte
 
 	var data [33]byte
 	dpub := derivation.Key(pub)
 	dpriv := derivation.Key(priv)
-	derivation1 = [32]byte(derivation.DeriveKey(&dpub,&dpriv))
+	derivation1 = [32]byte(derivation.DeriveKey(&dpub, &dpriv))
 
 	copy(data[0:32], derivation1[:])
 	data[32] = EncryptedPaymentIdTail
@@ -42,10 +45,10 @@ func EncryptPaymentId(paymentId [8]byte, pub [32]byte, priv [32]byte) ([8]byte){
 	return paymentId
 }
 
-func GetDestinationViewKeyPub(destinations *[]DestinationEntry, changeAddr *account.Address) *account.PublicKey{
+func GetDestinationViewKeyPub(destinations *[]DestinationEntry, changeAddr *account.Address) *account.PublicKey {
 	var addr account.Address
 	var count uint = 0
-	for _, val := range(*destinations) {
+	for _, val := range *destinations {
 		if val.Amount == 0 && val.TokenAmount == 0 {
 			continue
 		}
@@ -80,20 +83,20 @@ func AbsoluteOutputOffsetsToRelative(input []uint64) (ret []uint64) {
 	for i := len(ret) - 1; i != 0; i-- {
 		ret[i] -= ret[i-1]
 	}
-	
+
 	return ret
 }
 
 func Find(arr []int, val int) int {
-    for i, n := range arr {
-        if val == n {
-            return i
-        }
-    }
-    return -1
+	for i, n := range arr {
+		if val == n {
+			return i
+		}
+	}
+	return -1
 }
 
-func ApplyPermutation(permutation []int, f func(i,j int)) {
+func ApplyPermutation(permutation []int, f func(i, j int)) {
 	// sanity check
 	for i := 0; i < len(permutation); i++ {
 		if Find(permutation, i) == -1 {
@@ -111,9 +114,9 @@ func ApplyPermutation(permutation []int, f func(i,j int)) {
 		}
 		permutation[current] = current
 	}
-} 
+}
 
-func getTxInVFromTxInToKey(input TxInToKey) (ret *safex.TxinV){
+func getTxInVFromTxInToKey(input TxInToKey) (ret *safex.TxinV) {
 	ret = new(safex.TxinV)
 
 	if input.TokenKey {
@@ -133,7 +136,7 @@ func getTxInVFromTxInToKey(input TxInToKey) (ret *safex.TxinV){
 	return ret
 }
 
-func getKeyImage(input *safex.TxinV) ([]byte) {
+func getKeyImage(input *safex.TxinV) []byte {
 	if input.TxinToKey != nil {
 		return input.TxinToKey.KImage
 	} else {
@@ -144,7 +147,7 @@ func getKeyImage(input *safex.TxinV) ([]byte) {
 // As we dont use subaddresses for now, we will here just count current
 // std addresses.
 func classifyAddress(destinations *[]DestinationEntry,
-					 changeAddr *account.Address) (stdAddr, subAddr int){
+	changeAddr *account.Address) (stdAddr, subAddr int) {
 	countMap := make(map[string]int)
 	for _, dest := range *destinations {
 		_, ok := countMap[dest.Address.String()]
@@ -164,11 +167,11 @@ func (w *Wallet) constructTxWithKey(
 	destinations *[]DestinationEntry,
 	changeAddr *account.Address,
 	extra *[]byte,
-	tx *safex.Transaction, 
+	tx *safex.Transaction,
 	unlockTime uint64,
 	txKey *[32]byte,
 	shuffleOuts bool) (r bool) {
-	
+
 	// @todo CurrTransactionCheck
 
 	if *sources == nil {
@@ -184,7 +187,7 @@ func (w *Wallet) constructTxWithKey(
 	//var txKeyPub [32]byte
 
 	// @todo Make sure that this is necessary once code started working,
-	// @warning This can be crucial thing regarding 
+	// @warning This can be crucial thing regarding
 	ok, extraMap := ParseExtra(extra)
 
 	if ok {
@@ -236,7 +239,7 @@ func (w *Wallet) constructTxWithKey(
 		for _, outputEntry := range src.Outputs {
 			inputToKey.KeyOffsets = append(inputToKey.KeyOffsets, outputEntry.Index)
 		}
-		
+
 		inputToKey.KeyOffsets = AbsoluteOutputOffsetsToRelative(inputToKey.KeyOffsets)
 		tx.Vin = append(tx.Vin, getTxInVFromTxInToKey(inputToKey))
 	}
@@ -251,20 +254,20 @@ func (w *Wallet) constructTxWithKey(
 		insOrder[index] = index
 	}
 
-	sort.Slice(insOrder, func (i,j int) bool {
+	sort.Slice(insOrder, func(i, j int) bool {
 		kI := getKeyImage(tx.Vin[i])
 		kJ := getKeyImage(tx.Vin[j])
 
 		return bytes.Compare(kI, kJ) < 0
 	})
 
-	ApplyPermutation(insOrder, func(i,j int) { 
+	ApplyPermutation(insOrder, func(i, j int) {
 		tx.Vin[i], tx.Vin[j] = tx.Vin[j], tx.Vin[i]
 		(*sources)[i], (*sources)[j] = (*sources)[j], (*sources)[i]
 	})
 
 	pubTxKey := derivation.ScalarmultBase(*txKey)
-	
+
 	// Write to extra
 	extraMap[PubKey] = pubTxKey
 
@@ -289,15 +292,24 @@ func (w *Wallet) constructTxWithKey(
 
 	for _, dst := range *destinations {
 		if changeAddr != nil && dst.Address.Equals(changeAddr) {
-			derivation1 = derivation.DeriveKey(derivation.Key(*pubTxKey), derivation.Key(w.Address.ViewKey.Private))
+			derivation1 = derivation.DeriveKey((*derivation.Key)(&pubTxKey), (*derivation.Key)(&w.Address.ViewKey.Private))
 		} else {
-			derivation1 = derivation.DeriveKey(derivation.Key(dst.Address.ViewKey.Public), derivation.Key(*txKey))
+			var tempViewKey derivation.Key
+			copy(tempViewKey[:], dst.Address.ViewKey[:])
+			var tempTxKey derivation.Key
+			copy(tempTxKey[:], txKey[:])
+			derivation1 = derivation.DeriveKey(&tempViewKey, &tempTxKey)
 		}
 
-		outEphemeral := derivation.DerivationToPublicKey(outputIndex, derivation1, derivation.Key(dst.Address.SpendKey.Public))
+		var tempSpendKey derivation.Key
+		copy(tempSpendKey[:], dst.Address.SpendKey[:])
+		outEphemeral, err := derivation.DerivationToPublicKey(uint64(outputIndex), &derivation1, &tempSpendKey)
+		if err != nil {
+			panic("Error during calculation of publicTxKey: " + err.Error())
+		}
 
-		out = new(safex.Txout)
-		if dst.TokenTx {
+		out := new(safex.Txout)
+		if dst.TokenTransaction {
 			out.TokenAmount = dst.TokenAmount
 			out.Amount = 0
 			ttk := new(safex.TxoutTargetV)
@@ -325,14 +337,13 @@ func (w *Wallet) constructTxWithKey(
 	// 		 Additional keys are used when you are sending to multiple subaddresses.
 	//		 As Safex Blockchain doesnt support officially subaddresses this is left blank.
 
-
 	if summaryOutsMoney > summaryInputsMoney {
-		log.Prinln("Tx inputs cash (", summaryInputsMoney, ") less than outputs cash (", summaryOutsMoney, ")")
+		log.Println("Tx inputs cash (", summaryInputsMoney, ") less than outputs cash (", summaryOutsMoney, ")")
 		return false
 	}
 
 	if summaryOutsTokens > summaryInputsToken {
-		log.Prinln("Tx inputs token (", summaryInputsToken, ") less than outputs token (", summaryOutsTokens, ")")
+		log.Println("Tx inputs token (", summaryInputsToken, ") less than outputs token (", summaryOutsTokens, ")")
 		return false
 	}
 
@@ -342,12 +353,14 @@ func (w *Wallet) constructTxWithKey(
 	}
 
 	if tx.Version == 1 {
-		
+		txPrefixBytes := serialization.SerializeTransaction(tx)
+		txPrefixHash := crypto.Keccak256(txPrefixBytes)
+
+		fmt.Println("Temp txid is: ", hex.EncodeToString(txPrefixHash))
 	}
 
-
 	fmt.Println("YEAH!")
- 	return false
+	return false
 }
 
 func (w *Wallet) constructTxAndGetTxKey(
@@ -356,14 +369,13 @@ func (w *Wallet) constructTxAndGetTxKey(
 	destinations *[]DestinationEntry,
 	changeAddr *account.Address,
 	extra *[]byte,
-	tx *safex.Transaction, 
+	tx *safex.Transaction,
 	unlockTime uint64,
 	txKey *[32]byte) (r bool) {
 
-	
 	// src/cryptonote_core/cryptonote_tx_utils.cpp bool construct_tx_and_get_tx_key()
-	// There are no subaddresses involved, so no additional keys therefore we dont 
-	// need to involve anything regarding suaddress hence 
+	// There are no subaddresses involved, so no additional keys therefore we dont
+	// need to involve anything regarding suaddress hence
 	r = w.constructTxWithKey(sources, destinations, changeAddr, extra, tx, unlockTime, txKey, true)
 	return r
 }

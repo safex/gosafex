@@ -3,6 +3,7 @@ package derivation
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 
 	"github.com/safex/gosafex/internal/crypto"
 )
@@ -127,15 +128,15 @@ func DerivationToPublicKey(idx uint64, der, base *Key) (result *Key, err error) 
 	keyBuf := new(Key)
 
 	copy(keyBuf[:], base[:]) // TODO: prevent copying.
-	if !point1.fromBytes(keyBuf) {
-		return nil, ErrInvalidPubKey
+	if !point1.FromBytes(keyBuf) {
+		return nil, errors.New("Invalid key")
 	}
 
-	scalar := derivationToScalar(idx, der)
+	scalar := KeyDerivationToScalar(idx, *der)
 	GeScalarMultBase(point2, scalar)
-	point2.toCached(point3)
+	point2.ToCached(point3)
 	geAdd(point4, point1, point3)
-	point4.toProjective(point5)
-	point5.toBytes(keyBuf)
+	point4.ToProjective(point5)
+	point5.ToBytes(keyBuf)
 	return keyBuf, nil
 }

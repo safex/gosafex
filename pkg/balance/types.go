@@ -1,10 +1,10 @@
 package balance
 
 import (
+	"github.com/safex/gosafex/internal/crypto/derivation"
+	"github.com/safex/gosafex/pkg/account"
 	"github.com/safex/gosafex/pkg/safex"
 	"github.com/safex/gosafex/pkg/safexdrpc"
-	"github.com/safex/gosafex/pkg/account"
-	"github.com/safex/gosafex/internal/crypto/derivation"
 )
 
 // Containing balance status
@@ -28,21 +28,22 @@ type Address struct {
 
 // Data structure for storing outputs.
 type Transfer struct {
-	Output  *safex.Txout
-	Extra []byte
-	LocalIndex 	int
+	Output      *safex.Txout
+	Extra       []byte
+	LocalIndex  int
 	GlobalIndex uint64
-	Spent   bool
-	MinerTx bool
-	Height  uint64
-	KImage  derivation.Key
+	Spent       bool
+	MinerTx     bool
+	Height      uint64
+	KImage      derivation.Key
 }
 
 type Wallet struct {
-	balance Balance
-	Address Address
-	client  *safexdrpc.Client
-	outputs map[derivation.Key]Transfer // Save output keys.
+	balance         Balance
+	Address         Address
+	client          *safexdrpc.Client
+	outputs         map[derivation.Key]Transfer // Save output keys.
+	watchOnlyWallet bool
 }
 
 //---------------------------------- CREATE TRANSACTION TYPES --------------------------------------
@@ -54,7 +55,6 @@ type DestinationEntry struct {
 	IsSubaddress     bool // Not used, maybe needed in the future
 	TokenTransaction bool
 }
-
 
 type OutsEntry struct {
 	Index  uint64
@@ -94,21 +94,20 @@ type PendingTx struct {
 
 type TxOutputEntry struct {
 	Index uint64
-	Key [32]byte	
+	Key   [32]byte
 }
 
-
 type TxSourceEntry struct {
-	Outputs []TxOutputEntry
-	RealOutput uint64
-	RealOutTxKey [32]byte
+	Outputs                 []TxOutputEntry
+	RealOutput              uint64
+	RealOutTxKey            [32]byte
 	RealOutAdditionalTxKeys [][32]byte
-	KeyImage [32]byte
-	RealOutputInTxIndex int
-	Amount uint64
-	TokenAmount uint64
-	TokenTx bool
-	Migration bool
+	KeyImage                [32]byte
+	RealOutputInTxIndex     int
+	Amount                  uint64
+	TokenAmount             uint64
+	TokenTx                 bool
+	Migration               bool
 }
 
 type TX struct {
@@ -119,10 +118,10 @@ type TX struct {
 	bytes             uint64
 }
 
-// Instead of having 
+// Instead of having
 type TxInToKey struct {
-	Amount uint64
+	Amount     uint64
 	KeyOffsets []uint64
-	KeyImage [32]byte
-	TokenKey bool
+	KeyImage   [32]byte
+	TokenKey   bool
 }
