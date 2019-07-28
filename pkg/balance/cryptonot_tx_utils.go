@@ -353,10 +353,32 @@ func (w *Wallet) constructTxWithKey(
 	}
 
 	if tx.Version == 1 {
+		// @todo Test this! Hard code some of the outputs in cpp wallet
+		//		 and test if everything is correctly set.
 		txPrefixBytes := serialization.SerializeTransaction(tx)
 		txPrefixHash := crypto.Keccak256(txPrefixBytes)
-
 		fmt.Println("Temp txid is: ", hex.EncodeToString(txPrefixHash))
+
+		strBuf := bytes.NewBufferString("")
+		i := 0
+		for _, src := range *sources {
+			fmt.Fprintf(strBuf, "pub_keys:\n")
+			keysPtrs := make([]*[32]byte, 0)
+			keys := make([][32]byte, len(src.Outputs))
+			ii := 0
+
+			for _, outputEntry := range src.Outputs {
+				keys[ii] = outputEntry.Key
+				keysPtrs = append(keysPtrs, &outputEntry.Key)
+				// @todo Check this. As its written to stringstream in cpp
+				//		 there is small possibility that this writing into
+				//		 BufferString can produce different data (resulting string)
+				fmt.Fprintf(strBuf, string(outputEntry.Key[:]))
+				ii++
+			}
+
+		}
+
 	}
 
 	fmt.Println("YEAH!")

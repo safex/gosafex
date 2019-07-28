@@ -1,17 +1,18 @@
 package balance
 
 import (
-	"github.com/safex/gosafex/pkg/safex"
-	"github.com/safex/gosafex/internal/consensus"
-	"math/rand"
+	"bytes"
+	"fmt"
 	"math"
+	"math/rand"
 	"sort"
 	"time"
-	"fmt"
-	"bytes"
+
+	"github.com/safex/gosafex/internal/consensus"
+	"github.com/safex/gosafex/pkg/safex"
 )
 
-func (w *Wallet) getOutputHistogram(selectedTransfer *[]Transfer, outType safex.TxOutType) (histograms []*safex.Histogram){
+func (w *Wallet) getOutputHistogram(selectedTransfer *[]Transfer, outType safex.TxOutType) (histograms []*safex.Histogram) {
 	// @todo can be optimized
 	var amounts []uint64
 	encountered := map[uint64]bool{}
@@ -24,7 +25,7 @@ func (w *Wallet) getOutputHistogram(selectedTransfer *[]Transfer, outType safex.
 			}
 		}
 	}
-	
+
 	t := time.Now()
 	recentCutoff := uint64(t.Unix()) - consensus.RecentOutputZone
 
@@ -35,9 +36,9 @@ func (w *Wallet) getOutputHistogram(selectedTransfer *[]Transfer, outType safex.
 
 func getOutputDistribution(type_ string, numOuts uint64, numRecentOutputs uint64) (i uint64) {
 	r := rand.Uint64() % (uint64(1) << 53)
-	frac := math.Sqrt(float64(r) / float64(uint64(1) << 53))
+	frac := math.Sqrt(float64(r) / float64(uint64(1)<<53))
 	if type_ == "recent" {
-		i = uint64(frac * float64(numRecentOutputs)) + numOuts - numRecentOutputs
+		i = uint64(frac*float64(numRecentOutputs)) + numOuts - numRecentOutputs
 	} else if type_ == "triangular" {
 		i = uint64(frac * float64(numOuts))
 	}
@@ -49,15 +50,15 @@ func getOutputDistribution(type_ string, numOuts uint64, numRecentOutputs uint64
 
 }
 
-func TxAddFakeOutput( entry *[]OutsEntry, globalIndex uint64, outputKey [32]byte, localIndex uint64, unlocked bool) bool {
+func TxAddFakeOutput(entry *[]OutsEntry, globalIndex uint64, outputKey [32]byte, localIndex uint64, unlocked bool) bool {
 	if !unlocked {
 		return false
-	}	
+	}
 	if globalIndex == localIndex {
 		return false
 	}
 	item := OutsEntry{globalIndex, outputKey}
-	for _, val := range(*entry) {
+	for _, val := range *entry {
 		if item.Index == val.Index && bytes.Equal(item.PubKey[:], outputKey[:]) {
 			return false
 		}
@@ -83,7 +84,7 @@ func (w *Wallet) getOuts(outs *[][]OutsEntry, selectedTransfers *[]Transfer, fak
 		fmt.Println(height)
 
 		histograms := w.getOutputHistogram(selectedTransfers, outType)
-		baseRequestedOutputsCount := uint64(float64(fakeOutsCount + 1) * 1.5 + 1)
+		baseRequestedOutputsCount := uint64(float64(fakeOutsCount+1)*1.5 + 1)
 
 		var outsRq []safex.GetOutputRq
 
@@ -91,17 +92,15 @@ func (w *Wallet) getOuts(outs *[][]OutsEntry, selectedTransfers *[]Transfer, fak
 		var seenIndices map[uint64]bool
 		seenIndices = make(map[uint64]bool)
 
-
 		fmt.Println("Size of selectedTransfers:", len(*selectedTransfers))
-		for index, val := range(*selectedTransfers) {
+		for index, val := range *selectedTransfers {
 			fmt.Println(index, " ", val)
 			numSelectedTransfers++
 			valueAmount := GetOutputAmount(val.Output, outType)
 			var numOuts uint64 = 0
 			var numRecentOutputs uint64 = 0
-			
 
-			for _, he := range(histograms) {
+			for _, he := range histograms {
 				fmt.Println("histograms loop")
 				if he.Amount == valueAmount {
 					numOuts = he.UnlockedInstances
@@ -119,7 +118,7 @@ func (w *Wallet) getOuts(outs *[][]OutsEntry, selectedTransfers *[]Transfer, fak
 				recentOutputsCount = numRecentOutputs
 			}
 
-			if (val.GlobalIndex >= uint64(numOuts - numRecentOutputs)) && recentOutputsCount > 0 {
+			if (val.GlobalIndex >= uint64(numOuts-numRecentOutputs)) && recentOutputsCount > 0 {
 				recentOutputsCount--
 			}
 
@@ -128,15 +127,15 @@ func (w *Wallet) getOuts(outs *[][]OutsEntry, selectedTransfers *[]Transfer, fak
 			// @todo In original CLI wallet forked from monero, there is saving used rings in ringdb and reusing them
 			// 		 implement that after
 			// @todo Blackballing outputs.
-			
+
 			if numOuts <= baseRequestedOutputsCount {
 				fmt.Println("This is loop ", numOuts, " ", baseRequestedOutputsCount)
 				var i uint64 = 0
-				for i = 0 ; i < numOuts; i++ {
+				for i = 0; i < numOuts; i++ {
 					outsRq = append(outsRq, safex.GetOutputRq{valueAmount, i})
 				}
 
-				for i := numOuts ; i < baseRequestedOutputsCount; i++ {
+				for i := numOuts; i < baseRequestedOutputsCount; i++ {
 					outsRq = append(outsRq, safex.GetOutputRq{valueAmount, numOuts - i})
 				}
 			} else {
@@ -150,25 +149,24 @@ func (w *Wallet) getOuts(outs *[][]OutsEntry, selectedTransfers *[]Transfer, fak
 				// @note There are some other distribution here, but since we dont have "fork segmentation" implemented
 				//		 they are not used here.
 				for numFound < baseRequestedOutputsCount {
-					
+
 					if uint64(len(seenIndices)) == numOuts {
 						break
 					}
 
-					
 					var type_ string = ""
-					if numFound - 1 < recentOutputsCount {
+					if numFound-1 < recentOutputsCount {
 						type_ = "recent"
-						
+
 					} else {
 						type_ = "triangular"
 					}
 					i = getOutputDistribution(type_, numOuts, numRecentOutputs)
-					
+
 					// @todo check this again. There must be better solution
 					if _, ok := seenIndices[i]; ok {
 						continue
-					} 
+					}
 
 					seenIndices[i] = true
 
@@ -179,16 +177,16 @@ func (w *Wallet) getOuts(outs *[][]OutsEntry, selectedTransfers *[]Transfer, fak
 			sort.Sort(safex.ByIndex(outsRq))
 		}
 
-		fmt.Println("outsRq size: ",len(outsRq))
+		fmt.Println("outsRq size: ", len(outsRq))
 
-		// @todo Error handling. 
+		// @todo Error handling.
 		outs1, _ := w.client.GetOutputs(outsRq, safex.OutCash)
 
 		var scantyOuts map[uint64]int
 		scantyOuts = make(map[uint64]int)
 
 		var base uint64 = 0
-		for _, val := range(*selectedTransfers) {
+		for _, val := range *selectedTransfers {
 			var entry []OutsEntry
 			// @note pkey is extracted as output key.
 			// @note mask is not used as its zerocommit mask for non-rct (0), as we dont support RCT
@@ -211,7 +209,7 @@ func (w *Wallet) getOuts(outs *[][]OutsEntry, selectedTransfers *[]Transfer, fak
 
 			// @todo Refactor!!
 			var outputKeyTemp [32]byte
-			copy(outputKeyTemp[:],GetOutputKey(val.Output, outType))
+			copy(outputKeyTemp[:], GetOutputKey(val.Output, outType))
 
 			entry = append(entry, OutsEntry{val.GlobalIndex, outputKeyTemp})
 
@@ -219,19 +217,19 @@ func (w *Wallet) getOuts(outs *[][]OutsEntry, selectedTransfers *[]Transfer, fak
 			for n := uint64(0); n < baseRequestedOutputsCount; n++ {
 				order = append(order, n)
 			}
-			
+
 			// shuffle
 			rand.Seed(time.Now().UnixNano())
 			rand.Shuffle(len(order), func(i, j int) { order[i], order[j] = order[j], order[i] })
 
-			for o := uint64(0); o < baseRequestedOutputsCount && len(entry) < (fakeOutsCount + 1); o++ {
+			for o := uint64(0); o < baseRequestedOutputsCount && len(entry) < (fakeOutsCount+1); o++ {
 				i := base + order[o]
 				// @todo Refactor!!
 				copy(outputKeyTemp[:], outs1.Outs[i].Key)
 				TxAddFakeOutput(&entry, outsRq[i].Index, outputKeyTemp, val.GlobalIndex, outs1.Outs[i].Unlocked)
 			}
 
-			if len(entry) < fakeOutsCount + 1 {
+			if len(entry) < fakeOutsCount+1 {
 				scantyOuts[GetOutputAmount(val.Output, outType)] = len(entry)
 			} else {
 				sort.Sort(OutsEntryByIndex(entry))
@@ -244,12 +242,12 @@ func (w *Wallet) getOuts(outs *[][]OutsEntry, selectedTransfers *[]Transfer, fak
 		}
 
 	} else {
-		for _, val := range(*selectedTransfers) {
+		for _, val := range *selectedTransfers {
 			var entry []OutsEntry
 
 			// @todo Refactor!!
 			var outputKeyTemp [32]byte
-			copy(outputKeyTemp[:],GetOutputKey(val.Output, outType))
+			copy(outputKeyTemp[:], GetOutputKey(val.Output, outType))
 
 			entry = append(entry, OutsEntry{val.GlobalIndex, outputKeyTemp})
 			*outs = append(*outs, entry)
