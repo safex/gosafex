@@ -49,6 +49,26 @@ func (w *FileWallet) CheckIfBlockExists(blockHash string) int {
 	return i
 }
 
+func (w *FileWallet) GetBlockHeaderFromHeight(blockHeight uint64) (*safex.BlockHeader, error) {
+	latestHeight := w.latestBlockNumber
+	latestHash := w.latestBlockHash
+
+	if latestHeight < blockHeight {
+		return nil, ErrBlockNotFound
+	}
+	blck, _ := w.GetBlockHeader(latestHash)
+
+	for latestHeight != blockHeight {
+		blck, err := w.GetBlockHeader(blck.GetPrevHash())
+		if err != nil {
+			return nil, err
+		}
+		latestHash = blck.GetHash()
+		latestHeight = blck.GetDepth()
+	}
+	return blck, nil
+}
+
 //RewindBlockHeader rewinds all blocks up until the target block, removing transactions and outputs accordingly
 func (w *FileWallet) RewindBlockHeader(targetHash string) error {
 

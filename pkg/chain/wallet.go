@@ -191,6 +191,51 @@ func (w *Wallet) GetBalance() balance.Balance {
 	return w.balance
 }
 
+//GetHistory returns all transaction infos for the active user
+func (w *Wallet) GetHistory() ([]*filewallet.TransactionInfo, error) {
+	ids, err := w.wallet.GetAllTransactionInfos()
+	if err != nil {
+		return nil, err
+	}
+	ret, err := w.wallet.GetMultipleTransactionInfos(ids)
+	if err != nil {
+		return ret, err
+	}
+	return ret, nil
+}
+
+//GetTransactionInfo returns all transaction infos for the active user
+func (w *Wallet) GetTransactionInfo(transactionID string) (*filewallet.TransactionInfo, error) {
+	return w.wallet.GetTransactionInfo(transactionID)
+}
+
+//GetTransactionUpToBlockHeight returns all txinfos up to the given block height.
+func (w *Wallet) GetTransactionUpToBlockHeight(blockHeight uint64) ([]*filewallet.TransactionInfo, error) {
+	latestHeight := w.wallet.GetLatestBlockHeight()
+	if latestHeight > blockHeight {
+		return nil, filewallet.ErrBlockNotFound
+	}
+	if blockHeight <= 0 {
+		blockHeight = 1
+	}
+	var ret []*filewallet.TransactionInfo
+	for latestHeight != blockHeight {
+		txs, err := w.wallet.GetTransactionInfosFromBlockHeight(latestHeight)
+		if err != nil {
+			return nil, err
+		}
+		ret = append(ret, txs...)
+		latestHeight--
+	}
+	txs, err := w.wallet.GetTransactionInfosFromBlockHeight(blockHeight)
+	if err != nil {
+		return nil, err
+	}
+	ret = append(ret, txs...)
+
+	return ret, nil
+}
+
 //Close closes the wallet
 func (w *Wallet) Close() {
 	w.wallet.Close()
