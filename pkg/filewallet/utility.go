@@ -114,14 +114,14 @@ func unmarshallTransactionInfo(input []byte) (*TransactionInfo, error) {
 
 	temp = make([]byte, len(out[5]))
 	hex.Decode(temp, out[5])
-	if string(temp) == "F" {
+	if string(temp[0]) == "F" {
 		ret.DoubleSpendSeen = false
 	} else {
 		ret.DoubleSpendSeen = true
 	}
 	temp = make([]byte, len(out[6]))
 	hex.Decode(temp, out[6])
-	if string(temp) == "F" {
+	if string(temp[0]) == "F" {
 		ret.InPool = false
 	} else {
 		ret.InPool = true
