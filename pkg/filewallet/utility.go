@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"errors"
+	"strings"
 )
 
 func PackOutputIndex(blockHash string, localIndex uint64) (string, error) {
@@ -128,7 +129,7 @@ func unmarshallTransactionInfo(input []byte) (*TransactionInfo, error) {
 	}
 	temp = make([]byte, len(out[7]))
 	hex.Decode(temp, out[7])
-	ret.TxHash = string(temp)
+	ret.TxHash = strings.Trim(string(temp), string(0))
 
 	return ret, nil
 }
