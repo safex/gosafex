@@ -71,24 +71,24 @@ type TxConstructionData struct {
 	Sources           []TxSourceEntry
 	ChangeDts         DestinationEntry
 	SplittedDsts      []DestinationEntry
-	SelectedTransfers []uint64
+	SelectedTransfers *[]Transfer
 	Extra             []byte
 	UnlockTime        uint64
 	Dests             []DestinationEntry
 }
 
 type PendingTx struct {
-	Tx                safex.Transaction
+	Tx                *safex.Transaction
 	Dust              uint64
 	Fee               uint64
 	DustAddedToFee    uint64
 	ChangeDts         DestinationEntry
 	ChangeTokenDts    DestinationEntry
-	SelectedTransfers []uint64
+	SelectedTransfers *[]Transfer
 	KeyImages         string
 	TxKey             [32]byte
 	AdditionalTxKeys  [][32]byte // Not used
-	Dests             []DestinationEntry
+	Dests             *[]DestinationEntry
 	ConstructionData  TxConstructionData
 }
 

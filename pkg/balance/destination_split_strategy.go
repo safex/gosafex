@@ -14,7 +14,7 @@ func DecomposeAmountIntoDigits(
 
 	isDustHandled := false
 	var dust uint64 = 0
-	var order uint64 = 0
+	var order uint64 = 1
 	for amount != 0 {
 		chunk := (amount % 10) * order
 		amount /= 10
@@ -45,6 +45,7 @@ func DigitSplitStrategy(
 	dustTrehshold 	uint64,
 	splittedDsts 	*[]DestinationEntry,
 	dustDsts 	 	*[]DestinationEntry) {
+
 	*splittedDsts = nil
 	*dustDsts = nil
 
@@ -57,7 +58,7 @@ func DigitSplitStrategy(
 				*dustDsts = append(*dustDsts, DestinationEntry{0, input, val.Address, false, true})
 			})
 		} else {
-			DecomposeAmountIntoDigits(val.TokenAmount, 0, 
+			DecomposeAmountIntoDigits(val.Amount, 0, 
 				func(input uint64) {
 					*splittedDsts = append(*splittedDsts, DestinationEntry{input, 0, val.Address, false, false})
 				}, func(input uint64){

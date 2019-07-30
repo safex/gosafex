@@ -9,6 +9,7 @@ import (
 	"github.com/safex/gosafex/internal/consensus"
 	"github.com/safex/gosafex/pkg/account"
 	"github.com/safex/gosafex/pkg/safex"
+	"github.com/safex/gosafex/pkg/serialization"
 	"github.com/jinzhu/copier"
 )
 
@@ -281,17 +282,67 @@ func (w *Wallet) TxCreateCash(dsts []DestinationEntry, fakeOutsCount int, unlock
 			// We dont have enough for the basice fee, switching to adding fee.
 			// @todo Add logs, panics and shit
 			// @todo see why this is panicing always
-			// if outputs > inputs {
-			// 	panic("You dont have enough money for fee")
-			// 	addingFee = true
-			// 	// goto skip_tx
-			// }
+			if outputs > inputs {
+				panic("You dont have enough money for fee")
+				addingFee = true
+				// @todo Rework this goto.
+				// goto skip_tx
+			}
 
 
 			// Transfer selected
-			// @todo This need to be reworked
-			var fee uint64 = 0
-			w.transferSelected(&tx.Dsts, &tx.SelectedTransfers, fakeOutsCount, &outs, unlockTime, fee, &extra, &testTx, &testPtx, safex.OutCash)
+			w.transferSelected(&tx.Dsts, &tx.SelectedTransfers, fakeOutsCount, &outs, unlockTime, neededFee, &extra, &testTx, &testPtx, safex.OutCash)
+			
+			txBlob := serialization.SerializeTransaction(testPtx.Tx, true)
+			neededFee = consensus.CalculateFee(feePerKb, len(txBlob), feeMultiplier)
+			availableForFee := testPtx.Fee + testPtx.ChangeDts.Amount
+
+			if neededFee > availableForFee && len(dsts) > 0 && dsts[0].Amount > 0 {
+				var i *DestinationEntry = nil
+				for _, val := range tx.Dsts {
+					if val.Address.Equals(&(dsts[0].Address)) {
+						i = &val
+						break
+					}
+				}
+
+				if i == nil {
+					panic("Paid Address not fouind in outputs")
+				}
+
+				if i.Amount > neededFee {
+					newPaidAmount = i.Amount - neededFee
+					dsts[0].Amount += i.Amount - newPaidAmount
+					i.Amount = newPaidAmount
+					testPtx.Fee = neededFee
+					availableForFee = neededFee
+				}
+			}
+
+			if neededFee > availableFee {
+				log.Println("We couldnt make a tx, switching to fee accumulation")
+			} else {
+				log.Println("We made a tx, adjusting fee and saving it, we need " + string(neededFee) + " and we have " + string(testPtx.Fee))
+				for neededFee > testPtx.Fee {
+					transferSelected(tx.Dsts, tx.SelectedTransfers, fakeOutsCount, outs, unlockTime, neededFee, extra, testTx, testPtx, safex.OutCash)
+					txBlob = serialization.SerializeTransaction(testPtx.Tx, true)
+					neededFee= consensus.CalculateFee(feePerKb, len(txBlob), feeMultiplier)
+					log.Println("Made an attempt at a final tx, with " + string(testPtx.Fee) + " fee and " + string(testPtx.ChangeDts.Amount) + " change")
+				}
+
+				tx.Tx = testTx
+				tx.Ptx = testPtx
+				tx.Outs = outs
+				accumulatedFee += testPtx.Fee
+				accumulatedChange += testPtx.ChangeDts.Amount
+				addingFee = false
+				if len(dsts) != 0 {
+					log.Println("We have more to pay, starting another tx")
+					txes = append(txes, tx)
+					originalOutputIndex = 0
+				}
+			}
+			
 		}
 
 	}

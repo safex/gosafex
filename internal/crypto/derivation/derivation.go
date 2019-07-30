@@ -4,10 +4,37 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"crypto/rand"
 
 	"github.com/safex/gosafex/internal/crypto"
 )
+// =========================== Crypto mess (for tx_creation) ===============================
 
+func RandomScalar() (result *Key) {
+	result = new(Key)
+	var reduceFrom [KeyLength * 2]byte
+	tmp := make([]byte, KeyLength*2)
+	rand.Read(tmp)
+	copy(reduceFrom[:], tmp)
+	ScReduce(result, &reduceFrom)
+	return
+}
+
+// Creates a point on the Edwards Curve by hashing the key
+func (p *Key) HashToEC() (result *ExtendedGroupElement) {
+	result = new(ExtendedGroupElement)
+	var p1 ProjectiveGroupElement
+	var p2 CompletedGroupElement
+	temp := crypto.Keccak256(p[:])
+	var h Key
+	copy(h[:], temp[:])
+	p1.FromBytes(&h)
+	GeMul8(&p2, &p1)
+	p2.ToExtended(result)
+	return
+}
+
+// =========================================================================================
 // DeriveKey derives a new private key derivation from a given public key
 // and a secret.
 func DeriveKey(pub *Key, priv *Key) Key {

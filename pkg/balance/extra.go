@@ -137,7 +137,7 @@ func ParseExtra(extra *[]byte) (r bool, extraMap ExtraMap) {
 
 			switch length {
 			case 33: 
-				if nonce[0] == byte(NoncePaymentId) {
+				if nonce[0] == byte(0x00) {
 					extraMap[NoncePaymentId] = nonce[1:]
 				} else {
 					checkForError(errors.New(""), "Invalid PaymentId")
@@ -146,7 +146,7 @@ func ParseExtra(extra *[]byte) (r bool, extraMap ExtraMap) {
 
 			case 9: // encrypted 9 byte payment id
 				fmt.Println("EXTRA 9 fuck")
-				if nonce[0] == byte(NonceEncryptedPaymentId) {
+				if nonce[0] == byte(0x01) {
 					extraMap[NonceEncryptedPaymentId] = (*extra)[1:]
 				} else {
 					checkForError(errors.New("Invalid PaymentId"), "Invalid PaymentId")

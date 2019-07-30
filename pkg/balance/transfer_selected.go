@@ -6,6 +6,9 @@ import (
 
 	"github.com/safex/gosafex/pkg/account"
 	"github.com/safex/gosafex/pkg/safex"
+	"github.com/safex/gosafex/pkg/serialization"
+
+	"github.com/safex/gosafex/internal/consensus"
 )
 
 func convertAddress(input Address) *account.Address {
@@ -16,6 +19,15 @@ func convertAddress(input Address) *account.Address {
 		return nil
 	}
 	return acc
+}
+
+func checkInputs(inputs []*safex.TxinV) (bool) {
+	for _, input := range inputs {	
+		if input.TxinToKey == nil && input.TxinTokenToKey == nil {
+			return false
+		}
+	}
+	return true
 }
 
 func (w *Wallet) transferSelected(dsts *[]DestinationEntry, selectedTransfers *[]Transfer, fakeOutsCount int, outs *[][]OutsEntry,
@@ -96,7 +108,7 @@ func (w *Wallet) transferSelected(dsts *[]DestinationEntry, selectedTransfers *[
 		src.RealOutTxKey = ExtractTxPubKey(val.Extra)
 		src.RealOutAdditionalTxKeys = ExtractTxPubKeys(val.Extra)
 		src.RealOutput = uint64(realIndex)
-		src.RealOutputInTxIndex = val.LocalIndex
+		src.RealOutputInTxIndex = val.LocalIndex		
 		copy(src.KeyImage[:], val.KImage[:])
 		sources = append(sources, src)
 		outIndex++
@@ -121,17 +133,52 @@ func (w *Wallet) transferSelected(dsts *[]DestinationEntry, selectedTransfers *[
 	// if neededTokens < foundTokens {
 
 	// }
-
-
-		
-	// @warning @todo Implement dust policy 
 	
-	// var splittedDsts []DestinationEntry
-	// var dustDsts []DestinationEntry
+	var splittedDsts []DestinationEntry
+	var dustDsts []DestinationEntry
 
+	DigitSplitStrategy(dsts, &changeDts, &changeDts, 0, &splittedDsts, &dustDsts)
+
+	// @todo implement all data needed for filling destinations.
 	var txKey [32]byte
 
 	// @todo consider here if we need to send dsts or splitted dsts
-	r := w.constructTxAndGetTxKey(&sources, dsts, &(changeDts.Address), extra, tx, unlockTime, &txKey)
-	fmt.Println(r)
+	constructed := w.constructTxAndGetTxKey(&sources, &splittedDsts, &(changeDts.Address), extra, tx, unlockTime, &txKey)
+	if !constructed {
+		panic("Transation is not constructed!!!")
+	}
+
+	// @todo Check this out
+	// @todo Investigate how TxSize is controlled and calculated in advance
+	//		 in order to control and predict fee.
+	blobSize := serialization.GetTxBlobSize(tx)
+	if blobSize > uint64(consensus.GetUpperTransactionSizeLimit(2,10)) {
+		panic("Transaction too big!!")
+	}
+
+	if !checkInputs(tx.Vin) {
+		panic("There is input of wrong type!!!")
+	}
+
+	// @todo Set PTX data!
+	// @todo ptx.KeyImage = ... // This need to be rechecked.
+	ptx.Dust = fee // @todo Consider adding dust to fee
+	ptx.DustAddedToFee = uint64(0) // @todo Dust policy
+	ptx.Tx = tx
+	ptx.ChangeDts = changeDts
+	ptx.ChangeTokenDts = changeDts
+	ptx.SelectedTransfers = selectedTransfers
+	ptx.TxKey = txKey
+	ptx.Dests = dsts
+	ptx.ConstructionData.Sources = sources
+	ptx.ConstructionData.ChangeDts = changeDts
+	ptx.ConstructionData.SplittedDsts = splittedDsts
+	ptx.ConstructionData.SelectedTransfers = selectedTransfers
+	ptx.ConstructionData.Extra = tx.Extra
+	ptx.ConstructionData.UnlockTime = unlockTime
+	ptx.ConstructionData.Dests = *dsts
+
+	// @todo TransferSelected is supposed finished at this moment.
+	// @todo Test all everything thoroughly and fix known bugs
+
 }
