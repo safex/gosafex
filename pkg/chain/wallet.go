@@ -186,7 +186,7 @@ func (w *Wallet) GetKeys() (*account.Store, error) {
 	return w.wallet.GetKeys()
 }
 
-//GetBalance returns the keypair of the opened account
+//GetBalance returns the balance of the opened account
 func (w *Wallet) GetBalance() balance.Balance {
 	return w.balance
 }
@@ -212,7 +212,7 @@ func (w *Wallet) GetTransactionInfo(transactionID string) (*filewallet.Transacti
 //GetTransactionUpToBlockHeight returns all txinfos up to the given block height.
 func (w *Wallet) GetTransactionUpToBlockHeight(blockHeight uint64) ([]*filewallet.TransactionInfo, error) {
 	latestHeight := w.wallet.GetLatestBlockHeight()
-	if latestHeight > blockHeight {
+	if latestHeight < blockHeight {
 		return nil, filewallet.ErrBlockNotFound
 	}
 	if blockHeight <= 0 {
@@ -227,7 +227,7 @@ func (w *Wallet) GetTransactionUpToBlockHeight(blockHeight uint64) ([]*filewalle
 		ret = append(ret, txs...)
 		latestHeight--
 	}
-	txs, err := w.wallet.GetTransactionInfosFromBlockHeight(blockHeight)
+	txs, err := w.wallet.GetTransactionInfosFromBlockHeight(latestHeight)
 	if err != nil {
 		return nil, err
 	}

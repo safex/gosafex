@@ -57,9 +57,9 @@ func (w *FileWallet) GetBlockHeaderFromHeight(blockHeight uint64) (*safex.BlockH
 		return nil, ErrBlockNotFound
 	}
 	blck, _ := w.GetBlockHeader(latestHash)
-
+	var err error
 	for latestHeight != blockHeight {
-		blck, err := w.GetBlockHeader(blck.GetPrevHash())
+		blck, err = w.GetBlockHeader(blck.GetPrevHash())
 		if err != nil {
 			return nil, err
 		}
