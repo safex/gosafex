@@ -1,0 +1,183 @@
+= RPC Developer Guide
+
+Part of Safex GoLang codebase represents RPC module which is crucial part of integrating GoLang codebase into other systems such as GUI Wallet, Exchanges, etc...
+
+== Code layout
+RPC module is communicating over HTTP in form of JSON requests/responses. 
+
+=== Routes
+All routes are defined in `routes.go`. There you can find all necessary information about existing endpoints available in current release of RPC module.
+
+In method `GetRoutes()` we are forming route array for initialization of `gorilla router`. link:https://www.gorillatoolkit.org/[Gorilla] is Golang web, something similar as Express for NodeJS.
+
+.routes.go
+[source, golang]
+----
+routes = append(routes, 
+                Route{
+                    "OpenWallet", <1>
+                    "POST", <2>
+                    "/init/open",<3> 
+                    w.OpenExisting <4>
+                    
+                })
+----
+<1> Name of the route - Descriptive name of given route
+<2> HTTP Method - Selfexplanatory, we are going to use `POST`
+<3> Path to endpoint - Relative path to given endpoint.
+<4> Handler function - Function which will handle our request.
+
+Handler function takes two arguments:
+`http.ResponseWriter` and `http.Request`.
+
+Example:
+[source, golang]
+----
+func HandleRqFunc(rw http.ResponseWriter, r *http.Request)
+----
+
+=== Errors
+
+Error are reported as status codes which will be handled and processed on client side. Errors can be accompanied with `msg` field in result part of the JSON Response.
+
+All error status codes are defined in `errors.go`. 
+
+NOTE: Please keep in mind that consts for StatusCodeError must have clear assigned values!!
+
+=== Request and response
+JSON response from our module will always have unified structure as following
+[source, json]
+----
+{
+    "result" : {}, <1>
+    "status" : 0, <2>
+    "JSONRpcVersion" : "0.0.1" <3>
+}
+----
+<1> Resulting data of the request
+<2> Status code - 0 if everything is ok, otherwise appropriate code should be set.
+<3> Indicating version of JSONRpcVersion.
+
+NOTE: If error can be caused due more than one obvious reason its advisable to add `msg` field in response with brief explanation what caused given error.
+
+For creating response we will use `FormJSONResponse` function defined in `rq_rs_utils.go`.
+
+[source, golang]
+----
+func FormJSONResponse(result JSONElement, 
+                      statusErr StatusCodeError, 
+                      w *http.ResponseWriter)
+----
+
+Where `JSONElement` represents instance of `map[string]interface{}`.
+
+For reading data from request there is `UnmarshalRequest` function.
+
+[source, golang]
+----
+func UnmarshalRequest(r *http.Request, ret interface{}) StatusCodeError 
+----
+
+Please keep in mind that this function should be wrapped in the beggining of every `*_handlers.go` file. Reason for this is to hide unmarshaling process and to do few sanity checks on request we got.
+
+=== Endpoint handlers
+Endpoint handlers will be functions that will process data and form responses. We encourage grouping handler functions into separate files. Grouping handler functions should be based on some common property, for example all wallet initialization handlers should go in same file.
+
+Files containing handler function  must have names like `*_handlers.go`.
+
+For more information check link:https://github.com/safex/gosafex/tree/develop/pkg/rpc[code] and appropriate `*_handlers.go` files. All necessary things are already explained.
+
+== Guide for adding new endpoint
+=== Adding endpoint to existing handler group
+. Add route in `routes.go`
+. Add handler function in appropriate `*_handlers.go` file.
+.. If its necessary change main RqData object in that file
+.. If its necessary add new errors in `errors.go`
+. Add documentation for endpoint
+
+=== Creating new handler group
+If you are creating new handler group (new `*_handlers.go` file), we propose next layout.
+
+. Define struct for storing request data (`RqData`). Fields which this struct will contain should be common data fields for that handler group (like `filepath` and `password` for initialization) and that fields should be marked with `validate:"required"` in annotation. Other fields which can be empty, depending on endpoint should not be required.
+
+. Create function to unmarshal request data to defined struct (link:https://github.com/safex/gosafex/blob/8b9f89438cf846b85cfcb6d9762b41323ce57c72/pkg/rpc/init_handlers.go#L25[example])
+. Implement handler functions.
+. Add documentation for endpoint(s).
+
+=== Guidelines
+. When writing endpoint please keep in mind that you need to cover every possible situation and respond with appropriate status code and explanation.
+. Its never enough checking.
+. Please follow link:https://github.com/golang/go/wiki/CodeReviewComments[this] code style as much as possible.
+. Keep everything clean.
+. If you have any question feel free to ping us on link:opensafex.slack.com[slack] or any official Safex communication channels and here on GitHub.
+
+== Endpoint documentation
+Each endpoint will must be well documented with as follows.
+
+. Clear explanation of request, indicating required and not required fields.
+. Clear explanation of response -Documenting just result field.
+. List of possible errors.
+. Example of interaction with endpoint in CURL.
+
+=== Initalization endpoints
+Endpoints used for initialization operation of wallet, such as open, recover, etc.
+
+==== Open Wallet
+
+Opening existing wallet file. File must exists and be properly initialized with our codebase.
+
+.Request
+|===
+|Name|Type|Required|Explanation
+|path|string|yes| Path to existing wallet file.
+|password|string|yes| Encryption password for wallet file.
+|===
+
+.Response
+|===
+|Name|Type|Explanation
+|accounts|array of strings| List of accounts contained in wallet.
+|===
+
+
+Errors: 
+
+`FileDoesntExists, FailedToOpen`
+
+Example:
+[source, bash]
+----
+curl -d '{"path":"bah.bin", "password":"test"}' -X POST localhost:17406/init/open
+
+{"result":{"accounts":["primary"]},"status":0,"JSONRpcVersion":"1.0.0"}
+----
+
+==== Create Wallet
+
+Create fresh wallet file with new account. By default account created will have name `"primary"`
+
+.Request
+|===
+|Name|Type|Required|Explanation
+|path|string|yes| Path to existing wallet file.
+|password|string|yes| Encryption password for wallet file.
+|===
+
+.Response
+|===
+|Name|Type|Explanation
+|accounts|array of strings| List of accounts contained in wallet.
+|===
+
+
+Errors: 
+
+`FileAlreadyExists, FailedToOpen`
+
+Example:
+[source, bash]
+----
+curl -d '{"path":"bah.bin", "password":"test"}' -X POST localhost:17406/init/create
+{"result":{"accounts":["primary"]},"status":0,"JSONRpcVersion":"1.0.0"}
+
+----
