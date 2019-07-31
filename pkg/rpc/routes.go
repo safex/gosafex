@@ -25,6 +25,8 @@ func (w *WalletRPC) GetRoutes() (routes []Route) {
 	routes = append(routes, Route{"LoadData", "POST", "/store/get", w.LoadData})
 
 	routes = append(routes, Route{"GetAccountInfo", "GET", "/transaction-info/get", w.GetTransactionInfo})
+	routes = append(routes, Route{"GetAccountInfo", "GET", "/transaction-info/history", w.GetHistory})
+	routes = append(routes, Route{"GetAccountInfo", "GET", "/transaction-info/history-up-tp", w.GetTransactionUpToBlockHeight})
 
 	return routes
 }
