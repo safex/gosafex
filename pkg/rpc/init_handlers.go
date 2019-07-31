@@ -16,6 +16,7 @@ type WalletInitRq struct {
 	Password string `json:"password" validate:"required"`
 	Nettype  string `json:"nettype" validate:"required"`
 	Seed     string `json:"seed,omitempty"`
+	SeedPass string `json:"seedpass,omitempty"`
 	Address  string `json:"address,omitempty"`
 	SpendKey string `json:"spendkey,omitempty"`
 	ViewKey  string `json:"viewkey,omitempty"`
@@ -151,7 +152,7 @@ func (w *WalletRPC) RecoverWithSeed(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = w.wallet.Recover(mSeed, "primary", rqData.Nettype == "testnet")
+	err = w.wallet.Recover(mSeed, rqData.SeedPass, "primary", rqData.Nettype == "testnet")
 	if err != nil {
 		w.wallet.Close()
 		os.Remove(rqData.Path)
