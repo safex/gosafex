@@ -14,7 +14,7 @@ import (
 type WalletInitRq struct {
 	Path string `json:"path" validate:"required"`
 	Password string `json:"password" validate:"required"`
-	PasswordMnemonic string `json:"password_mnemonic"`
+	PasswordMnemonic string `json:"password_mnemonic,omitempty"`
 	Nettype string `json:"nettype" validate:"required"`
 	Seed string `json:"seed,omitempty"`
 	Address string `json:"address,omitempty"`
