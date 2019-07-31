@@ -20,4 +20,5 @@ const (
 	FileLoadFailed           = 13
 	GettingMnemonicFailed    = 14
 	FailedGettingTransaction = 15
+	FailedGettingOutput      = 16
 )

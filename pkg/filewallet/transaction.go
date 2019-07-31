@@ -5,12 +5,17 @@ import (
 )
 
 //GetAllTransactionInfoOutputs Returns a list of outputIDs associated with the given transactionID
-func (w *FileWallet) GetAllTransactionInfoOutputs(transactionID string) ([][]byte, error) {
-	if data, err := w.readAppendedKey(transactionOutputReferencePrefix + transactionID); err != nil {
+func (w *FileWallet) GetAllTransactionInfoOutputs(transactionID string) ([]string, error) {
+	tempData, err := w.readAppendedKey(transactionOutputReferencePrefix + transactionID)
+	if err != nil {
 		return nil, err
-	} else {
-		return data, nil
 	}
+	data := []string{}
+	for _, el := range tempData {
+		data = append(data, string(el))
+	}
+	return data, nil
+
 }
 
 //Inserts a reference to the given transactionID in the given block
