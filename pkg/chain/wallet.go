@@ -320,6 +320,11 @@ func (w *Wallet) GetOutputsByType(outputType string) (map[string]interface{}, er
 	return w.formatOutputMap(outIDs)
 }
 
+//GetUnspentOutputs .
+func (w *Wallet) GetUnspentOutputs() (map[string]interface{}, error){
+	return w.formatOutputMap(w.wallet.GetUnspentOutputs())
+}
+
 //Close closes the wallet
 func (w *Wallet) Close() {
 	w.wallet.Close()

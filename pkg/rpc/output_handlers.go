@@ -103,3 +103,24 @@ func (w *WalletRPC) GetOutputInfoFromType(rw http.ResponseWriter, r *http.Reques
 	data["outs"] = outs
 	FormJSONResponse(data, EverythingOK, &rw)
 }
+
+//GetUnspentOutputs .
+func (w *WalletRPC) GetUnspentOutputs(rw http.ResponseWriter, r *http.Request) {
+
+	if w.wallet == nil || !w.wallet.IsOpen() {
+		FormJSONResponse(nil, WalletIsNotOpened, &rw)
+		return
+	}
+	var data JSONElement
+	data = make(JSONElement)
+
+	outs, err := w.wallet.GetUnspentOutputs()
+	if err != nil {
+		data["msg"] = err.Error()
+		FormJSONResponse(data, FailedGettingOutput, &rw)
+		return
+	}
+	data["outs"] = outs
+	FormJSONResponse(data, EverythingOK, &rw)
+
+}
