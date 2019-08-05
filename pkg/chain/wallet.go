@@ -6,6 +6,7 @@ import (
 	"github.com/safex/gosafex/pkg/account"
 	"github.com/safex/gosafex/pkg/balance"
 	"github.com/safex/gosafex/pkg/filewallet"
+	"github.com/safex/gosafex/pkg/safex"
 	"github.com/safex/gosafex/pkg/safexdrpc"
 )
 
@@ -186,9 +187,142 @@ func (w *Wallet) GetKeys() (*account.Store, error) {
 	return w.wallet.GetKeys()
 }
 
-//GetBalance returns the keypair of the opened account
+//GetBalance returns the balance of the opened account
 func (w *Wallet) GetBalance() balance.Balance {
 	return w.balance
+}
+
+//GetHistory returns all transaction infos for the active user
+func (w *Wallet) GetHistory() ([]*filewallet.TransactionInfo, error) {
+	if !w.IsOpen() {
+		return nil, errors.New("FileWallet not open")
+	}
+	if w.wallet.GetAccount() == "" {
+		return nil, errors.New("No open account")
+	}
+	ids, err := w.wallet.GetAllTransactionInfos()
+	if err != nil {
+		return nil, err
+	}
+	ret, err := w.wallet.GetMultipleTransactionInfos(ids)
+	if err != nil {
+		return ret, err
+	}
+	return ret, nil
+}
+
+//GetTransactionInfo returns all transaction infos for the active user
+func (w *Wallet) GetTransactionInfo(transactionID string) (*filewallet.TransactionInfo, error) {
+	if !w.IsOpen() {
+		return nil, errors.New("FileWallet not open")
+	}
+	if w.wallet.GetAccount() == "" {
+		return nil, errors.New("No open account")
+	}
+	return w.wallet.GetTransactionInfo(transactionID)
+}
+
+//GetTransactionUpToBlockHeight returns all txinfos up to the given block height.
+func (w *Wallet) GetTransactionUpToBlockHeight(blockHeight uint64) ([]*filewallet.TransactionInfo, error) {
+	if !w.IsOpen() {
+		return nil, errors.New("FileWallet not open")
+	}
+	if w.wallet.GetAccount() == "" {
+		return nil, errors.New("No open account")
+	}
+	latestHeight := w.wallet.GetLatestBlockHeight()
+	if latestHeight < blockHeight {
+		return nil, filewallet.ErrBlockNotFound
+	}
+	if blockHeight <= 0 {
+		blockHeight = 1
+	}
+	var ret []*filewallet.TransactionInfo
+	for latestHeight != blockHeight {
+		txs, err := w.wallet.GetTransactionInfosFromBlockHeight(latestHeight)
+		if err != nil {
+			return nil, err
+		}
+		ret = append(ret, txs...)
+		latestHeight--
+	}
+	txs, err := w.wallet.GetTransactionInfosFromBlockHeight(latestHeight)
+	if err != nil {
+		return nil, err
+	}
+	ret = append(ret, txs...)
+
+	return ret, nil
+}
+
+func (w *Wallet) formatOutputMap(outIDs []string)(map[string]interface{}, error){
+	ret := map[string]interface{}{}
+	ret["count"] = len(outIDs)
+	infos := []*filewallet.OutputInfo{}
+	outs := []*safex.Txout{}
+	for _, el := range outIDs {
+		info, err := w.wallet.GetOutputInfo(string(el))
+		if err != nil {
+			return ret, err
+		}
+		out, err := w.wallet.GetOutput(string(el))
+		if err != nil {
+			return ret, err
+		}
+		infos = append(infos, info)
+		outs = append(outs, out)
+	}
+	ret["infos"] = infos
+	ret["outs"] = outs
+	return ret, nil
+}
+
+//GetOutput .
+func (w *Wallet) GetOutput(outID string) (map[string]interface{}, error) {
+	if !w.IsOpen() {
+		return nil, errors.New("FileWallet not open")
+	}
+	if w.wallet.GetAccount() == "" {
+		return nil, errors.New("No open account")
+	}
+	info, err := w.wallet.GetOutputInfo(outID)
+	if err != nil {
+		return nil, err
+	}
+	out, err := w.wallet.GetOutput(outID)
+	if err != nil {
+		return nil, err
+	}
+	return map[string]interface{}{"info": info, "out": out}, nil
+}
+
+//GetOutputsFromTransaction .
+func (w *Wallet) GetOutputsFromTransaction(transactionID string) (map[string]interface{}, error) {
+	if !w.IsOpen() {
+		return nil, errors.New("FileWallet not open")
+	}
+	if w.wallet.GetAccount() == "" {
+		return nil, errors.New("No open account")
+	}
+	outIDs, err := w.wallet.GetAllTransactionInfoOutputs(transactionID)
+	if err != nil {
+		return nil, err
+	}
+	return w.formatOutputMap(outIDs)
+}
+
+//GetOutputsFromTransaction .
+func (w *Wallet) GetOutputsByType(outputType string) (map[string]interface{}, error){
+	outIDs, err := w.wallet.GetAllTypeOutputs(outputType)
+	if err != nil{
+		return nil, err
+	}
+	return w.formatOutputMap(outIDs)
+}
+
+//GetUnspentOutputs .
+func (w *Wallet) GetUnspentOutputs() (map[string]interface{}, error){
+	return w.formatOutputMap(w.wallet.GetUnspentOutputs())
 }
 
 //Close closes the wallet

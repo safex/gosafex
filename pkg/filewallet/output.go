@@ -385,6 +385,21 @@ func (w *FileWallet) GetAllOutputs() ([]string, error) {
 	return data, nil
 }
 
+func (w *FileWallet) GetAllTypeOutputs(outputType string) ([]string, error){
+	if w.CheckIfOutputTypeExists(outputType) < 0{
+		return nil, ErrOutputTypeNotPresent
+	}
+	tempData, err := w.readAppendedKey(outputTypeKeyPrefix+outputType)
+	if err != nil{
+		return nil, err
+	}
+	data := []string{}
+	for _, el := range tempData {
+		data = append(data, string(el))
+	}
+	return data, nil
+}
+
 //GetUnspentOutputs Returns the list of known unspent outputs
 func (w *FileWallet) GetUnspentOutputs() []string {
 	return w.unspentOutputs

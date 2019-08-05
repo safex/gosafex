@@ -9,7 +9,9 @@ import (
 	"github.com/safex/gosafex/internal/crypto/curve"
 	"github.com/safex/gosafex/internal/mnemonic"
 	"github.com/safex/gosafex/pkg/account"
+	"github.com/safex/gosafex/pkg/filewallet"
 	"github.com/safex/gosafex/pkg/key"
+	"github.com/safex/gosafex/pkg/safex"
 )
 
 const filename = "test.db"
@@ -126,6 +128,135 @@ func TestRPC(t *testing.T) {
 		t.Fatalf("%s", err)
 	} else if info.Status != "OK" {
 		t.Fatal(info)
+	}
+}
+
+func TestGetHistory(t *testing.T) {
+	prepareFolder()
+
+	w := new(Wallet)
+	fullpath := strings.Join([]string{foldername, filename}, "/")
+
+	if err := w.OpenAndCreate("wallet1", fullpath, masterPass, true); err != nil {
+		t.Fatalf("%s", err)
+	}
+	defer CleanAfterTests(w, fullpath)
+
+	head1 := &safex.BlockHeader{Depth: 10, Hash: "aaaab", PrevHash: ""}
+	head2 := &safex.BlockHeader{Depth: 11, Hash: "aaaac", PrevHash: "aaaab"}
+	tx1 := &filewallet.TransactionInfo{Version: 1, UnlockTime: 10, Extra: []byte("asdasd"), BlockHeight: head1.GetDepth(), BlockTimestamp: 5, DoubleSpendSeen: false, InPool: false, TxHash: "tx01"}
+	tx2 := &filewallet.TransactionInfo{Version: 1, UnlockTime: 10, Extra: []byte("asdasd"), BlockHeight: head2.GetDepth(), BlockTimestamp: 5, DoubleSpendSeen: false, InPool: false, TxHash: "tx02"}
+	tx3 := &filewallet.TransactionInfo{Version: 1, UnlockTime: 10, Extra: []byte("asdasd"), BlockHeight: head2.GetDepth(), BlockTimestamp: 5, DoubleSpendSeen: false, InPool: false, TxHash: "tx03"}
+	tx4 := &filewallet.TransactionInfo{Version: 1, UnlockTime: 10, Extra: []byte("asdasd"), BlockHeight: head2.GetDepth(), BlockTimestamp: 5, DoubleSpendSeen: false, InPool: false, TxHash: "tx04"}
+
+	if err := w.wallet.PutBlockHeader(head1); err != nil {
+		t.Fatalf("%s", err)
+	}
+	if err := w.wallet.PutBlockHeader(head2); err != nil {
+		t.Fatalf("%s", err)
+	}
+	if err := w.wallet.PutTransactionInfo(tx1, head1.GetHash()); err != nil {
+		t.Fatalf("%s", err)
+	}
+	if err := w.wallet.PutTransactionInfo(tx2, head2.GetHash()); err != nil {
+		t.Fatalf("%s", err)
+	}
+	if err := w.wallet.PutTransactionInfo(tx3, head2.GetHash()); err != nil {
+		t.Fatalf("%s", err)
+	}
+	if err := w.wallet.PutTransactionInfo(tx4, head2.GetHash()); err != nil {
+		t.Fatalf("%s", err)
+	}
+
+	his, err := w.GetHistory()
+	if err != nil {
+		t.Fatalf("%s", err)
+	} else if len(his) != 4 {
+		t.Fatalf("Error retrieving history")
+	}
+	if his[0].TxHash != tx1.TxHash {
+		t.Fatalf("Error in recovering txhash")
+	}
+}
+
+func TestGetTransaction(t *testing.T) {
+	prepareFolder()
+
+	w := new(Wallet)
+	fullpath := strings.Join([]string{foldername, filename}, "/")
+
+	if err := w.OpenAndCreate("wallet1", fullpath, masterPass, true); err != nil {
+		t.Fatalf("%s", err)
+	}
+	defer CleanAfterTests(w, fullpath)
+
+	head1 := &safex.BlockHeader{Depth: 10, Hash: "aaaab", PrevHash: ""}
+	head2 := &safex.BlockHeader{Depth: 11, Hash: "aaaac", PrevHash: "aaaab"}
+	tx1 := &filewallet.TransactionInfo{Version: 1, UnlockTime: 10, Extra: []byte("asdasd"), BlockHeight: head1.GetDepth(), BlockTimestamp: 5, DoubleSpendSeen: false, InPool: false, TxHash: "tx01"}
+	if err := w.wallet.PutBlockHeader(head1); err != nil {
+		t.Fatalf("%s", err)
+	}
+	if err := w.wallet.PutBlockHeader(head2); err != nil {
+		t.Fatalf("%s", err)
+	}
+	if err := w.wallet.PutTransactionInfo(tx1, head1.GetHash()); err != nil {
+		t.Fatalf("%s", err)
+	}
+
+	tx, err := w.GetTransactionInfo("tx01")
+	if err != nil {
+		t.Fatalf("%s", err)
+	}
+	if tx.TxHash != tx1.TxHash {
+		t.Fatalf("Error in recovering txhash")
+	}
+}
+
+func TestGetTransactionByBlock(t *testing.T) {
+	prepareFolder()
+
+	w := new(Wallet)
+	fullpath := strings.Join([]string{foldername, filename}, "/")
+
+	if err := w.OpenAndCreate("wallet1", fullpath, masterPass, true); err != nil {
+		t.Fatalf("%s", err)
+	}
+	defer CleanAfterTests(w, fullpath)
+
+	head1 := &safex.BlockHeader{Depth: 10, Hash: "aaaab", PrevHash: ""}
+	head2 := &safex.BlockHeader{Depth: 11, Hash: "aaaac", PrevHash: "aaaab"}
+	tx1 := &filewallet.TransactionInfo{Version: 1, UnlockTime: 10, Extra: []byte("asdasd"), BlockHeight: head1.GetDepth(), BlockTimestamp: 5, DoubleSpendSeen: false, InPool: false, TxHash: "tx01"}
+	tx2 := &filewallet.TransactionInfo{Version: 1, UnlockTime: 10, Extra: []byte("asdasd"), BlockHeight: head2.GetDepth(), BlockTimestamp: 5, DoubleSpendSeen: false, InPool: false, TxHash: "tx02"}
+	tx3 := &filewallet.TransactionInfo{Version: 1, UnlockTime: 10, Extra: []byte("asdasd"), BlockHeight: head2.GetDepth(), BlockTimestamp: 5, DoubleSpendSeen: false, InPool: false, TxHash: "tx03"}
+	tx4 := &filewallet.TransactionInfo{Version: 1, UnlockTime: 10, Extra: []byte("asdasd"), BlockHeight: head2.GetDepth(), BlockTimestamp: 5, DoubleSpendSeen: false, InPool: false, TxHash: "tx04"}
+
+	if err := w.wallet.PutBlockHeader(head1); err != nil {
+		t.Fatalf("%s", err)
+	}
+	if err := w.wallet.PutBlockHeader(head2); err != nil {
+		t.Fatalf("%s", err)
+	}
+	if err := w.wallet.PutTransactionInfo(tx1, head1.GetHash()); err != nil {
+		t.Fatalf("%s", err)
+	}
+	if err := w.wallet.PutTransactionInfo(tx2, head2.GetHash()); err != nil {
+		t.Fatalf("%s", err)
+	}
+	if err := w.wallet.PutTransactionInfo(tx3, head2.GetHash()); err != nil {
+		t.Fatalf("%s", err)
+	}
+	if err := w.wallet.PutTransactionInfo(tx4, head2.GetHash()); err != nil {
+		t.Fatalf("%s", err)
+	}
+
+	his, err := w.GetTransactionUpToBlockHeight(10)
+	if err != nil {
+		t.Fatalf("%s", err)
+	} else if len(his) != 4 {
+		t.Fatalf("Error retrieving history")
+	}
+	if his[3].TxHash != tx1.TxHash {
+		t.Fatalf("Error in recovering txhash")
 	}
 }
 
