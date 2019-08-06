@@ -23,3 +23,14 @@ func (w *WalletRPC) GetStatus(rw http.ResponseWriter, r *http.Request) {
 	FormJSONResponse(data, EverythingOK, &rw)
 
 }
+
+// Getting status of current wallet. If its open, syncing etc.
+func (w *WalletRPC) Close(rw http.ResponseWriter, r *http.Request) {
+	w.Close()
+	w = nil
+	data = make(JSONElement)
+	data["msg"] = "Its closed!"
+
+	FormJSONResponse(data, EverythingOK, &rw)
+
+}

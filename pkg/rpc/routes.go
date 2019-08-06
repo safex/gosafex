@@ -24,14 +24,16 @@ func (w *WalletRPC) GetRoutes() (routes []Route) {
 	routes = append(routes, Route{"StoreData", "POST", "/store/put", w.StoreData})
 	routes = append(routes, Route{"LoadData", "POST", "/store/get", w.LoadData})
 
-	routes = append(routes, Route{"GetTransactionInfo", "GET", "/transaction/get", w.GetTransactionInfo})
-	routes = append(routes, Route{"GetHistory", "GET", "/transaction/history", w.GetHistory})
-	routes = append(routes, Route{"GetTransactionUpToBlockHeight", "GET", "/transaction/history-up-to", w.GetTransactionUpToBlockHeight})
+	routes = append(routes, Route{"GetTransactionInfo", "POST", "/transaction/get", w.GetTransactionInfo})
+	routes = append(routes, Route{"GetHistory", "POST", "/transaction/history", w.GetHistory})
+	routes = append(routes, Route{"GetTransactionUpToBlockHeight", "POST", "/transaction/history-up-to", w.GetTransactionUpToBlockHeight})
 
-	routes = append(routes, Route{"GetOutputInfo", "GET", "/output/get", w.GetOutputInfo})
-	routes = append(routes, Route{"GetOutputInfoFromTransaction", "GET", "/output/get-from-tx", w.GetOutputInfoFromTransaction})
-	routes = append(routes, Route{"GetOutputInfoFromType", "GET", "/output/get-from-type", w.GetOutputInfoFromType})
-	routes = append(routes, Route{"GetUnspentOutputs", "GET", "/output/get-unspent", w.GetUnspentOutputs})
+	routes = append(routes, Route{"GetOutputInfo", "POST", "/output/get", w.GetOutputInfo})
+	routes = append(routes, Route{"GetOutputInfoFromTransaction", "POST", "/output/get-from-tx", w.GetOutputInfoFromTransaction})
+	routes = append(routes, Route{"GetOutputInfoFromType", "POST", "/output/get-from-type", w.GetOutputInfoFromType})
+	routes = append(routes, Route{"GetUnspentOutputs", "POST", "/output/get-unspent", w.GetUnspentOutputs})
+
+	routes = append(routes, Route{"CloseWallet", "POST", "/close", w.Close})
 
 	return routes
 }
