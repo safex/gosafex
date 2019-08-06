@@ -26,7 +26,7 @@ func (w *WalletRPC) GetStatus(rw http.ResponseWriter, r *http.Request) {
 
 // Getting status of current wallet. If its open, syncing etc.
 func (w *WalletRPC) Close(rw http.ResponseWriter, r *http.Request) {
-	w.Close()
+	w.wallet.Close()
 	w = nil
 	data = make(JSONElement)
 	data["msg"] = "Its closed!"
