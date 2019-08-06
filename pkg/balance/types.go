@@ -115,7 +115,8 @@ type TX struct {
 	Dsts              []DestinationEntry
 	Tx                safex.Transaction
 	PendingTx         PendingTx
-	bytes             uint64
+	Outs              [][]OutsEntry
+	Bytes             uint64
 }
 
 // Instead of having

@@ -40,9 +40,9 @@ func (t Transfer) getRelatedness(input *Transfer) float32 {
 func (t Transfer) IsUnlocked(height uint64) bool {
 	if t.MinerTx {
 		return height-t.Height > 60
-	} else {
-		return height-t.Height > 10
 	}
+
+	return height-t.Height > 10
 }
 
 // @todo:  Move this to some config, or recalculate based on response time
@@ -115,7 +115,6 @@ func (w *Wallet) GetBalance() (b Balance, err error) {
 		start := time.Now()
 		blocks, err = w.client.GetBlocks(curr, end) // Load blocks from daemon
 		fmt.Println(time.Since(start))
-		
 
 		// If there was error during loading of blocks return err.
 		if err != nil {

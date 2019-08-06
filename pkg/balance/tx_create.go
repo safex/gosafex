@@ -2,15 +2,16 @@ package balance
 
 import (
 	"fmt"
+	"log"
 	"math/rand"
 	"sort"
 	"time"
 
+	"github.com/jinzhu/copier"
 	"github.com/safex/gosafex/internal/consensus"
 	"github.com/safex/gosafex/pkg/account"
 	"github.com/safex/gosafex/pkg/safex"
 	"github.com/safex/gosafex/pkg/serialization"
-	"github.com/jinzhu/copier"
 )
 
 const APPROXIMATE_INPUT_BYTES int = 80
@@ -209,7 +210,6 @@ func (w *Wallet) TxCreateCash(dsts []DestinationEntry, fakeOutsCount int, unlock
 
 	outs := [][]OutsEntry{}
 
-
 	var originalOutputIndex int = 0
 	var addingFee bool = false
 
@@ -224,9 +224,9 @@ func (w *Wallet) TxCreateCash(dsts []DestinationEntry, fakeOutsCount int, unlock
 			panic("Not enough money")
 		}
 
-		// @todo: Check this once more. 
+		// @todo: Check this once more.
 		idx = PopBestValueFrom(&unusedOutputs, &(tx.SelectedTransfers), false)
-	
+
 		tx.SelectedTransfers = append(tx.SelectedTransfers, idx)
 
 		availableAmount := idx.Output.Amount
@@ -285,68 +285,109 @@ func (w *Wallet) TxCreateCash(dsts []DestinationEntry, fakeOutsCount int, unlock
 			if outputs > inputs {
 				panic("You dont have enough money for fee")
 				addingFee = true
-				// @todo Rework this goto.
-				// goto skip_tx
-			}
+				// Else is here to emulate goto skip_tx:
+			} else {
 
+				// Transfer selected
+				w.transferSelected(&tx.Dsts, &tx.SelectedTransfers, fakeOutsCount, &outs, unlockTime, neededFee, &extra, &testTx, &testPtx, safex.OutCash)
 
-			// Transfer selected
-			w.transferSelected(&tx.Dsts, &tx.SelectedTransfers, fakeOutsCount, &outs, unlockTime, neededFee, &extra, &testTx, &testPtx, safex.OutCash)
-			
-			txBlob := serialization.SerializeTransaction(testPtx.Tx, true)
-			neededFee = consensus.CalculateFee(feePerKb, len(txBlob), feeMultiplier)
-			availableForFee := testPtx.Fee + testPtx.ChangeDts.Amount
+				txBlob := serialization.SerializeTransaction(testPtx.Tx, true)
+				neededFee = consensus.CalculateFee(feePerKb, len(txBlob), feeMultiplier)
+				availableForFee := testPtx.Fee + testPtx.ChangeDts.Amount
 
-			if neededFee > availableForFee && len(dsts) > 0 && dsts[0].Amount > 0 {
-				var i *DestinationEntry = nil
-				for _, val := range tx.Dsts {
-					if val.Address.Equals(&(dsts[0].Address)) {
-						i = &val
-						break
+				if neededFee > availableForFee && len(dsts) > 0 && dsts[0].Amount > 0 {
+					var i *DestinationEntry = nil
+					for _, val := range tx.Dsts {
+						if val.Address.Equals(&(dsts[0].Address)) {
+							i = &val
+							break
+						}
+					}
+
+					if i == nil {
+						panic("Paid Address not fouind in outputs")
+					}
+
+					if i.Amount > neededFee {
+						newPaidAmount := i.Amount - neededFee
+						dsts[0].Amount += i.Amount - newPaidAmount
+						i.Amount = newPaidAmount
+						testPtx.Fee = neededFee
+						availableForFee = neededFee
 					}
 				}
 
-				if i == nil {
-					panic("Paid Address not fouind in outputs")
+				if neededFee > availableForFee {
+					log.Println("We couldnt make a tx, switching to fee accumulation")
+				} else {
+					log.Println("We made a tx, adjusting fee and saving it, we need " + string(neededFee) + " and we have " + string(testPtx.Fee))
+					for neededFee > testPtx.Fee {
+						w.transferSelected(&tx.Dsts, &tx.SelectedTransfers, fakeOutsCount, &outs, unlockTime, neededFee, &extra, &testTx, &testPtx, safex.OutCash)
+						txBlob = serialization.SerializeTransaction(testPtx.Tx, true)
+						neededFee = consensus.CalculateFee(feePerKb, len(txBlob), feeMultiplier)
+						log.Println("Made an attempt at a final tx, with " + string(testPtx.Fee) + " fee and " + string(testPtx.ChangeDts.Amount) + " change")
+					}
+
+					tx.Tx = testTx
+					tx.PendingTx = testPtx
+					tx.Outs = outs
+					accumulatedFee += testPtx.Fee
+					accumulatedChange += testPtx.ChangeDts.Amount
+					addingFee = false
+					if len(dsts) != 0 {
+						log.Println("We have more to pay, starting another tx")
+						txes = append(txes, *tx)
+						originalOutputIndex = 0
+					}
 				}
 
-				if i.Amount > neededFee {
-					newPaidAmount = i.Amount - neededFee
-					dsts[0].Amount += i.Amount - newPaidAmount
-					i.Amount = newPaidAmount
-					testPtx.Fee = neededFee
-					availableForFee = neededFee
-				}
-			}
-
-			if neededFee > availableFee {
-				log.Println("We couldnt make a tx, switching to fee accumulation")
-			} else {
-				log.Println("We made a tx, adjusting fee and saving it, we need " + string(neededFee) + " and we have " + string(testPtx.Fee))
-				for neededFee > testPtx.Fee {
-					transferSelected(tx.Dsts, tx.SelectedTransfers, fakeOutsCount, outs, unlockTime, neededFee, extra, testTx, testPtx, safex.OutCash)
-					txBlob = serialization.SerializeTransaction(testPtx.Tx, true)
-					neededFee= consensus.CalculateFee(feePerKb, len(txBlob), feeMultiplier)
-					log.Println("Made an attempt at a final tx, with " + string(testPtx.Fee) + " fee and " + string(testPtx.ChangeDts.Amount) + " change")
-				}
-
-				tx.Tx = testTx
-				tx.Ptx = testPtx
-				tx.Outs = outs
-				accumulatedFee += testPtx.Fee
-				accumulatedChange += testPtx.ChangeDts.Amount
-				addingFee = false
-				if len(dsts) != 0 {
-					log.Println("We have more to pay, starting another tx")
-					txes = append(txes, tx)
-					originalOutputIndex = 0
-				}
-			}
-			
+			} // goto else
 		}
-
+			// @todo skip_tx:
+			// @todo Here goes stuff linked with subaddresses which will be added in
+			//	     the future. Logic regarding poping unused outputs from subaddress
+			//		 if there is something else to pay.
+		
 	}
 
+	if addingFee {
+		log.Println("We ran out of outputs while trying to gather final fee")
+		panic("Transactions is not possible") // @todo add error.
+	}
+
+	// @todo Add more log info. How many txs, total fee, total funds etc...
+	log.Println("Done creating txs!!")
+
+	for _, tx := range txes {
+		var testTx safex.Transaction
+		var testPtx PendingTx
+		w.transferSelected(
+			&tx.Dsts, 
+			&tx.SelectedTransfers, 
+			fakeOutsCount, 
+			&outs, 
+			unlockTime, 
+			tx.PendingTx.Fee, 
+			&extra, 
+			&testTx, 
+			&testPtx, 
+			safex.OutCash)
+		txBlob := serialization.SerializeTransaction(testPtx.Tx, true)
+		tx.Tx = testTx
+		tx.PendingTx = testPtx
+		tx.Bytes = uint64(len(txBlob))
+	}
+
+
+	ret := make([]PendingTx,0)
+	for _, tx := range txes {
+		// @todo Add more log information!
+		// txMoney := uint64(0)
+		// for _, transfer := range tx.SelectedTransfers {
+		// 	tx_money += transfer.Amount
+		// }
+		ret = append(ret, tx.PendingTx)
+	}
 	fmt.Println("This is spartaaaaaa")
 	return []PendingTx{}
 }
