@@ -28,7 +28,7 @@ func (w *WalletRPC) GetStatus(rw http.ResponseWriter, r *http.Request) {
 func (w *WalletRPC) Close(rw http.ResponseWriter, r *http.Request) {
 	w.wallet.Close()
 	w = nil
-	data = make(JSONElement)
+	data := make(JSONElement)
 	data["msg"] = "Its closed!"
 
 	FormJSONResponse(data, EverythingOK, &rw)

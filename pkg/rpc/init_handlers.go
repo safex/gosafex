@@ -221,22 +221,3 @@ func (w *WalletRPC) RecoverWithKeysFile(rw http.ResponseWriter, r *http.Request)
 
 	FormJSONResponse(data, EverythingOK, &rw)
 }
-
-func (w *WalletRPC) Close(rw http.ResponseWriter, r *http.Request) {
-	var rqData WalletInitRq
-	if !initGetData(&rw, r, &rqData) {
-		// Error response already handled
-		return
-	}
-
-	if w.wallet.IsOpen() {
-		FormJSONResponse(nil, WalletAlreadyOpened, &rw)
-	}
-
-	var data JSONElement
-	data = make(JSONElement)
-	data["msg"] = "Hello OpenExisting"
-
-	FormJSONResponse(data, EverythingOK, &rw)
-
-}
