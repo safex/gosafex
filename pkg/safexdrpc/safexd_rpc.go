@@ -3,14 +3,16 @@ package safexdrpc
 import (
 	"bytes"
 	"encoding/json"
+	"encoding/hex"
 	"errors"
+	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
 	"time"
-	"os"
-	"io"
+	"fmt"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/safex/gosafex/pkg/safex"
@@ -41,12 +43,11 @@ func must(err error) {
 //takes host and port as arguments
 func InitClient(host string, port uint) (client *Client) {
 
-
 	file, e := os.OpenFile("rpc_dump_log.txt", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
 	if e != nil {
-	   log.Fatalln("Failed to open rpc_dump_log.txt file")
+		log.Fatalln("Failed to open rpc_dump_log.txt file")
 	}
-  
+
 	wrtr := io.MultiWriter(file)
 	log.SetOutput(wrtr)
 
@@ -219,20 +220,19 @@ func (c Client) GetDynamicFeeEstimate() (fee uint64, err error) {
 	return fee, err
 }
 
-func (c Client) GetOutputHistogram(amounts *[]uint64, 
-									 minCount uint64, 
-									 maxCount uint64, 
-									 unlocked bool, 
-									 recentCutoff uint64,
-									 txOutType safex.TxOutType) (histograms safex.Histograms, err error) {
-	result, err := c.SafexdCall("proto/get_output_histogram",  JSONElement{ "amounts" : *amounts, 
-																			"min_count" : minCount,
-																			"max_count" : maxCount,
-																			"unlocked" : unlocked,
-																			"recent_cutoff" : recentCutoff,
-																			"out_type": txOutType}, "POST")
+func (c Client) GetOutputHistogram(amounts *[]uint64,
+	minCount uint64,
+	maxCount uint64,
+	unlocked bool,
+	recentCutoff uint64,
+	txOutType safex.TxOutType) (histograms safex.Histograms, err error) {
+	result, err := c.SafexdCall("proto/get_output_histogram", JSONElement{"amounts": *amounts,
+		"min_count":     minCount,
+		"max_count":     maxCount,
+		"unlocked":      unlocked,
+		"recent_cutoff": recentCutoff,
+		"out_type":      txOutType}, "POST")
 	must(err)
-
 
 	err = proto.Unmarshal(result, &histograms)
 	must(err)
@@ -240,11 +240,20 @@ func (c Client) GetOutputHistogram(amounts *[]uint64,
 }
 
 func (c Client) GetOutputs(out_entries []safex.GetOutputRq, txOutType safex.TxOutType) (outs safex.Outs, err error) {
-	result, err := c.SafexdCall("proto/get_outputs",  JSONElement{ "outputs" : out_entries,
-											"out_type": txOutType}, "POST")
+	result, err := c.SafexdCall("proto/get_outputs", JSONElement{"outputs": out_entries,
+		"out_type": txOutType}, "POST")
 	must(err)
 
 	err = proto.Unmarshal(result, &outs)
 	must(err)
 	return outs, err
+}
+
+func (c Client) SendTransaction(tx []byte, doNotRelay bool) (res safex.SendTxRes, err error) {
+	result, err := c.SafexdCall("/sendrawtransaction", JSONElement{"tx_as_hex":hex.EncodeToString(tx), "do_not_relay" : doNotRelay}, "POST")
+	must(err)
+	fmt.Println("Result SendTx: ", result)
+	err = json.Unmarshal(getSliceForPath(result, "result"), &res)
+	must(err)
+	return res, err
 }

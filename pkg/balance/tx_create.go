@@ -289,6 +289,7 @@ func (w *Wallet) TxCreateCash(dsts []DestinationEntry, fakeOutsCount int, unlock
 			} else {
 
 				// Transfer selected
+				fmt.Println(">>>>>>>>>>>>> FIRST TRANSFER SELECTED <<<<<<<<<<<<<<<<<<")
 				w.transferSelected(&tx.Dsts, &tx.SelectedTransfers, fakeOutsCount, &outs, unlockTime, neededFee, &extra, &testTx, &testPtx, safex.OutCash)
 
 				txBlob := serialization.SerializeTransaction(testPtx.Tx, true)
@@ -322,6 +323,7 @@ func (w *Wallet) TxCreateCash(dsts []DestinationEntry, fakeOutsCount int, unlock
 				} else {
 					log.Println("We made a tx, adjusting fee and saving it, we need " + string(neededFee) + " and we have " + string(testPtx.Fee))
 					for neededFee > testPtx.Fee {
+						fmt.Println("NeededFee: ", neededFee, ", testPtx.Fee ", testPtx.Fee)
 						w.transferSelected(&tx.Dsts, &tx.SelectedTransfers, fakeOutsCount, &outs, unlockTime, neededFee, &extra, &testTx, &testPtx, safex.OutCash)
 						txBlob = serialization.SerializeTransaction(testPtx.Tx, true)
 						neededFee = consensus.CalculateFee(feePerKb, len(txBlob), feeMultiplier)
@@ -389,5 +391,5 @@ func (w *Wallet) TxCreateCash(dsts []DestinationEntry, fakeOutsCount int, unlock
 		ret = append(ret, tx.PendingTx)
 	}
 	fmt.Println("This is spartaaaaaa")
-	return []PendingTx{}
+	return ret
 }

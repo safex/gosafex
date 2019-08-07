@@ -54,10 +54,12 @@ func (w *Wallet) transferSelected(dsts *[]DestinationEntry, selectedTransfers *[
 	}
 	fmt.Println("Transfer selected outs: ", outs)
 
-	// @todo This should be refactored so it can accomodate tokens as well.
-	// @note getOuts is fully fitted to accomodate tokens and cash outputs
-	// @todo Test this against cpp code more thoroughly
-	w.getOuts(outs, selectedTransfers, fakeOutsCount, outType)
+	if len(*outs) == 0 {
+		// @todo This should be refactored so it can accomodate tokens as well.
+		// @note getOuts is fully fitted to accomodate tokens and cash outputs
+		// @todo Test this against cpp code more thoroughly
+		w.getOuts(outs, selectedTransfers, fakeOutsCount, outType)
+	}
 
 	fmt.Println("------------------------- OUTPUTS -------------------------------------")
 	fmt.Println("OUTPUTS")
@@ -170,6 +172,7 @@ func (w *Wallet) transferSelected(dsts *[]DestinationEntry, selectedTransfers *[
 	ptx.SelectedTransfers = selectedTransfers
 	ptx.TxKey = txKey
 	ptx.Dests = dsts
+	ptx.Fee = fee
 	ptx.ConstructionData.Sources = sources
 	ptx.ConstructionData.ChangeDts = changeDts
 	ptx.ConstructionData.SplittedDsts = splittedDsts
