@@ -16,18 +16,24 @@ import (
 // TODO: Move this to some config, or recalculate based on response time
 const BlockFetchCnt = 100
 
-func (w *Wallet) updateBlock() error {
+func (w *Wallet) UpdateBlock(nblocks uint64) error {
 	if w.client == nil {
 		return errors.New("Client not initialized")
 	}
+
 	info, err := w.client.GetDaemonInfo()
 	if err != nil {
 		return err
 	}
 
-	knownHeight := w.wallet.GetLatestBlockHeight()
-	bcHeight := info.Height
+	var bcHeight uint64
 
+	knownHeight := w.wallet.GetLatestBlockHeight()
+	if nblocks == 0{
+		bcHeight = info.Height
+	}else{
+		bcHeight = info.Height + nblocks
+	}
 	var targetBlock uint64
 
 	for knownHeight != bcHeight-1 {
@@ -320,6 +326,10 @@ func (w *Wallet) GetOutputsByType(outputType string) (map[string]interface{}, er
 	return w.formatOutputMap(outIDs)
 }
 
+
+func (w *Wallet) GetLatestLoadedBlockHeight() uint64{
+	return w.wallet.GetLatestBlockHeight() 
+}
 //GetUnspentOutputs .
 func (w *Wallet) GetUnspentOutputs() (map[string]interface{}, error){
 	return w.formatOutputMap(w.wallet.GetUnspentOutputs())
