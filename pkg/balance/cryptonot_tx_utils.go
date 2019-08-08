@@ -123,13 +123,13 @@ func getTxInVFromTxInToKey(input TxInToKey) (ret *safex.TxinV) {
 		toKey := new(safex.TxinTokenToKey)
 		toKey.TokenAmount = input.Amount
 		toKey.KeyOffsets = input.KeyOffsets
-		copy(toKey.KImage, input.KeyImage[:])
+		toKey.KImage = input.KeyImage[:]
 		ret.TxinTokenToKey = toKey
 	} else {
 		toKey := new(safex.TxinToKey)
 		toKey.Amount = input.Amount
 		toKey.KeyOffsets = input.KeyOffsets
-		copy(toKey.KImage, input.KeyImage[:])
+		toKey.KImage = input.KeyImage[:]
 		ret.TxinToKey = toKey
 	}
 
@@ -300,7 +300,7 @@ func (w *Wallet) constructTxWithKey(
 	// @todo Dont know why I did it like this. Investigate, pretty sure one is redudant.
 	*extra = tempExtra
 	tx.Extra = *extra
-	
+
 	tx.UnlockTime = unlockTime
 
 	summaryOutsMoney := uint64(0)
@@ -392,10 +392,10 @@ func (w *Wallet) constructTxWithKey(
 				ii++
 			}
 
-			sigs := derivation.CreateSignatures(&txPrefixHash, keys, (*derivation.Key)(&w.Address.SpendKey.Public), (*derivation.Key)(&w.Address.SpendKey.Private), int(src.RealOutput))
+			sigs := derivation.CreateSignatures(&txPrefixHash, keys, (*derivation.Key)(&w.Address.SpendKey.Public), (*derivation.Key)(&w.Address.SpendKey.Private), src.KeyImage, int(src.RealOutput))
 			addSigToTx(tx, &sigs)
 		}
-		
+
 	}
 
 	fmt.Println("Sources len: ", len(*sources))

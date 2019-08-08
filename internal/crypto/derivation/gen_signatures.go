@@ -33,8 +33,9 @@ func NewRingSignatureElement() (r *RingSignatureElement) {
 	return
 }
 
-func CreateSignatures(prefixHash *[]byte, mixins [][32]byte, pubKey *Key, privKey *Key, secIndex int) (sig RingSignature) {
+func CreateSignatures(prefixHash *[]byte, mixins [][32]byte, pubKey *Key, privKey *Key, kImage [32]byte, secIndex int) (sig RingSignature) {
 	var keyImage Key
+	copy(keyImage[:], kImage[:])
 	point := pubKey.HashToEC()
 	keyImagePoint := new(ProjectiveGroupElement)
 	GeScalarMult(keyImagePoint, privKey, point)
