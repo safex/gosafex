@@ -3,7 +3,6 @@ package safexdrpc
 import (
 	"bytes"
 	"encoding/json"
-	"encoding/hex"
 	"errors"
 	"io"
 	"io/ioutil"
@@ -249,8 +248,8 @@ func (c Client) GetOutputs(out_entries []safex.GetOutputRq, txOutType safex.TxOu
 	return outs, err
 }
 
-func (c Client) SendTransaction(tx []byte, doNotRelay bool) (res safex.SendTxRes, err error) {
-	result, err := c.SafexdCall("sendrawtransaction", JSONElement{"tx_as_hex":hex.EncodeToString(tx), "do_not_relay" : doNotRelay}, "POST")
+func (c Client) SendTransaction(tx *safex.Transaction, doNotRelay bool) (res safex.SendTxRes, err error) {
+	result, err := c.SafexdCall("proto/sendrawtransaction", JSONElement{"proto_tx": tx.String(), "do_not_relay" : doNotRelay}, "POST")
 	must(err)
 	fmt.Println("Result SendTx: ", result)
 	err = json.Unmarshal(getSliceForPath(result, "result"), &res)
