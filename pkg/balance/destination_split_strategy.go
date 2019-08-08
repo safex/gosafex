@@ -67,4 +67,32 @@ func DigitSplitStrategy(
 		}
 		
 	}
+
+	// @todo Investigate this. I left both of them in case for token tx when you have cash change for fee.
+
+	// Cash part
+	if changeDst != nil {
+		DecomposeAmountIntoDigits(
+			changeDst.Amount, 
+			0,
+			func(input uint64) {
+				*splittedDsts = append(*splittedDsts, DestinationEntry{input, 0,  changeDst.Address, false, false})
+			}, 
+			func(input uint64){
+				*dustDsts = append(*dustDsts, DestinationEntry{input, 0, changeDst.Address, false, false})
+			})
+	}
+
+	// Token part
+	if changeDstToken != nil {
+		DecomposeAmountIntoDigits(
+			changeDstToken.Amount, 
+			0,
+			func(input uint64) {
+				*splittedDsts = append(*splittedDsts, DestinationEntry{0, input,  changeDstToken.Address, false, true})
+			}, 
+			func(input uint64){
+				*dustDsts = append(*dustDsts, DestinationEntry{0, input, changeDstToken.Address, false, true})
+			})
+	}
 }

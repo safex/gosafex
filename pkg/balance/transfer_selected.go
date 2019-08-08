@@ -139,7 +139,8 @@ func (w *Wallet) transferSelected(dsts *[]DestinationEntry, selectedTransfers *[
 	var splittedDsts []DestinationEntry
 	var dustDsts []DestinationEntry
 
-	DigitSplitStrategy(dsts, &changeDts, &changeDts, 0, &splittedDsts, &dustDsts)
+	// @todo fix this to accomodate tokens as well
+	DigitSplitStrategy(dsts, &changeDts, nil, 0, &splittedDsts, &dustDsts)
 
 	// @todo implement all data needed for filling destinations.
 	var txKey [32]byte
@@ -149,7 +150,8 @@ func (w *Wallet) transferSelected(dsts *[]DestinationEntry, selectedTransfers *[
 	if !constructed {
 		panic("Transation is not constructed!!!")
 	}
-
+	
+	
 	// @todo Check this out
 	// @todo Investigate how TxSize is controlled and calculated in advance
 	//		 in order to control and predict fee.

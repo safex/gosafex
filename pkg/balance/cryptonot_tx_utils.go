@@ -166,8 +166,8 @@ func addSigToTx(tx *safex.Transaction, sigs *derivation.RingSignature) {
 	for _, sig := range *sigs {
 		sigData := new(safex.SigData)
 		c, r := sig.ExportData()
-		copy(sigData.C[:], (*c)[:])
-		copy(sigData.R[:], (*r)[:])
+		sigData.C = (*c)[:]
+		sigData.R = (*r)[:]
 		sigTx.Signature = append(sigTx.Signature, sigData)
 	}
 	tx.Signatures = append(tx.Signatures, sigTx)
@@ -297,7 +297,11 @@ func (w *Wallet) constructTxWithKey(
 		return false
 	}
 
+	// @todo Dont know why I did it like this. Investigate, pretty sure one is redudant.
 	*extra = tempExtra
+	tx.Extra = *extra
+	
+	tx.UnlockTime = unlockTime
 
 	summaryOutsMoney := uint64(0)
 	summaryOutsTokens := uint64(0)
@@ -333,14 +337,13 @@ func (w *Wallet) constructTxWithKey(
 			ttk.TxoutTokenToKey = ttk1
 			copy(ttk1.Key, outEphemeral[:])
 			out.Target = ttk
-			tx.Vout = append(tx.Vout, out)
 		} else {
 			out.TokenAmount = 0
 			out.Amount = dst.Amount
 			ttk := new(safex.TxoutTargetV)
 			ttk1 := new(safex.TxoutToKey)
 			ttk.TxoutToKey = ttk1
-			copy(ttk1.Key, outEphemeral[:])
+			ttk1.Key = outEphemeral[:]
 			out.Target = ttk
 		}
 
@@ -409,6 +412,8 @@ func (w *Wallet) constructTxAndGetTxKey(
 	unlockTime uint64,
 	txKey *[32]byte) (r bool) {
 
+	secTxKey := derivation.NewRandomScalar()
+	copy((*txKey)[:], secTxKey[:])
 	// src/cryptonote_core/cryptonote_tx_utils.cpp bool construct_tx_and_get_tx_key()
 	// There are no subaddresses involved, so no additional keys therefore we dont
 	// need to involve anything regarding suaddress hence

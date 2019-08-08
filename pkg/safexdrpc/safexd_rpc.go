@@ -250,7 +250,7 @@ func (c Client) GetOutputs(out_entries []safex.GetOutputRq, txOutType safex.TxOu
 }
 
 func (c Client) SendTransaction(tx []byte, doNotRelay bool) (res safex.SendTxRes, err error) {
-	result, err := c.SafexdCall("/sendrawtransaction", JSONElement{"tx_as_hex":hex.EncodeToString(tx), "do_not_relay" : doNotRelay}, "POST")
+	result, err := c.SafexdCall("sendrawtransaction", JSONElement{"tx_as_hex":hex.EncodeToString(tx), "do_not_relay" : doNotRelay}, "POST")
 	must(err)
 	fmt.Println("Result SendTx: ", result)
 	err = json.Unmarshal(getSliceForPath(result, "result"), &res)

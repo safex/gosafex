@@ -7,8 +7,12 @@ import (
 	"crypto/rand"
 
 	"github.com/safex/gosafex/internal/crypto"
+	"github.com/safex/gosafex/internal/random"
 )
 // =========================== Crypto mess (for tx_creation) ===============================
+
+// TODO: move rand generator somewhere appropriate.
+var randomGenerator = random.NewGenerator(false, 0)
 
 func RandomScalar() (result *Key) {
 	result = new(Key)
@@ -17,6 +21,16 @@ func RandomScalar() (result *Key) {
 	rand.Read(tmp)
 	copy(reduceFrom[:], tmp)
 	ScReduce(result, &reduceFrom)
+	return
+}
+
+func NewRandomScalar() (result *Key) {
+	result = new(Key)
+	seq := randomGenerator.NewSequence()
+	var temp [64]byte
+	copy(temp[:], seq[:])	
+	ScReduce(result, &temp)
+	ScReduce32(result)
 	return
 }
 
