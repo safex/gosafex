@@ -2,6 +2,7 @@ package derivation
 
 import (
 	"encoding/hex"
+	"math/rand"
 )
 
 type RingSignatureElement struct {
@@ -33,20 +34,16 @@ func NewRingSignatureElement() (r *RingSignatureElement) {
 	return
 }
 
-func CreateSignatures(prefixHash *[]byte, mixins [][32]byte, pubKey *Key, privKey *Key, kImage [32]byte, secIndex int) (sig RingSignature) {
+func CreateSignatures(prefixHash *[]byte, mixins [][32]byte, privKey *Key, kImage [32]byte, secIndex int) (sig RingSignature) {
 	var keyImage Key
 	copy(keyImage[:], kImage[:])
-	keyImageGe := new(ExtendedGroupElement)
-	keyImageGe.FromBytes(keyImage)
-
-
-
+	point := privKey.PubKey().HashToEC()
 	keyImagePoint := new(ProjectiveGroupElement)
 	GeScalarMult(keyImagePoint, privKey, point)
 	// convert key Image point from Projective to Extended
 	// in order to precompute
 	keyImagePoint.ToBytes(&keyImage)
-	
+	keyImageGe := new(ExtendedGroupElement)
 	keyImageGe.FromBytes(&keyImage)
 	var keyImagePre [8]CachedGroupElement
 	GePrecompute(&keyImagePre, keyImageGe)
@@ -62,7 +59,7 @@ func CreateSignatures(prefixHash *[]byte, mixins [][32]byte, pubKey *Key, privKe
 			GeScalarMultBase(tmpE, k)
 			tmpE.ToBytes(&tmpEBytes)
 			toHash = append(toHash, tmpEBytes[:]...)
-			tmpE = pubKey.HashToEC()
+			tmpE = privKey.PubKey().HashToEC()
 			GeScalarMult(tmpP, k, tmpE)
 			tmpP.ToBytes(&tmpPBytes)
 			toHash = append(toHash, tmpPBytes[:]...)
@@ -93,7 +90,16 @@ func CreateSignatures(prefixHash *[]byte, mixins [][32]byte, pubKey *Key, privKe
 	return
 }
 
-func CreateSignature2(prefixHash *Hash, mixins []Key, privKey *Key) (keyImage Key, pubKeys []Key, sig RingSignature) {
+func (key *Key) PubKey() (result *Key) {
+	point := new(ExtendedGroupElement)
+	GeScalarMultBase(point, key)
+	result = new(Key)
+	point.ToBytes(result)
+	return
+}
+
+
+func CreateSignature2(prefixHash *[]byte, mixins []Key, privKey *Key) (keyImage Key, pubKeys []Key, sig RingSignature) {
 	point := privKey.PubKey().HashToEC()
 	keyImagePoint := new(ProjectiveGroupElement)
 	GeScalarMult(keyImagePoint, privKey, point)
@@ -110,7 +116,7 @@ func CreateSignature2(prefixHash *Hash, mixins []Key, privKey *Key) (keyImage Ke
 	pubKeys[privIndex] = *privKey.PubKey()
 	r := make([]*RingSignatureElement, len(pubKeys))
 	sum := new(Key)
-	toHash := prefixHash[:]
+	toHash := *prefixHash
 	for i := 0; i < len(pubKeys); i++ {
 		tmpE := new(ExtendedGroupElement)
 		tmpP := new(ProjectiveGroupElement)

@@ -2,6 +2,7 @@ package derivation
 
 import (
 	"encoding/hex"
+	"fmt"
 	"testing"
 )
 
@@ -15,24 +16,29 @@ func TestCreateSignatures(t *testing.T) {
 
 	var keyImage [32]byte
 	copy(keyImage[:], kImage)
-	
+
+	privKey := new(Key)
+	copy(privKey[:], sec)
+
 	mixins := make([][32]byte, 2)
 	copy(mixins[0][:], pub1)
-	copy(mixins[1][:], pub1)
+	copy(mixins[1][:], pub2)
 
-	sigs := 
+	sigs := CreateSignatures(&prefixHash, mixins, privKey, keyImage, realIndex)
 
+	fmt.Println(sigs);
+	t.Errorf("Locked balance mismatch ") 
 
-	c1, _ := hex.DecodeString("25edaec9d801496716a0cd9aeb1e5757")
-	r1, _ := hex.DecodeString("d5718f8c76108d108a8a1a9f8e51070f")
+	// c1, _ := hex.DecodeString("25edaec9d801496716a0cd9aeb1e5757")
+	// r1, _ := hex.DecodeString("d5718f8c76108d108a8a1a9f8e51070f")
 
-	c2, _ := hex.DecodeString("640e50129530644f64e09631c6a7082f")
-	r2, _ := hex.DecodeString("ab5e8a551ce32b5806e74091322c2f0c")
+	// c2, _ := hex.DecodeString("640e50129530644f64e09631c6a7082f")
+	// r2, _ := hex.DecodeString("ab5e8a551ce32b5806e74091322c2f0c")
 
-	c3, _ := hex.DecodeString("27c93cd9b8c53b561c58007173393a8b")
-	r3, _ := hex.DecodeString("859bc0e4ac2ba110488c6501adf17508")
+	// c3, _ := hex.DecodeString("27c93cd9b8c53b561c58007173393a8b")
+	// r3, _ := hex.DecodeString("859bc0e4ac2ba110488c6501adf17508")
 
-	c4, _ := hex.DecodeString("02f13377e9f2059c623393c2ab2ad3c8")
-	r4, _ := hex.DecodeString("f500e87e97dd35b8b480d9aa7f839305")
+	// c4, _ := hex.DecodeString("02f13377e9f2059c623393c2ab2ad3c8")
+	// r4, _ := hex.DecodeString("f500e87e97dd35b8b480d9aa7f839305")
 
 }
