@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
@@ -11,7 +12,6 @@ import (
 	"os"
 	"strconv"
 	"time"
-	"fmt"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/safex/gosafex/pkg/safex"
@@ -111,7 +111,8 @@ func (c Client) JSONSafexdCall(method string, params interface{}) ([]byte, error
 		return nil, err
 	}
 
-	log.Println(resBody)
+	log.Println(" Response: -----------------------------------------------------------------------------------------")
+	log.Println(string(resBody))
 	log.Println("-----------------------------------------------------------------------------------------")
 	return resBody, err
 }
@@ -150,7 +151,36 @@ func (c Client) SafexdCall(method string, params interface{}, httpMethod string)
 		return nil, err
 	}
 
-	log.Println(resBody)
+	log.Println(" Response: -----------------------------------------------------------------------------------------")
+	log.Println(string(resBody))
+	log.Println("-----------------------------------------------------------------------------------------")
+
+	return resBody, err
+
+}
+
+func (c Client) SafexdProtoCall(method string, body []byte, httpMethod string) ([]byte, error) {
+	var err error
+	url := "http://" + c.Host + ":" + strconv.Itoa(int(c.Port)) + "/" + method
+
+	log.Println("-----------------------------------------------------------------------------------------")
+	log.Println("endpoint: ", url, "body: ", string(body))
+	log.Println("*****************************************************************************************")
+
+	req, err := http.NewRequest(httpMethod, url, bytes.NewBuffer(body))
+	must(err)
+
+	req.Header.Set("Content-Type", "application/x-protobuf")
+
+	resp, err := c.httpClient.Do(req)
+	must(err)
+	defer resp.Body.Close()
+
+	resBody, err := ioutil.ReadAll(resp.Body)
+	must(err)
+
+	log.Println(" Response: -----------------------------------------------------------------------------------------")
+	log.Println(string(resBody))
 	log.Println("-----------------------------------------------------------------------------------------")
 	return resBody, err
 
@@ -249,7 +279,9 @@ func (c Client) GetOutputs(out_entries []safex.GetOutputRq, txOutType safex.TxOu
 }
 
 func (c Client) SendTransaction(tx *safex.Transaction, doNotRelay bool) (res safex.SendTxRes, err error) {
-	result, err := c.SafexdCall("proto/sendrawtransaction", JSONElement{"proto_tx": tx.String(), "do_not_relay" : doNotRelay}, "POST")
+	data, err := proto.Marshal(tx)
+
+	result, err := c.SafexdProtoCall("proto/sendrawtransaction", data, "POST")
 	must(err)
 	fmt.Println("Result SendTx: ", result)
 	err = json.Unmarshal(getSliceForPath(result, "result"), &res)
