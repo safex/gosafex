@@ -102,7 +102,7 @@ type TxSourceEntry struct {
 	RealOutput              uint64
 	RealOutTxKey            [32]byte
 	RealOutAdditionalTxKeys [][32]byte
-	KeyImage                [32]byte
+	KeyImage                derivation.Key
 	RealOutputInTxIndex     int
 	Amount                  uint64
 	TokenAmount             uint64

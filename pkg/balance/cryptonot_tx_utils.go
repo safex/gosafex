@@ -161,13 +161,12 @@ func classifyAddress(destinations *[]DestinationEntry,
 	return len(countMap), 0
 }
 
-func addSigToTx(tx *safex.Transaction, sigs *derivation.RingSignature) {
+func addSigToTx(tx *safex.Transaction, sigs *[]derivation.RSig) {
 	sigTx := new(safex.Signature)
 	for _, sig := range *sigs {
 		sigData := new(safex.SigData)
-		c, r := sig.ExportData()
-		sigData.C = (*c)[:]
-		sigData.R = (*r)[:]
+		sigData.C = (sig.C)[:]
+		sigData.R = (sig.R)[:]
 		sigTx.Signature = append(sigTx.Signature, sigData)
 	}
 	tx.Signatures = append(tx.Signatures, sigTx)
@@ -375,6 +374,7 @@ func (w *Wallet) constructTxWithKey(
 		// @todo Test this! Hard code some of the outputs in cpp wallet
 		//		 and test if everything is correctly set.
 		txPrefixBytes := serialization.SerializeTransaction(tx, false)
+		fmt.Println("Length of txPrefixBytes: ", len(txPrefixBytes))
 		txPrefixHash := []byte(crypto.Keccak256(txPrefixBytes))
 		fmt.Println("Temp txid is: ", hex.EncodeToString(txPrefixHash))
 
@@ -383,7 +383,7 @@ func (w *Wallet) constructTxWithKey(
 		for _, src := range *sources {
 			fmt.Fprintf(strBuf, "pub_keys:\n")
 			keysPtrs := make([]*[32]byte, 0)
-			keys := make([][32]byte, len(src.Outputs))
+			keys := make([]derivation.Key, len(src.Outputs))
 			ii := 0
 
 			for _, outputEntry := range src.Outputs {
@@ -392,7 +392,7 @@ func (w *Wallet) constructTxWithKey(
 				ii++
 			}
 
-			sigs := derivation.CreateSignatures(&txPrefixHash, keys, (*derivation.Key)(&w.Address.SpendKey.Public), (*derivation.Key)(&w.Address.SpendKey.Private), src.KeyImage, int(src.RealOutput))
+			sigs, _ := derivation.GenerateRingSignature(txPrefixHash,  src.KeyImage, keys, (*derivation.Key)(&w.Address.SpendKey.Private), int(src.RealOutput))
 			addSigToTx(tx, &sigs)
 		}
 

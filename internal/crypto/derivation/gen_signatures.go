@@ -2,7 +2,7 @@ package derivation
 
 import (
 	"encoding/hex"
-	"math/rand"
+	"errors"
 )
 
 type RingSignatureElement struct {
@@ -98,62 +98,77 @@ func (key *Key) PubKey() (result *Key) {
 	return
 }
 
+type RSig struct {
+	R Key
+	C Key
+}
 
-func CreateSignature2(prefixHash *[]byte, mixins []Key, privKey *Key) (keyImage Key, pubKeys []Key, sig RingSignature) {
-	point := privKey.PubKey().HashToEC()
-	keyImagePoint := new(ProjectiveGroupElement)
-	GeScalarMult(keyImagePoint, privKey, point)
-	// convert key Image point from Projective to Extended
-	// in order to precompute
-	keyImagePoint.ToBytes(&keyImage)
-	keyImageGe := new(ExtendedGroupElement)
-	keyImageGe.FromBytes(&keyImage)
-	var keyImagePre [8]CachedGroupElement
-	GePrecompute(&keyImagePre, keyImageGe)
-	k := RandomScalar()
-	pubKeys = make([]Key, len(mixins)+1)
-	privIndex := rand.Intn(len(pubKeys))
-	pubKeys[privIndex] = *privKey.PubKey()
-	r := make([]*RingSignatureElement, len(pubKeys))
+func (k Key) String() string {
+	return hex.EncodeToString(k[:])
+}
+
+type EcPointPair struct {
+	a Key
+	b Key
+}
+
+type RSComm struct {
+	h []byte
+	ab []EcPointPair
+}
+
+func GenerateRingSignature(prefixHash []byte, keyImage Key, pubs []Key, priv *Key, realIndex int) (sigs []RSig, err error){
+	imageUnp := new(ExtendedGroupElement)
+	var imagePre [8]CachedGroupElement
 	sum := new(Key)
-	toHash := *prefixHash
-	for i := 0; i < len(pubKeys); i++ {
-		tmpE := new(ExtendedGroupElement)
-		tmpP := new(ProjectiveGroupElement)
-		var tmpEBytes, tmpPBytes Key
-		if i == privIndex {
-			GeScalarMultBase(tmpE, k)
-			tmpE.ToBytes(&tmpEBytes)
-			toHash = append(toHash, tmpEBytes[:]...)
-			tmpE = privKey.PubKey().HashToEC()
-			GeScalarMult(tmpP, k, tmpE)
-			tmpP.ToBytes(&tmpPBytes)
-			toHash = append(toHash, tmpPBytes[:]...)
+	k := new(Key)
+	var buf RSComm
+	buf.ab = make([]EcPointPair, len(pubs))
+
+	if realIndex >= len(pubs) {
+		return sigs, errors.New("Sanity check failed!")
+	}
+
+	sigs = make([]RSig, len(pubs))
+
+	imageUnp.FromBytes(&keyImage)
+	GePrecompute(&imagePre, imageUnp)
+	buf.h = prefixHash
+	for i := 0; i < len(pubs); i++ {
+		tmp2 := new(ProjectiveGroupElement)
+		tmp3 := new(ExtendedGroupElement)
+		if i == realIndex {
+			k = RandomScalar()
+			GeScalarMultBase(tmp3, k)
+			tmp3.ToBytes(&(buf.ab[i].a))
+			tmp3 = HashToEC(pubs[i])
+			GeScalarMult(tmp2, k, tmp3)
+			tmp2.ToBytes(&(buf.ab[i].b))
 		} else {
-			if i > privIndex {
-				pubKeys[i] = mixins[i-1]
-			} else {
-				pubKeys[i] = mixins[i]
-			}
-			r[i] = &RingSignatureElement{
-				c: RandomScalar(),
-				r: RandomScalar(),
-			}
-			tmpE.FromBytes(&pubKeys[i])
-			GeDoubleScalarMultVartime(tmpP, r[i].c, tmpE, r[i].r)
-			tmpP.ToBytes(&tmpPBytes)
-			toHash = append(toHash, tmpPBytes[:]...)
-			tmpE = pubKeys[i].HashToEC()
-			GeDoubleScalarMultPrecompVartime(tmpP, r[i].r, tmpE, r[i].c, &keyImagePre)
-			tmpP.ToBytes(&tmpPBytes)
-			toHash = append(toHash, tmpPBytes[:]...)
-			ScAdd(sum, sum, r[i].c)
+			sigs[i].C = *RandomScalar()
+			sigs[i].R = *RandomScalar()
+
+			tmp3.FromBytes(&pubs[i])
+
+			GeDoubleScalarMultVartime(tmp2, &(sigs[i].C), tmp3, &(sigs[i].R))
+			tmp2.ToBytes(&(buf.ab[i].a))
+			tmp3 = HashToEC(pubs[i])
+			GeDoubleScalarMultPrecompVartime(tmp2, &(sigs[i].R), tmp3, &(sigs[i].C), &imagePre)
+			tmp2.ToBytes(&(buf.ab[i].b))
+			ScAdd(sum, sum, &(sigs[i].C))
 		}
 	}
+
+	toHash := make([]byte, 0)
+	toHash = append(toHash, buf.h[:]...)
+	for _, ab := range buf.ab {
+		toHash = append(toHash, ab.a[:]...)
+		toHash = append(toHash, ab.b[:]...)
+	}
+
 	h := HashToScalar(toHash)
-	r[privIndex] = NewRingSignatureElement()
-	ScSub(r[privIndex].c, h, sum)
-	ScMulSub(r[privIndex].r, r[privIndex].c, privKey, k)
-	sig = r
-	return
+	ScSub(&(sigs[realIndex].C), h, sum)
+	ScMulSub(&(sigs[realIndex].R), &(sigs[realIndex].C), priv, k)
+
+	return sigs, nil
 }

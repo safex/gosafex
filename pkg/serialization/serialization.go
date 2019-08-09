@@ -55,6 +55,7 @@ func SerializeOutput(output *safex.Txout, buf *bytes.Buffer) {
 	if output.Target.TxoutToKey != nil {
 		binary.Write(buf, binary.LittleEndian, TxOutToKey) // Write marker
 		binary.Write(buf, binary.LittleEndian, Uint64ToBytes(output.Amount))
+		binary.Write(buf, binary.LittleEndian, Uint64ToBytes(output.TokenAmount))
 		binary.Write(buf, binary.LittleEndian, output.Target.TxoutToKey.Key)
 	} else if output.Target.TxoutTokenToKey != nil {
 		binary.Write(buf, binary.LittleEndian, TxOutTokenToKey) // Write marker
