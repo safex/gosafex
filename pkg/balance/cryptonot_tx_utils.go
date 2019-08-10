@@ -334,16 +334,22 @@ func (w *Wallet) constructTxWithKey(
 			ttk := new(safex.TxoutTargetV)
 			ttk1 := new(safex.TxoutTokenToKey)
 			ttk.TxoutTokenToKey = ttk1
+			ttk1.Key = make([]byte, 32)
 			copy(ttk1.Key, outEphemeral[:])
+			fmt.Println("OutEphemeral: ", outEphemeral[:])
 			out.Target = ttk
+			fmt.Println("Key: ", out.Target.TxoutTokenToKey.Key)
 		} else {
 			out.TokenAmount = 0
 			out.Amount = dst.Amount
 			ttk := new(safex.TxoutTargetV)
 			ttk1 := new(safex.TxoutToKey)
 			ttk.TxoutToKey = ttk1
-			ttk1.Key = outEphemeral[:]
+			ttk1.Key = make([]byte, 32)
+			copy(ttk1.Key, outEphemeral[:])
+			fmt.Println("OutEphemeral: ", outEphemeral[:])
 			out.Target = ttk
+			fmt.Println("Key: ", out.Target.TxoutToKey.Key)
 		}
 
 		tx.Vout = append(tx.Vout, out)
@@ -374,7 +380,10 @@ func (w *Wallet) constructTxWithKey(
 		// @todo Test this! Hard code some of the outputs in cpp wallet
 		//		 and test if everything is correctly set.
 		txPrefixBytes := serialization.SerializeTransaction(tx, false)
+		fmt.Println("?????????????????????????????????????????????????????????????????????/")
 		fmt.Println("Length of txPrefixBytes: ", len(txPrefixBytes))
+		fmt.Println(txPrefixBytes)
+		fmt.Println("?????????????????????????????????????????????????????????????????????/")
 		txPrefixHash := []byte(crypto.Keccak256(txPrefixBytes))
 		fmt.Println("Temp txid is: ", hex.EncodeToString(txPrefixHash))
 
@@ -388,11 +397,12 @@ func (w *Wallet) constructTxWithKey(
 
 			for _, outputEntry := range src.Outputs {
 				keys[ii] = outputEntry.Key
+				fmt.Println("OutputEntryKey: ", outputEntry.Key)
 				keysPtrs = append(keysPtrs, &outputEntry.Key)
 				ii++
 			}
 
-			sigs, _ := derivation.GenerateRingSignature(txPrefixHash,  src.KeyImage, keys, (*derivation.Key)(&w.Address.SpendKey.Private), int(src.RealOutput))
+			sigs, _ := derivation.GenerateRingSignature(txPrefixHash, src.KeyImage, keys, (*derivation.Key)(&w.Address.SpendKey.Private), int(src.RealOutput))
 			addSigToTx(tx, &sigs)
 		}
 

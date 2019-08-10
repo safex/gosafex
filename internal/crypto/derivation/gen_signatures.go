@@ -2,6 +2,7 @@ package derivation
 
 import (
 	"encoding/hex"
+	"fmt"
 	"errors"
 )
 
@@ -36,6 +37,7 @@ func NewRingSignatureElement() (r *RingSignatureElement) {
 
 func CreateSignatures(prefixHash *[]byte, mixins [][32]byte, privKey *Key, kImage [32]byte, secIndex int) (sig RingSignature) {
 	var keyImage Key
+	
 	copy(keyImage[:], kImage[:])
 	point := privKey.PubKey().HashToEC()
 	keyImagePoint := new(ProjectiveGroupElement)
@@ -118,6 +120,7 @@ type RSComm struct {
 }
 
 func GenerateRingSignature(prefixHash []byte, keyImage Key, pubs []Key, priv *Key, realIndex int) (sigs []RSig, err error){
+	fmt.Println("Sigs keyImage: ", hex.EncodeToString(keyImage[:]))
 	imageUnp := new(ExtendedGroupElement)
 	var imagePre [8]CachedGroupElement
 	sum := new(Key)

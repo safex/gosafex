@@ -12,6 +12,7 @@ import (
 	"github.com/safex/gosafex/pkg/account"
 	"github.com/safex/gosafex/pkg/safex"
 	"github.com/safex/gosafex/pkg/serialization"
+	//"github.com/golang/protobuf/proto"
 )
 
 const APPROXIMATE_INPUT_BYTES int = 80
@@ -360,9 +361,9 @@ func (w *Wallet) TxCreateCash(dsts []DestinationEntry, fakeOutsCount int, unlock
 	// @todo Add more log info. How many txs, total fee, total funds etc...
 	log.Println("Done creating txs!!")
 
-	for _, tx := range txes {
-		var testTx safex.Transaction
-		var testPtx PendingTx
+	for index, tx := range txes {
+		testTx := new(safex.Transaction)
+		testPtx := new(PendingTx)
 		w.transferSelected(
 			&tx.Dsts, 
 			&tx.SelectedTransfers, 
@@ -371,15 +372,26 @@ func (w *Wallet) TxCreateCash(dsts []DestinationEntry, fakeOutsCount int, unlock
 			unlockTime, 
 			tx.PendingTx.Fee, 
 			&extra, 
-			&testTx, 
-			&testPtx, 
+			testTx, 
+			testPtx, 
 			safex.OutCash)
 		txBlob := serialization.SerializeTransaction(testPtx.Tx, true)
-		tx.Tx = testTx
-		tx.PendingTx = testPtx
+		txes[index].Tx = *testTx
+		txes[index].PendingTx = *testPtx
 		tx.Bytes = uint64(len(txBlob))
+
+		for _, out := range tx.PendingTx.Tx.Vout {
+			if out.Target.TxoutTokenToKey != nil {
+				fmt.Println(">>>PTxCreateEndTxKey: ", out.Target.TxoutTokenToKey.Key)
+			}
+	
+			if out.Target.TxoutToKey != nil {
+				fmt.Println(">>>PTxCreateEndTxKey: ", out.Target.TxoutToKey.Key)
+			}
+		}
 	}
 
+	
 
 	ret := make([]PendingTx,0)
 	for _, tx := range txes {
@@ -389,6 +401,25 @@ func (w *Wallet) TxCreateCash(dsts []DestinationEntry, fakeOutsCount int, unlock
 		// 	tx_money += transfer.Amount
 		// }
 		ret = append(ret, tx.PendingTx)
+		for _, out := range tx.PendingTx.Tx.Vout {
+			if out.Target.TxoutTokenToKey != nil {
+				fmt.Println("PTxCreateEndTxKey: ", out.Target.TxoutTokenToKey.Key)
+			}
+	
+			if out.Target.TxoutToKey != nil {
+				fmt.Println("PTxCreateEndTxKey: ", out.Target.TxoutToKey.Key)
+			}
+		}
+
+		for _, out := range tx.Tx.Vout {
+			if out.Target.TxoutTokenToKey != nil {
+				fmt.Println("TxCreateEndTxKey: ", out.Target.TxoutTokenToKey.Key)
+			}
+	
+			if out.Target.TxoutToKey != nil {
+				fmt.Println("TxCreateEndTxKey: ", out.Target.TxoutToKey.Key)
+			}
+		}
 	}
 	fmt.Println("This is spartaaaaaa")
 	return ret

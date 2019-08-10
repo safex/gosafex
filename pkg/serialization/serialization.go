@@ -28,8 +28,9 @@ const (
 // 		 Advanced features of Safex blockchain.
 func SerializeInput(input *safex.TxinV, buf *bytes.Buffer) {
 	if input.TxinToKey != nil {
-		binary.Write(buf, binary.LittleEndian, TxInToKey) // Write marker
-		binary.Write(buf, binary.LittleEndian, input.TxinToKey.Amount)
+		binary.Write(buf, binary.LittleEndian, byte(TxInToKey)) // Write marker
+
+		binary.Write(buf, binary.LittleEndian, Uint64ToBytes(input.TxinToKey.Amount))
 		binary.Write(buf, binary.LittleEndian, Uint64ToBytes(uint64(len(input.TxinToKey.KeyOffsets))))
 		for _, offset := range input.TxinToKey.KeyOffsets {
 			binary.Write(buf, binary.LittleEndian, Uint64ToBytes(offset))
@@ -38,7 +39,7 @@ func SerializeInput(input *safex.TxinV, buf *bytes.Buffer) {
 
 	} else if input.TxinTokenToKey != nil {
 		binary.Write(buf, binary.LittleEndian, TxInTokenToKey) // Write marker
-		binary.Write(buf, binary.LittleEndian, input.TxinTokenToKey.TokenAmount)
+		binary.Write(buf, binary.LittleEndian, Uint64ToBytes(input.TxinTokenToKey.TokenAmount))
 		binary.Write(buf, binary.LittleEndian, Uint64ToBytes(uint64(len(input.TxinTokenToKey.KeyOffsets))))
 		for _, offset := range input.TxinTokenToKey.KeyOffsets {
 			binary.Write(buf, binary.LittleEndian, Uint64ToBytes(offset))
@@ -52,14 +53,14 @@ func SerializeInput(input *safex.TxinV, buf *bytes.Buffer) {
 
 //
 func SerializeOutput(output *safex.Txout, buf *bytes.Buffer) {
+	binary.Write(buf, binary.LittleEndian, Uint64ToBytes(output.Amount))
+	binary.Write(buf, binary.LittleEndian, Uint64ToBytes(output.TokenAmount))
+
 	if output.Target.TxoutToKey != nil {
-		binary.Write(buf, binary.LittleEndian, TxOutToKey) // Write marker
-		binary.Write(buf, binary.LittleEndian, Uint64ToBytes(output.Amount))
-		binary.Write(buf, binary.LittleEndian, Uint64ToBytes(output.TokenAmount))
+		binary.Write(buf, binary.LittleEndian, byte(TxOutToKey)) // Write marker
 		binary.Write(buf, binary.LittleEndian, output.Target.TxoutToKey.Key)
 	} else if output.Target.TxoutTokenToKey != nil {
-		binary.Write(buf, binary.LittleEndian, TxOutTokenToKey) // Write marker
-		binary.Write(buf, binary.LittleEndian, Uint64ToBytes(output.TokenAmount))
+		binary.Write(buf, binary.LittleEndian, byte(TxOutTokenToKey)) // Write marker
 		binary.Write(buf, binary.LittleEndian, output.Target.TxoutTokenToKey.Key)
 	} else {
 		panic("Wrong type of output in TX creation!")

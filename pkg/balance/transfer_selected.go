@@ -21,8 +21,8 @@ func convertAddress(input Address) *account.Address {
 	return acc
 }
 
-func checkInputs(inputs []*safex.TxinV) (bool) {
-	for _, input := range inputs {	
+func checkInputs(inputs []*safex.TxinV) bool {
+	for _, input := range inputs {
 		if input.TxinToKey == nil && input.TxinTokenToKey == nil {
 			return false
 		}
@@ -63,8 +63,8 @@ func (w *Wallet) transferSelected(dsts *[]DestinationEntry, selectedTransfers *[
 
 	fmt.Println("------------------------- OUTPUTS -------------------------------------")
 	fmt.Println("OUTPUTS")
-	for _, val1 := range(*outs) {
-		for _, val2 := range(val1) {
+	for _, val1 := range *outs {
+		for _, val2 := range val1 {
 			fmt.Println("GlobalIndex: ", val2.Index, " Pubkey: ", val2.PubKey)
 		}
 	}
@@ -75,7 +75,7 @@ func (w *Wallet) transferSelected(dsts *[]DestinationEntry, selectedTransfers *[
 	var sources []TxSourceEntry
 	var outIndex uint64 = 0
 	var i uint64 = 0
-	for _, val := range(*selectedTransfers) {
+	for _, val := range *selectedTransfers {
 		src := TxSourceEntry{}
 		src.Amount = GetOutputAmount(val.Output, safex.OutCash)
 		src.TokenAmount = GetOutputAmount(val.Output, safex.OutToken)
@@ -90,10 +90,10 @@ func (w *Wallet) transferSelected(dsts *[]DestinationEntry, selectedTransfers *[
 		}
 
 		var realIndex int = -1
-		for _, v1 := range(src.Outputs) {
+		for _, v1 := range src.Outputs {
 			if v1.Index == val.GlobalIndex {
 				realIndex = 1
-				break;
+				break
 			}
 		}
 
@@ -104,13 +104,13 @@ func (w *Wallet) transferSelected(dsts *[]DestinationEntry, selectedTransfers *[
 		realOE := TxOutputEntry{}
 		realOE.Index = val.GlobalIndex
 		keyTemp := GetOutputKey(val.Output, outType)
-		copy(realOE.Key[:], keyTemp) 
+		copy(realOE.Key[:], keyTemp)
 		src.Outputs[realIndex] = realOE
 
 		src.RealOutTxKey = ExtractTxPubKey(val.Extra)
 		src.RealOutAdditionalTxKeys = ExtractTxPubKeys(val.Extra)
 		src.RealOutput = uint64(realIndex)
-		src.RealOutputInTxIndex = val.LocalIndex		
+		src.RealOutputInTxIndex = val.LocalIndex
 		copy(src.KeyImage[:], val.KImage[:])
 		sources = append(sources, src)
 		outIndex++
@@ -120,7 +120,7 @@ func (w *Wallet) transferSelected(dsts *[]DestinationEntry, selectedTransfers *[
 
 	var changeDts DestinationEntry
 	// fvar changeTokenDts DestinationEntry
-	
+
 	if neededMoney < foundMoney {
 		tempAddr := convertAddress(w.Address)
 		fmt.Println(tempAddr)
@@ -129,13 +129,13 @@ func (w *Wallet) transferSelected(dsts *[]DestinationEntry, selectedTransfers *[
 	}
 
 	// @todo Add tokens infrastructure once you find out how fee is calulated
-	//		 outType is introduced to help implement this and avoid unnecessary 
+	//		 outType is introduced to help implement this and avoid unnecessary
 	//		 complications.
-	// @warning		 
+	// @warning
 	// if neededTokens < foundTokens {
 
 	// }
-	
+
 	var splittedDsts []DestinationEntry
 	var dustDsts []DestinationEntry
 
@@ -150,13 +150,12 @@ func (w *Wallet) transferSelected(dsts *[]DestinationEntry, selectedTransfers *[
 	if !constructed {
 		panic("Transation is not constructed!!!")
 	}
-	
-	
+
 	// @todo Check this out
 	// @todo Investigate how TxSize is controlled and calculated in advance
 	//		 in order to control and predict fee.
 	blobSize := serialization.GetTxBlobSize(tx)
-	if blobSize > uint64(consensus.GetUpperTransactionSizeLimit(2,10)) {
+	if blobSize > uint64(consensus.GetUpperTransactionSizeLimit(2, 10)) {
 		panic("Transaction too big!!")
 	}
 
@@ -166,7 +165,7 @@ func (w *Wallet) transferSelected(dsts *[]DestinationEntry, selectedTransfers *[
 
 	// @todo Set PTX data!
 	// @todo ptx.KeyImage = ... // This need to be rechecked.
-	ptx.Dust = fee // @todo Consider adding dust to fee
+	ptx.Dust = fee                 // @todo Consider adding dust to fee
 	ptx.DustAddedToFee = uint64(0) // @todo Dust policy
 	ptx.Tx = tx
 	ptx.ChangeDts = changeDts
