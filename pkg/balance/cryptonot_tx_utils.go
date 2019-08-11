@@ -1,8 +1,6 @@
 package balance
 
 import (
-	"encoding/hex"
-
 	"github.com/safex/gosafex/internal/crypto"
 	"github.com/safex/gosafex/internal/crypto/derivation"
 	"github.com/safex/gosafex/pkg/account"
@@ -165,10 +163,13 @@ func addSigToTx(tx *safex.Transaction, sigs *[]derivation.RSig) {
 	sigTx := new(safex.Signature)
 	for _, sig := range *sigs {
 		sigData := new(safex.SigData)
-		sigData.C = (sig.C)[:]
-		sigData.R = (sig.R)[:]
+		sigData.C = make([]byte, 32)
+		sigData.R = make([]byte, 32)
+		copy(sigData.C, (sig.C)[:])
+		copy(sigData.R, (sig.R)[:])
 		sigTx.Signature = append(sigTx.Signature, sigData)
 	}
+
 	tx.Signatures = append(tx.Signatures, sigTx)
 }
 
@@ -380,12 +381,7 @@ func (w *Wallet) constructTxWithKey(
 		// @todo Test this! Hard code some of the outputs in cpp wallet
 		//		 and test if everything is correctly set.
 		txPrefixBytes := serialization.SerializeTransaction(tx, false)
-		fmt.Println("?????????????????????????????????????????????????????????????????????/")
-		fmt.Println("Length of txPrefixBytes: ", len(txPrefixBytes))
-		fmt.Println(txPrefixBytes)
-		fmt.Println("?????????????????????????????????????????????????????????????????????/")
 		txPrefixHash := []byte(crypto.Keccak256(txPrefixBytes))
-		fmt.Println("Temp txid is: ", hex.EncodeToString(txPrefixHash))
 
 		strBuf := bytes.NewBufferString("")
 		//i := 0
@@ -396,14 +392,15 @@ func (w *Wallet) constructTxWithKey(
 			ii := 0
 
 			for _, outputEntry := range src.Outputs {
-				keys[ii] = outputEntry.Key
+				copy(keys[ii][:], outputEntry.Key[:])
 				fmt.Println("OutputEntryKey: ", outputEntry.Key)
 				keysPtrs = append(keysPtrs, &outputEntry.Key)
 				ii++
 			}
-
+			//sigs1 := derivation.CreateSignatures(&txPrefixHash, keys, (*derivation.Key)(&w.Address.SpendKey.Private), src.KeyImage, int(src.RealOutput))
 			sigs, _ := derivation.GenerateRingSignature(txPrefixHash, src.KeyImage, keys, (*derivation.Key)(&w.Address.SpendKey.Private), int(src.RealOutput))
 			addSigToTx(tx, &sigs)
+			//addSigToTx1(tx, sigs1)
 		}
 
 	}

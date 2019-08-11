@@ -35,7 +35,7 @@ func NewRingSignatureElement() (r *RingSignatureElement) {
 	return
 }
 
-func CreateSignatures(prefixHash *[]byte, mixins [][32]byte, privKey *Key, kImage [32]byte, secIndex int) (sig RingSignature) {
+func CreateSignatures(prefixHash *[]byte, mixins []Key, privKey *Key, kImage Key, secIndex int) (sig RingSignature) {
 	var keyImage Key
 	
 	copy(keyImage[:], kImage[:])
@@ -120,13 +120,24 @@ type RSComm struct {
 }
 
 func GenerateRingSignature(prefixHash []byte, keyImage Key, pubs []Key, priv *Key, realIndex int) (sigs []RSig, err error){
-	fmt.Println("Sigs keyImage: ", hex.EncodeToString(keyImage[:]))
+	fmt.Println("keys in ring signature: ")
+	fmt.Println("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
+	fmt.Println("RealIndex: ", realIndex)
+	fmt.Println("PrefixHash: ", hex.EncodeToString(prefixHash))
+	fmt.Println("KeyImage: ", hex.EncodeToString(keyImage[:]))
+	for _, k := range pubs {
+		fmt.Println("KeyPub@RingSig: ", hex.EncodeToString(k[:]))
+	}
+	fmt.Println("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
 	imageUnp := new(ExtendedGroupElement)
 	var imagePre [8]CachedGroupElement
 	sum := new(Key)
 	k := new(Key)
-	var buf RSComm
-	buf.ab = make([]EcPointPair, len(pubs))
+	// var buf RSComm
+	// buf.ab = make([]EcPointPair, len(pubs))
+
+	toHash := make([]byte, 32)
+	copy(toHash, prefixHash)
 
 	if realIndex >= len(pubs) {
 		return sigs, errors.New("Sanity check failed!")
@@ -136,41 +147,62 @@ func GenerateRingSignature(prefixHash []byte, keyImage Key, pubs []Key, priv *Ke
 
 	imageUnp.FromBytes(&keyImage)
 	GePrecompute(&imagePre, imageUnp)
-	buf.h = prefixHash
+	// buf.h = make([]byte, 32)
+	//copy(buf.h, prefixHash[:])
+	// kTemp := []byte("D\201\252\001\031\354\272c̸Ga\270%R4u\315j\021'\205\243F\210\264\201K/\200\004\v")
+
+	// sigic := []byte("?\314֏\236F\214\022fQ\270h`!\365\063\342\035\215\222q\347ݭ\026\344\311hO\200L\b")
+	// sigir := []byte("\361\234\202s\017\201-\212\233a\315\020\231,!l\350\371\021\366\207\231\030N\027\316z+\331%*\005")
 	for i := 0; i < len(pubs); i++ {
 		tmp2 := new(ProjectiveGroupElement)
 		tmp3 := new(ExtendedGroupElement)
+		var tmpA, tmpB Key
 		if i == realIndex {
+			// copy(k[:], kTemp)
 			k = RandomScalar()
 			GeScalarMultBase(tmp3, k)
-			tmp3.ToBytes(&(buf.ab[i].a))
+			tmp3.ToBytes(&tmpA)
+			toHash = append(toHash, tmpA[:]...)
 			tmp3 = HashToEC(pubs[i])
 			GeScalarMult(tmp2, k, tmp3)
-			tmp2.ToBytes(&(buf.ab[i].b))
+			tmp2.ToBytes(&tmpB)
+			toHash = append(toHash, tmpB[:]...)
 		} else {
-			sigs[i].C = *RandomScalar()
-			sigs[i].R = *RandomScalar()
+			// copy(sigs[i].C[:], sigic)
+			// copy(sigs[i].R[:], sigir)
+			temp := RandomScalar()
+			copy(sigs[i].C[:], temp[:])
+			temp = RandomScalar()
+			copy(sigs[i].R[:], temp[:])
+			// sigs[i].C = *RandomScalar()
+			// sigs[i].R = *RandomScalar()
 
 			tmp3.FromBytes(&pubs[i])
 
 			GeDoubleScalarMultVartime(tmp2, &(sigs[i].C), tmp3, &(sigs[i].R))
-			tmp2.ToBytes(&(buf.ab[i].a))
+			tmp2.ToBytes(&tmpA)
+			toHash = append(toHash, tmpA[:]...)
 			tmp3 = HashToEC(pubs[i])
 			GeDoubleScalarMultPrecompVartime(tmp2, &(sigs[i].R), tmp3, &(sigs[i].C), &imagePre)
-			tmp2.ToBytes(&(buf.ab[i].b))
+			tmp2.ToBytes(&tmpB)
+			toHash = append(toHash, tmpB[:]...)
 			ScAdd(sum, sum, &(sigs[i].C))
 		}
 	}
 
-	toHash := make([]byte, 0)
-	toHash = append(toHash, buf.h[:]...)
-	for _, ab := range buf.ab {
-		toHash = append(toHash, ab.a[:]...)
-		toHash = append(toHash, ab.b[:]...)
-	}
+	// toHash := make([]byte, 0)
+	// toHash = append(toHash, buf.h[:]...)
+	// for _, ab := range buf.ab {
+	// 	toHash = append(toHash, ab.a[:]...)
+	// 	toHash = append(toHash, ab.b[:]...)
+	// }
+
+	fmt.Println("toHash: ", hex.EncodeToString(toHash))
 
 	h := HashToScalar(toHash)
+	fmt.Println("h: ", hex.EncodeToString(h[:]))
 	ScSub(&(sigs[realIndex].C), h, sum)
+	fmt.Println("sum: ", hex.EncodeToString(sum[:]))
 	ScMulSub(&(sigs[realIndex].R), &(sigs[realIndex].C), priv, k)
 
 	return sigs, nil

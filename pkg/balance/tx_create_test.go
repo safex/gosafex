@@ -2,14 +2,15 @@ package balance
 
 import (
 	"fmt"
-	"testing"
-	"github.com/safex/gosafex/pkg/account"
 	"log"
 	"os"
+	"testing"
+
+	"github.com/safex/gosafex/pkg/account"
 )
 
 func TestTxCreate(t *testing.T) {
-	f, err := os.OpenFile("testlogfile", os.O_RDWR | os.O_CREATE | os.O_APPEND, 0666)
+	f, err := os.OpenFile("testlogfile", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
 		log.Fatalf("error opening file: %v", err)
 	}
@@ -29,9 +30,6 @@ func TestTxCreate(t *testing.T) {
 	addr, _ := account.FromBase58("SFXtzV7tt2KZqvpCWVWauC5Qf16o3dAwLKNd9hCNzoB21ELLNfFjAMjXRhsR3ohT1AeW8j3jL4gfRahR86x6aoiU5hm5ZJj7BSc")
 	var extra []byte
 	ptxs := wallet.TxCreateCash([]DestinationEntry{DestinationEntry{20000000000, 0, *addr, false, false}}, 1, 0, 1, extra, true)
-	fmt.Println(">>>>>>>>>>>>>>> Created PTXS: <<<<<<<<<<<<<<<<")
-	fmt.Println("Len of ptxs: ", len(ptxs))
-	fmt.Println(ptxs)
 	res, err := wallet.CommitPtx(&ptxs[0])
 	fmt.Println("Res: ", res, " err: ", err)
 	t.Errorf("Failing!")

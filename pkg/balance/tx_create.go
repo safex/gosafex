@@ -346,11 +346,11 @@ func (w *Wallet) TxCreateCash(dsts []DestinationEntry, fakeOutsCount int, unlock
 
 			} // goto else
 		}
-			// @todo skip_tx:
-			// @todo Here goes stuff linked with subaddresses which will be added in
-			//	     the future. Logic regarding poping unused outputs from subaddress
-			//		 if there is something else to pay.
-		
+		// @todo skip_tx:
+		// @todo Here goes stuff linked with subaddresses which will be added in
+		//	     the future. Logic regarding poping unused outputs from subaddress
+		//		 if there is something else to pay.
+
 	}
 
 	if addingFee {
@@ -365,35 +365,23 @@ func (w *Wallet) TxCreateCash(dsts []DestinationEntry, fakeOutsCount int, unlock
 		testTx := new(safex.Transaction)
 		testPtx := new(PendingTx)
 		w.transferSelected(
-			&tx.Dsts, 
-			&tx.SelectedTransfers, 
-			fakeOutsCount, 
-			&outs, 
-			unlockTime, 
-			tx.PendingTx.Fee, 
-			&extra, 
-			testTx, 
-			testPtx, 
+			&tx.Dsts,
+			&tx.SelectedTransfers,
+			fakeOutsCount,
+			&outs,
+			unlockTime,
+			tx.PendingTx.Fee,
+			&extra,
+			testTx,
+			testPtx,
 			safex.OutCash)
 		txBlob := serialization.SerializeTransaction(testPtx.Tx, true)
 		txes[index].Tx = *testTx
 		txes[index].PendingTx = *testPtx
 		tx.Bytes = uint64(len(txBlob))
-
-		for _, out := range tx.PendingTx.Tx.Vout {
-			if out.Target.TxoutTokenToKey != nil {
-				fmt.Println(">>>PTxCreateEndTxKey: ", out.Target.TxoutTokenToKey.Key)
-			}
-	
-			if out.Target.TxoutToKey != nil {
-				fmt.Println(">>>PTxCreateEndTxKey: ", out.Target.TxoutToKey.Key)
-			}
-		}
 	}
 
-	
-
-	ret := make([]PendingTx,0)
+	ret := make([]PendingTx, 0)
 	for _, tx := range txes {
 		// @todo Add more log information!
 		// txMoney := uint64(0)
@@ -401,25 +389,6 @@ func (w *Wallet) TxCreateCash(dsts []DestinationEntry, fakeOutsCount int, unlock
 		// 	tx_money += transfer.Amount
 		// }
 		ret = append(ret, tx.PendingTx)
-		for _, out := range tx.PendingTx.Tx.Vout {
-			if out.Target.TxoutTokenToKey != nil {
-				fmt.Println("PTxCreateEndTxKey: ", out.Target.TxoutTokenToKey.Key)
-			}
-	
-			if out.Target.TxoutToKey != nil {
-				fmt.Println("PTxCreateEndTxKey: ", out.Target.TxoutToKey.Key)
-			}
-		}
-
-		for _, out := range tx.Tx.Vout {
-			if out.Target.TxoutTokenToKey != nil {
-				fmt.Println("TxCreateEndTxKey: ", out.Target.TxoutTokenToKey.Key)
-			}
-	
-			if out.Target.TxoutToKey != nil {
-				fmt.Println("TxCreateEndTxKey: ", out.Target.TxoutToKey.Key)
-			}
-		}
 	}
 	fmt.Println("This is spartaaaaaa")
 	return ret

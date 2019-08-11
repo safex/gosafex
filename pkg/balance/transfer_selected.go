@@ -84,15 +84,15 @@ func (w *Wallet) transferSelected(dsts *[]DestinationEntry, selectedTransfers *[
 		for n := 0; n <= fakeOutsCount; n++ {
 			var oe TxOutputEntry
 			oe.Index = (*outs)[outIndex][n].Index
-			oe.Key = (*outs)[outIndex][n].PubKey
+			copy(oe.Key[:], (*outs)[outIndex][n].PubKey[:])
 			src.Outputs = append(src.Outputs, oe)
 			i++
 		}
 
 		var realIndex int = -1
-		for _, v1 := range src.Outputs {
+		for index, v1 := range src.Outputs {
 			if v1.Index == val.GlobalIndex {
-				realIndex = 1
+				realIndex = index
 				break
 			}
 		}
@@ -108,7 +108,6 @@ func (w *Wallet) transferSelected(dsts *[]DestinationEntry, selectedTransfers *[
 		src.Outputs[realIndex] = realOE
 
 		src.RealOutTxKey = ExtractTxPubKey(val.Extra)
-		src.RealOutAdditionalTxKeys = ExtractTxPubKeys(val.Extra)
 		src.RealOutput = uint64(realIndex)
 		src.RealOutputInTxIndex = val.LocalIndex
 		copy(src.KeyImage[:], val.KImage[:])
