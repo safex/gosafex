@@ -6,14 +6,16 @@ import (
 	"github.com/safex/gosafex/pkg/account"
 	"github.com/safex/gosafex/pkg/safex"
 	"github.com/safex/gosafex/pkg/serialization"
+	"github.com/golang/glog"
 
 	"bytes"
-	"fmt"
-	"log"
+	"encoding/hex"
 	"math/rand"
 	"sort"
 	"time"
 )
+
+// @note Ready for merge!!!
 
 // Interface for sorting offsets.
 type IOffsetsSort []uint64
@@ -24,6 +26,7 @@ func (offs IOffsetsSort) Less(i, j int) bool { return offs[i] < offs[j] }
 
 const EncryptedPaymentIdTail byte = 0x8d
 
+// @todo Test this. Encryption probably means that something should be decrypted at some point.
 func EncryptPaymentId(paymentId [8]byte, pub [32]byte, priv [32]byte) [8]byte {
 	var derivation1 [32]byte
 	var hash []byte
@@ -114,6 +117,7 @@ func ApplyPermutation(permutation []int, f func(i, j int)) {
 	}
 }
 
+// Form tx input for protobuf tx so it can be serialized easily.
 func getTxInVFromTxInToKey(input TxInToKey) (ret *safex.TxinV) {
 	ret = new(safex.TxinV)
 
@@ -130,10 +134,11 @@ func getTxInVFromTxInToKey(input TxInToKey) (ret *safex.TxinV) {
 		toKey.KImage = input.KeyImage[:]
 		ret.TxinToKey = toKey
 	}
-
+	glog.Info("Transaction Input added!: ", *ret)
 	return ret
 }
 
+// Getter of keyImage from protobuf inputs
 func getKeyImage(input *safex.TxinV) []byte {
 	if input.TxinToKey != nil {
 		return input.TxinToKey.KImage
@@ -159,6 +164,7 @@ func classifyAddress(destinations *[]DestinationEntry,
 	return len(countMap), 0
 }
 
+// Adding signatures into protobuf transaction for sending to node.
 func addSigToTx(tx *safex.Transaction, sigs *[]derivation.RSig) {
 	sigTx := new(safex.Signature)
 	for _, sig := range *sigs {
@@ -190,13 +196,10 @@ func (w *Wallet) constructTxWithKey(
 		panic("Empty sources")
 	}
 
-	//var amountKeys [][32]byte
 	tx.Reset()
 
 	tx.Version = 1
 	copy(tx.Extra[:], *extra)
-
-	//var txKeyPub [32]byte
 
 	// @todo Make sure that this is necessary once code started working,
 	// @warning This can be crucial thing regarding
@@ -208,7 +211,7 @@ func (w *Wallet) constructTxWithKey(
 			if val, isThere1 := extraMap[NonceEncryptedPaymentId]; isThere1 {
 				viewKeyPub := GetDestinationViewKeyPub(destinations, changeAddr)
 				if viewKeyPub == nil {
-					log.Println("Destinations have to have exactly one output to support encrypted payment ids")
+					glog.Error("Destinations have to have exactly one output to support encrypted payment ids")
 					return false
 				}
 				var viewKeyPubBytes [32]byte
@@ -220,7 +223,7 @@ func (w *Wallet) constructTxWithKey(
 		}
 		// @todo set extra after public tx key calculation
 	} else {
-		log.Println("Failed to parse tx extra!")
+		glog.Error("Failed to parse tx extra!")
 		return false
 	}
 
@@ -231,7 +234,7 @@ func (w *Wallet) constructTxWithKey(
 	for _, src := range *sources {
 		idx++
 		if src.RealOutput >= uint64(len(src.Outputs)) {
-			panic("RealOutputIndex (" + string(src.RealOutput) + ") bigger thatn Outputs length (" + string(len(src.Outputs)) + ")")
+			glog.Error("RealOutputIndex (" + string(src.RealOutput) + ") bigger thatn Outputs length (" + string(len(src.Outputs)) + ")")
 			return false
 		}
 
@@ -279,7 +282,7 @@ func (w *Wallet) constructTxWithKey(
 	})
 
 	pubTxKey := derivation.ScalarmultBase(*txKey)
-
+	glog.Info("PubTxKey: ", hex.EncodeToString(pubTxKey[:]))
 	// @note When put in extraMap pubTxKey must be [32]byte
 	// @todo Find better way for solving this
 	var tempPubTxKey [32]byte
@@ -293,7 +296,7 @@ func (w *Wallet) constructTxWithKey(
 	//		 however in futur that can be changed, so PAY ATTENTION!!!
 	okExtra, tempExtra := SerializeExtra(extraMap)
 	if !okExtra {
-		log.Println("Serializing extra field failed!")
+		glog.Error("Serializing extra field failed!")
 		return false
 	}
 
@@ -314,7 +317,6 @@ func (w *Wallet) constructTxWithKey(
 		if changeAddr != nil && dst.Address.String() == changeAddr.String() {
 			derivation1 = derivation.DeriveKey((*derivation.Key)(&pubTxKey), (*derivation.Key)(&w.Address.ViewKey.Private))
 		} else {
-			fmt.Println("Signed with different key!!! <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< askdlahskdjhasldk as?M<ASdas asdas ")
 			var tempViewKey derivation.Key
 			copy(tempViewKey[:], dst.Address.ViewKey[:])
 			var tempTxKey derivation.Key
@@ -326,7 +328,8 @@ func (w *Wallet) constructTxWithKey(
 		copy(tempSpendKey[:], dst.Address.SpendKey[:])
 		outEphemeral, err := derivation.DerivationToPublicKey(uint64(outputIndex), &derivation1, &tempSpendKey)
 		if err != nil {
-			panic("Error during calculation of publicTxKey: " + err.Error())
+			glog.Error("Error during calculation of publicTxKey: " + err.Error())
+			return false
 		}
 
 		out := new(safex.Txout)
@@ -338,9 +341,7 @@ func (w *Wallet) constructTxWithKey(
 			ttk.TxoutTokenToKey = ttk1
 			ttk1.Key = make([]byte, 32)
 			copy(ttk1.Key, outEphemeral[:])
-			fmt.Println("OutEphemeral: ", outEphemeral[:])
 			out.Target = ttk
-			fmt.Println("Key: ", out.Target.TxoutTokenToKey.Key)
 		} else {
 			out.TokenAmount = 0
 			out.Amount = dst.Amount
@@ -349,11 +350,9 @@ func (w *Wallet) constructTxWithKey(
 			ttk.TxoutToKey = ttk1
 			ttk1.Key = make([]byte, 32)
 			copy(ttk1.Key, outEphemeral[:])
-			fmt.Println("OutEphemeral: ", outEphemeral[:])
 			out.Target = ttk
-			fmt.Println("Key: ", out.Target.TxoutToKey.Key)
 		}
-
+		glog.Info("Added output to tx: ", *out)
 		tx.Vout = append(tx.Vout, out)
 		outputIndex++
 		summaryOutsMoney += dst.Amount
@@ -364,49 +363,39 @@ func (w *Wallet) constructTxWithKey(
 	//		 As Safex Blockchain doesnt support officially subaddresses this is left blank.
 
 	if summaryOutsMoney > summaryInputsMoney {
-		log.Println("Tx inputs cash (", summaryInputsMoney, ") less than outputs cash (", summaryOutsMoney, ")")
+		glog.Error("Tx inputs cash (", summaryInputsMoney, ") less than outputs cash (", summaryOutsMoney, ")")
 		return false
 	}
 
 	if summaryOutsTokens > summaryInputsToken {
-		log.Println("Tx inputs token (", summaryInputsToken, ") less than outputs token (", summaryOutsTokens, ")")
+		glog.Error("Tx inputs token (", summaryInputsToken, ") less than outputs token (", summaryOutsTokens, ")")
 		return false
 	}
 
 	if w.watchOnlyWallet {
-		log.Println("Zero secret key, skipping signatures")
+		glog.Info("Zero secret key, skipping signatures")
 		return true
 	}
 
 	if tx.Version == 1 {
-		// @todo Test this! Hard code some of the outputs in cpp wallet
-		//		 and test if everything is correctly set.
 		txPrefixBytes := serialization.SerializeTransaction(tx, false)
 		txPrefixHash := []byte(crypto.Keccak256(txPrefixBytes))
-
-		strBuf := bytes.NewBufferString("")
-		//i := 0
+		
 		for _, src := range *sources {
-			fmt.Fprintf(strBuf, "pub_keys:\n")
-			keysPtrs := make([]*[32]byte, 0)
 			keys := make([]derivation.Key, len(src.Outputs))
 			ii := 0
 
 			for _, outputEntry := range src.Outputs {
 				copy(keys[ii][:], outputEntry.Key[:])
-				fmt.Println("OutputEntryKey: ", outputEntry.Key)
-				keysPtrs = append(keysPtrs, &outputEntry.Key)
 				ii++
 			}
-			//sigs1 := derivation.CreateSignatures(&txPrefixHash, keys, (*derivation.Key)(&w.Address.SpendKey.Private), src.KeyImage, int(src.RealOutput))
+			glog.Info("Output keys to be signed: ", keys)
 			sigs, _ := derivation.GenerateRingSignature(txPrefixHash, src.KeyImage, keys, &src.TransferPtr.EphPriv, int(src.RealOutput))
+			glog.Info("Formed signature: ", sigs)
 			addSigToTx(tx, &sigs)
-			//addSigToTx1(tx, sigs1)
 		}
 
 	}
-
-	fmt.Println("Sources len: ", len(*sources))
 	return true
 }
 

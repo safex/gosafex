@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"github.com/golang/glog"
 )
 
 type ExtraTag byte
@@ -176,7 +177,7 @@ func SerializeExtra(extraMap ExtraMap) (bool, []byte) {
 		key := extraMap[PubKey].([32]byte)
 		buf.Write(key[:]) 
 	} else {
-		log.Println("There is no TX public key")
+		glog.Error("There is no TX public key")
 		return false, buf.Bytes()
 	}
 
@@ -189,7 +190,7 @@ func SerializeExtra(extraMap ExtraMap) (bool, []byte) {
 		buf.WriteByte(byte(Nonce)) // write marker
 		tempExtra = append(tempExtra, dataExtra.([]byte)...)
 		if len(tempExtra) > 255 {
-			log.Println("TX extra none is spilling, trimming the nonce to 254 bytes")
+			glog.Warning("TX extra none is spilling, trimming the nonce to 254 bytes")
 			tempExtra = tempExtra[:254]
 		}
 		buf.WriteByte(byte(len(tempExtra))) // write length of extra nonce single byte
