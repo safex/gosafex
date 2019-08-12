@@ -14,6 +14,8 @@ import (
 type WalletInitRq struct {
 	Path     string `json:"path" validate:"required"`
 	Password string `json:"password" validate:"required"`
+	DaemonHost     string `json:"daemon_host" validate:"required"`
+	DaemonPort uint `json:"daemon_port" validate:"required"`
 	Nettype  string `json:"nettype" validate:"required"`
 	Seed     string `json:"seed,omitempty"`
 	SeedPass string `json:"seedpass,omitempty"`
@@ -57,15 +59,23 @@ func (w *WalletRPC) OpenExisting(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var data JSONElement
+	data = make(JSONElement)
+
+	err := w.wallet.InitClient(rqData.DaemonHost, rqData.DaemonPort) 
+	if err != nil {
+		data["msg"] = err.Error()
+		FormJSONResponse(data, FailedToConnectToDeamon, &rw)
+	}
+
 	if _, err := os.Stat(rqData.Path); os.IsNotExist(err) {
 		FormJSONResponse(nil, FileDoesntExists, &rw)
 		return
 	}
 
-	var data JSONElement
-	data = make(JSONElement)
+	
 
-	err := w.wallet.OpenFile(rqData.Path, rqData.Password, !w.mainnet)
+	err = w.wallet.OpenFile(rqData.Path, rqData.Password, !w.mainnet)
 	if err != nil {
 
 		data["msg"] = err.Error()
@@ -94,12 +104,18 @@ func (w *WalletRPC) CreateNew(rw http.ResponseWriter, r *http.Request) {
 	var data JSONElement
 	data = make(JSONElement)
 
+	err := w.wallet.InitClient(rqData.DaemonHost, rqData.DaemonPort) 
+	if err != nil {
+		data["msg"] = err.Error()
+		FormJSONResponse(data, FailedToConnectToDeamon, &rw)
+	}
+
 	if _, err := os.Stat(rqData.Path); err == nil {
 		FormJSONResponse(nil, FileAlreadyExists, &rw)
 		return
 	}
 
-	err := w.wallet.OpenAndCreate("primary", rqData.Path, rqData.Password, !w.mainnet)
+	err = w.wallet.OpenAndCreate("primary", rqData.Path, rqData.Password, !w.mainnet)
 
 	if err != nil {
 		data["msg"] = err.Error()
@@ -128,6 +144,12 @@ func (w *WalletRPC) RecoverWithSeed(rw http.ResponseWriter, r *http.Request) {
 
 	var data JSONElement
 	data = make(JSONElement)
+
+	err := w.wallet.InitClient(rqData.DaemonHost, rqData.DaemonPort) 
+	if err != nil {
+		data["msg"] = err.Error()
+		FormJSONResponse(data, FailedToConnectToDeamon, &rw)
+	}
 
 	if rqData.Seed == "" {
 		data["msg"] = "Missing field 'seed'"

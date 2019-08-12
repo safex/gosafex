@@ -21,4 +21,5 @@ const (
 	GettingMnemonicFailed    = 14
 	FailedGettingTransaction = 15
 	FailedGettingOutput      = 16
+	FailedToConnectToDeamon = 17
 )
