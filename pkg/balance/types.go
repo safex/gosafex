@@ -36,6 +36,8 @@ type Transfer struct {
 	MinerTx     bool
 	Height      uint64
 	KImage      derivation.Key
+	EphPub		derivation.Key
+	EphPriv		derivation.Key
 }
 
 type Wallet struct {
@@ -97,10 +99,15 @@ type TxOutputEntry struct {
 	Key   [32]byte
 }
 
+type InContext struct {
+	Pub derivation.Key
+	Sec derivation.Key
+}
+
 type TxSourceEntry struct {
 	Outputs                 []TxOutputEntry
 	RealOutput              uint64
-	RealOutTxKey            [32]byte
+	RealOutTxKey            derivation.Key
 	RealOutAdditionalTxKeys [][32]byte
 	KeyImage                derivation.Key
 	RealOutputInTxIndex     int
@@ -108,6 +115,7 @@ type TxSourceEntry struct {
 	TokenAmount             uint64
 	TokenTx                 bool
 	Migration               bool
+	TransferPtr				*Transfer
 }
 
 type TX struct {

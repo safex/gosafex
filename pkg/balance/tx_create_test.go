@@ -2,6 +2,7 @@ package balance
 
 import (
 	"fmt"
+	"encoding/hex"
 	"log"
 	"os"
 	"testing"
@@ -28,9 +29,12 @@ func TestTxCreate(t *testing.T) {
 	_, _ = wallet.GetBalance()
 
 	addr, _ := account.FromBase58("SFXtzV7tt2KZqvpCWVWauC5Qf16o3dAwLKNd9hCNzoB21ELLNfFjAMjXRhsR3ohT1AeW8j3jL4gfRahR86x6aoiU5hm5ZJj7BSc")
+	fmt.Println(hex.EncodeToString(addr.ViewKey[:]))
+	fmt.Println(hex.EncodeToString(addr.SpendKey[:]))
 	var extra []byte
 	ptxs := wallet.TxCreateCash([]DestinationEntry{DestinationEntry{20000000000, 0, *addr, false, false}}, 1, 0, 1, extra, true)
 	res, err := wallet.CommitPtx(&ptxs[0])
 	fmt.Println("Res: ", res, " err: ", err)
 	t.Errorf("Failing!")
 }
+

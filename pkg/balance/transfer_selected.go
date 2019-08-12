@@ -107,9 +107,11 @@ func (w *Wallet) transferSelected(dsts *[]DestinationEntry, selectedTransfers *[
 		copy(realOE.Key[:], keyTemp)
 		src.Outputs[realIndex] = realOE
 
-		src.RealOutTxKey = ExtractTxPubKey(val.Extra)
+		tempPub := ExtractTxPubKey(val.Extra)
+		copy(tempPub[:], src.RealOutTxKey[:]) 
 		src.RealOutput = uint64(realIndex)
 		src.RealOutputInTxIndex = val.LocalIndex
+		src.TransferPtr = &val
 		copy(src.KeyImage[:], val.KImage[:])
 		sources = append(sources, src)
 		outIndex++

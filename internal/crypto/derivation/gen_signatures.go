@@ -119,6 +119,7 @@ type RSComm struct {
 	ab []EcPointPair
 }
 
+
 func GenerateRingSignature(prefixHash []byte, keyImage Key, pubs []Key, priv *Key, realIndex int) (sigs []RSig, err error){
 	fmt.Println("keys in ring signature: ")
 	fmt.Println("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")

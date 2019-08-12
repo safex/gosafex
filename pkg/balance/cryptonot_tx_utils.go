@@ -311,9 +311,10 @@ func (w *Wallet) constructTxWithKey(
 	var derivation1 derivation.Key
 
 	for _, dst := range *destinations {
-		if changeAddr != nil && dst.Address.Equals(changeAddr) {
+		if changeAddr != nil && dst.Address.String() == changeAddr.String() {
 			derivation1 = derivation.DeriveKey((*derivation.Key)(&pubTxKey), (*derivation.Key)(&w.Address.ViewKey.Private))
 		} else {
+			fmt.Println("Signed with different key!!! <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< askdlahskdjhasldk as?M<ASdas asdas ")
 			var tempViewKey derivation.Key
 			copy(tempViewKey[:], dst.Address.ViewKey[:])
 			var tempTxKey derivation.Key
@@ -398,7 +399,7 @@ func (w *Wallet) constructTxWithKey(
 				ii++
 			}
 			//sigs1 := derivation.CreateSignatures(&txPrefixHash, keys, (*derivation.Key)(&w.Address.SpendKey.Private), src.KeyImage, int(src.RealOutput))
-			sigs, _ := derivation.GenerateRingSignature(txPrefixHash, src.KeyImage, keys, (*derivation.Key)(&w.Address.SpendKey.Private), int(src.RealOutput))
+			sigs, _ := derivation.GenerateRingSignature(txPrefixHash, src.KeyImage, keys, &src.TransferPtr.EphPriv, int(src.RealOutput))
 			addSigToTx(tx, &sigs)
 			//addSigToTx1(tx, sigs1)
 		}
