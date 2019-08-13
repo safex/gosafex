@@ -304,3 +304,26 @@ func (w *WalletRPC) CreateAccountFromKeys(rw http.ResponseWriter, r *http.Reques
 
 	FormJSONResponse(data, EverythingOK, &rw)
 }
+
+func (w *WalletRPC) SyncAccount(rw http.ResponseWriter, r *http.Request) {
+	if !w.OpenCheck(&rw) {
+		FormJSONResponse(nil, WalletIsNotOpened, &rw)
+		return
+	}
+
+	b, err := w.wallet.UpdateBalance()
+	if FormErrorRes(err, SyncFailed, &rw) {
+		return
+	}
+	data := make(JSONElement)
+	balance := make(JSONElement)
+	balance["cash-locked"] = b.CashLocked
+	balance["cash-unlocked"] = b.CashUnlocked
+	balance["token-locked"] = b.TokenLocked
+	balance["token-unlocked"] = b.TokenUnlocked
+
+	data["balance"] = balance
+	data["name"] = w.wallet.GetOpenAccount()
+
+	FormJSONResponse(data, EverythingOK, &rw)
+}

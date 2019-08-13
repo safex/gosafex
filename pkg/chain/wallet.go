@@ -159,9 +159,15 @@ func (w *Wallet) Status() string {
 }
 
 //InitClient inits the rpc client and checks for connection
-func (w *Wallet) InitClient(client string, port uint) error {
+func (w *Wallet) InitClient(client string, port uint) (err error) {
+	defer func() {
+        if r := recover(); r != nil {
+            err = errors.New("Cant connect to node!!")
+        }
+    }()
 	w.client = safexdrpc.InitClient(client, port)
-	if _, err := w.client.GetDaemonInfo(); err != nil {
+	
+	if _, err = w.client.GetDaemonInfo(); err != nil {
 		return err
 	}
 	return nil

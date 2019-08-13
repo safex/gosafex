@@ -24,4 +24,5 @@ const (
 	FailedToConnectToDeamon = 17
 	FailedToGetAccounts = 18
 	BadInput = 19
+	SyncFailed = 20
 )

@@ -63,11 +63,8 @@ func (w *WalletRPC) OpenExisting(rw http.ResponseWriter, r *http.Request) {
 	var data JSONElement
 	data = make(JSONElement)
 
-	err := w.wallet.InitClient(rqData.DaemonHost, rqData.DaemonPort) 
-	if err != nil {
-		data["msg"] = err.Error()
-		FormJSONResponse(data, FailedToConnectToDeamon, &rw)
-	}
+	err := w.wallet.InitClient(rqData.DaemonHost, rqData.DaemonPort)
+	noConn := err != nil
 
 	if _, err := os.Stat(rqData.Path); os.IsNotExist(err) {
 		FormJSONResponse(nil, FileDoesntExists, &rw)
@@ -87,6 +84,11 @@ func (w *WalletRPC) OpenExisting(rw http.ResponseWriter, r *http.Request) {
 	accounts, err := w.wallet.GetAccounts()
 	data["accounts"] = accounts
 
+	if noConn {
+		FormJSONResponse(data, FailedToConnectToDeamon, &rw)
+		return	
+	}
+
 	FormJSONResponse(data, EverythingOK, &rw)
 
 }
@@ -105,11 +107,8 @@ func (w *WalletRPC) CreateNew(rw http.ResponseWriter, r *http.Request) {
 	var data JSONElement
 	data = make(JSONElement)
 
-	err := w.wallet.InitClient(rqData.DaemonHost, rqData.DaemonPort) 
-	if err != nil {
-		data["msg"] = err.Error()
-		FormJSONResponse(data, FailedToConnectToDeamon, &rw)
-	}
+	err := w.wallet.InitClient(rqData.DaemonHost, rqData.DaemonPort)
+	noConn := err != nil
 
 	if _, err := os.Stat(rqData.Path); err == nil {
 		FormJSONResponse(nil, FileAlreadyExists, &rw)
@@ -126,6 +125,10 @@ func (w *WalletRPC) CreateNew(rw http.ResponseWriter, r *http.Request) {
 
 	// Only one account
 	data["accounts"] = []string{"primary"}
+	if noConn {
+		FormJSONResponse(data, FailedToConnectToDeamon, &rw)
+		return	
+	}
 
 	FormJSONResponse(data, EverythingOK, &rw)
 }
@@ -157,11 +160,8 @@ func (w *WalletRPC) RecoverWithSeed(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := w.wallet.InitClient(rqData.DaemonHost, rqData.DaemonPort) 
-	if err != nil {
-		data["msg"] = err.Error()
-		FormJSONResponse(data, FailedToConnectToDeamon, &rw)
-	}
+	err := w.wallet.InitClient(rqData.DaemonHost, rqData.DaemonPort)
+	noConn := err != nil
 
 	mSeed, err := mnemonic.FromString(rqData.Seed)
 
@@ -184,6 +184,11 @@ func (w *WalletRPC) RecoverWithSeed(rw http.ResponseWriter, r *http.Request) {
 		data["msg"] = err.Error()
 		FormJSONResponse(data, FailedToRecoverAccount, &rw)
 		return
+	}
+
+	if noConn {
+		FormJSONResponse(data, FailedToConnectToDeamon, &rw)
+		return	
 	}
 
 	FormJSONResponse(data, EverythingOK, &rw)
@@ -219,7 +224,12 @@ func (w *WalletRPC) RecoverWithKeys(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := w.wallet.OpenFile(rqData.Path, rqData.Password, rqData.Nettype == "testnet")
+
+	err := w.wallet.InitClient(rqData.DaemonHost, rqData.DaemonPort)
+	noConn := err != nil
+
+
+	err = w.wallet.OpenFile(rqData.Path, rqData.Password, rqData.Nettype == "testnet")
 	if err != nil {
 		data["msg"] = err.Error()
 		FormJSONResponse(data, FailedToOpen, &rw)
@@ -255,6 +265,11 @@ func (w *WalletRPC) RecoverWithKeys(rw http.ResponseWriter, r *http.Request) {
 
 	if data["created_account"] == nil {
 		return
+	}
+
+	if noConn {
+		FormJSONResponse(data, FailedToConnectToDeamon, &rw)
+		return	
 	}
 
 	FormJSONResponse(data, EverythingOK, &rw)
