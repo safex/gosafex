@@ -61,24 +61,37 @@ func (tx *TX) findDst(acc account.Address) int {
 	return -1
 }
 
-func (tx *TX) Add(acc account.Address, amount uint64, originalOutputIndex int, mergeDestinations bool) {
+func (tx *TX) Add(acc account.Address, amount uint64, originalOutputIndex int, mergeDestinations bool, outType safex.TxOutType) {
 	if mergeDestinations {
 		i := tx.findDst(acc)
 		if i == -1 {
-			tx.Dsts = append(tx.Dsts, DestinationEntry{0, 0, acc, false, false})
+			tx.Dsts = append(tx.Dsts, DestinationEntry{0, 0, acc, false, outType == safex.OutToken})
 			i = 0
 		}
-		tx.Dsts[i].Amount += amount
+		if outType == safex.OutCash {
+			tx.Dsts[i].Amount += amount
+		}
+
+		if outType == safex.OutToken {
+			tx.Dsts[i].TokenAmount += amount
+		}
+		
 	} else {
 		if originalOutputIndex == len(tx.Dsts) {
-			tx.Dsts = append(tx.Dsts, DestinationEntry{0, 0, acc, false, false})
+			tx.Dsts = append(tx.Dsts, DestinationEntry{0, 0, acc, false, outType == safex.OutToken})
 		}
-		tx.Dsts[originalOutputIndex].Amount += amount
+		if outType == safex.OutCash {
+			tx.Dsts[originalOutputIndex].Amount += amount
+		}
+
+		if outType == safex.OutToken {
+			tx.Dsts[originalOutputIndex].TokenAmount += amount
+		}
 	}
 }
 
 // @todo add token_transfer support
-func PopBestValueFrom(unusedIndices, selectedTransfers *[]Transfer, smallest bool) (ret Transfer) {
+func PopBestValueFrom(unusedIndices, selectedTransfers *[]Transfer, smallest bool, outType safex.TxOutType) (ret Transfer) {
 	var candidates []int
 	var bestRelatedness float32 = 1.0
 	for index, candidate := range *unusedIndices {
@@ -106,20 +119,28 @@ func PopBestValueFrom(unusedIndices, selectedTransfers *[]Transfer, smallest boo
 	var idx int = 0
 	if smallest {
 		for index, val := range candidates {
-			if (*unusedIndices)[val].Output.Amount < (*unusedIndices)[idx].Output.Amount {
-				idx = index
+			if outType == safex.OutCash {
+				if (*unusedIndices)[val].Output.Amount < (*unusedIndices)[idx].Output.Amount {
+					idx = index
+				}
+				continue;
 			}
+			
+			if outType == safex.OutToken {
+				if (*unusedIndices)[val].Output.TokenAmount < (*unusedIndices)[idx].Output.TokenAmount {
+					idx = index
+				}
+				continue;
+			}
+			
 		}
 	} else {
 		s := rand.NewSource(time.Now().UnixNano())
 		r := rand.New(s)
 		idx = r.Int() % len(candidates)
 	}
-	fmt.Println("PRCKO1")
-	fmt.Println((*unusedIndices)[candidates[idx]])
 	copier.Copy(&ret, &(*unusedIndices)[candidates[idx]])
 	*unusedIndices = append((*unusedIndices)[:idx], (*unusedIndices)[idx+1:]...)
-	fmt.Println(ret)
 	return ret
 }
 
@@ -131,29 +152,36 @@ func txSizeTarget(input int) int {
 	return input * 3 / 2
 }
 
-func (w *Wallet) TxCreateCash(dsts []DestinationEntry, fakeOutsCount int, unlockTime uint64, priority uint32, extra []byte, trustedDaemon bool) []PendingTx {
+func (w *Wallet) TxCreateCash(
+	dsts []DestinationEntry, 
+	fakeOutsCount int, 
+	unlockTime uint64, 
+	priority uint32, 
+	extra []byte, 
+	trustedDaemon bool) []PendingTx {
 
 	// @todo error handling
 	info, _ := w.client.GetDaemonInfo()
 	height := info.Height
 
 	var neededMoney uint64 = 0
-	fmt.Println("Dummy: ", neededMoney)
+
 	upperTxSizeLimit := consensus.GetUpperTransactionSizeLimit(2, 10)
 	feePerKb := consensus.GetPerKBFee()
-	fmt.Println("Dummy: ", feePerKb)
 	feeMultiplier := consensus.GetFeeMultiplier(priority, consensus.GetFeeAlgorithm())
-	fmt.Println("Dummy: ", feeMultiplier)
 
 	if len(dsts) == 0 {
+
 		panic("Zero destinations!")
 	}
 
 	for _, dst := range dsts {
-		neededMoney += dst.Amount
-		// @todo: log stuff
-		if neededMoney < dst.Amount {
-			panic("Reached uint64 overflow!")
+		if dst.Amount != 0 {
+			neededMoney += dst.Amount
+			// @todo: log stuff
+			if neededMoney < dst.Amount {
+				panic("Reached uint64 overflow!")
+			}
 		}
 	}
 
@@ -226,7 +254,7 @@ func (w *Wallet) TxCreateCash(dsts []DestinationEntry, fakeOutsCount int, unlock
 		}
 
 		// @todo: Check this once more.
-		idx = PopBestValueFrom(&unusedOutputs, &(tx.SelectedTransfers), false)
+		idx = PopBestValueFrom(&unusedOutputs, &(tx.SelectedTransfers), false, safex.OutCash)
 
 		tx.SelectedTransfers = append(tx.SelectedTransfers, idx)
 
@@ -241,7 +269,7 @@ func (w *Wallet) TxCreateCash(dsts []DestinationEntry, fakeOutsCount int, unlock
 			for len(dsts) != 0 &&
 				dsts[0].Amount <= availableAmount &&
 				estimateTxSize(len(tx.SelectedTransfers), int(fakeOutsCount), len(tx.Dsts), len(extra)) < txSizeTarget(upperTxSizeLimit) {
-				tx.Add(dsts[0].Address, dsts[0].Amount, originalOutputIndex, false) // <- Last field is merge_destinations. For now its false. @todo
+				tx.Add(dsts[0].Address, dsts[0].Amount, originalOutputIndex, false, safex.OutCash) // <- Last field is merge_destinations. For now its false. @todo
 				availableAmount -= dsts[0].Amount
 				dsts[0].Amount = 0
 				dsts = dsts[1:]
@@ -249,7 +277,7 @@ func (w *Wallet) TxCreateCash(dsts []DestinationEntry, fakeOutsCount int, unlock
 			}
 			// @todo Check why this block exists at all.
 			if availableAmount > 0 && len(dsts) != 0 && estimateTxSize(len(tx.SelectedTransfers), int(fakeOutsCount), len(tx.Dsts), len(extra)) != 0 {
-				tx.Add(dsts[0].Address, availableAmount, originalOutputIndex, false)
+				tx.Add(dsts[0].Address, availableAmount, originalOutputIndex, false, safex.OutCash)
 				dsts[0].Amount -= availableAmount
 				availableAmount = 0
 			}

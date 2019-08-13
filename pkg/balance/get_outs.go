@@ -47,7 +47,8 @@ func getOutputDistribution(type_ string, numOuts uint64, numRecentOutputs uint64
 	if i == numOuts {
 		i--
 	}
-
+	fmt.Println("numOuts: ", numOuts, ", numRecentOutputs: ", numRecentOutputs, ", i: ", i)
+	
 	return i
 
 }
@@ -140,7 +141,7 @@ func (w *Wallet) getOuts(outs *[][]OutsEntry, selectedTransfers *[]Transfer, fak
 				}
 
 				for i := numOuts; i < baseRequestedOutputsCount; i++ {
-					outsRq = append(outsRq, safex.GetOutputRq{valueAmount, numOuts - i})
+					outsRq = append(outsRq, safex.GetOutputRq{valueAmount, numOuts - 1})
 				}
 			} else {
 				if numFound == 0 {
@@ -173,15 +174,12 @@ func (w *Wallet) getOuts(outs *[][]OutsEntry, selectedTransfers *[]Transfer, fak
 					}
 
 					seenIndices[i] = true
-
 					outsRq = append(outsRq, safex.GetOutputRq{valueAmount, i})
 					numFound++
 				}
 			}
 			sort.Sort(safex.ByIndex(outsRq))
 		}
-
-		fmt.Println("outsRq size: ", len(outsRq))
 
 		// @todo Error handling.
 		outs1, _ := w.client.GetOutputs(outsRq, safex.OutCash)

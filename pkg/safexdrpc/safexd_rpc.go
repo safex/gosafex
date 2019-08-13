@@ -269,6 +269,7 @@ func (c Client) GetOutputHistogram(amounts *[]uint64,
 }
 
 func (c Client) GetOutputs(out_entries []safex.GetOutputRq, txOutType safex.TxOutType) (outs safex.Outs, err error) {
+	log.Println("REQUEST: ", out_entries)
 	result, err := c.SafexdCall("proto/get_outputs", JSONElement{"outputs": out_entries,
 		"out_type": txOutType}, "POST")
 	must(err)
@@ -280,7 +281,7 @@ func (c Client) GetOutputs(out_entries []safex.GetOutputRq, txOutType safex.TxOu
 
 func (c Client) SendTransaction(tx *safex.Transaction, doNotRelay bool) (res safex.SendTxRes, err error) {
 	data, err := proto.Marshal(tx)
-
+	
 	result, err := c.SafexdProtoCall("proto/sendrawtransaction", data, "POST")
 	must(err)
 	fmt.Println("Result SendTx: ", result)
