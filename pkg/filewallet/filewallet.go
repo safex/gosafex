@@ -169,7 +169,6 @@ func (w *FileWallet) GetData(key string) ([]byte, error) {
 	}
 	data, err := w.readKey(key)
 	if err != nil {
-
 		return nil, err
 	}
 	return data, nil
@@ -333,21 +332,10 @@ func (w *FileWallet) Close() {
 
 //New Opens or creates a new wallet file. If the file exists it will be read, otherwise if createOnFail is set it will create it
 func New(file string, accountName string, masterkey string, createOnFail bool, isTestnet bool, keystore *account.Store) (*FileWallet, error) {
-	w := new(FileWallet)
-	var err error
-	if w.db, err = filestore.NewEncryptedDB(file, masterkey); err != nil {
+	w, err := NewClean(file,masterkey,isTestnet)
+	
+	if err != nil{
 		return nil, err
-	}
-	if !w.db.BucketExists(genericDataBucketName) {
-		if err := w.db.CreateBucket(genericDataBucketName); err != nil {
-			return nil, err
-		}
-	}
-
-	if !w.db.BucketExists(genericBlockBucketName) {
-		if err := w.db.CreateBucket(genericBlockBucketName); err != nil {
-			return nil, err
-		}
 	}
 
 	if err = w.OpenAccount(&WalletInfo{Name: accountName, Keystore: keystore}, createOnFail, isTestnet); err != nil {
@@ -361,19 +349,30 @@ func New(file string, accountName string, masterkey string, createOnFail bool, i
 func NewClean(file string, masterkey string, isTestnet bool) (*FileWallet, error) {
 	w := new(FileWallet)
 	var err error
-	if w.db, err = filestore.NewEncryptedDB(file, masterkey); err != nil {
-		return nil, err
+	if fileExists(file){
+		if w.db, err = filestore.NewEncryptedDB(file, masterkey); err != nil {
+			return nil, err
+		}
+		passData,err := w.GetData(passwordCheckField)
+		if err != nil && err.Error() != ErrBucketNotInit.Error(){
+			return nil, err
+		}
+		if string(passData) != passwordCheckField || err.Error() == ErrBucketNotInit.Error(){
+			return nil, ErrWrongFilewalletPass
+		}
+	}else{
+		if w.db, err = filestore.NewEncryptedDB(file, masterkey); err != nil {
+			return nil, err
+		}
+		if err := w.PutData(passwordCheckField, []byte(passwordCheckField)); err != nil{
+			return nil, err
+		}
 	}
 	if !w.db.BucketExists(genericBlockBucketName) {
 		if err := w.db.CreateBucket(genericBlockBucketName); err != nil {
 			return nil, err
 		}
 	}
-
-	if !w.db.BucketExists(genericDataBucketName) {
-		if err := w.db.CreateBucket(genericDataBucketName); err != nil {
-			return nil, err
-		}
-	}
+	
 	return w, nil
 }

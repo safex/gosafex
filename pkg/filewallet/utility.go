@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"strings"
+	"os"
 )
 
 func PackOutputIndex(blockHash string, localIndex uint64) (string, error) {
@@ -23,6 +24,14 @@ func UnpackOutputIndex(outID string) (uint64, uint64, error) {
 	globalIndex := binary.LittleEndian.Uint64(s[:8])
 	localIndex := binary.LittleEndian.Uint64(s[8:])
 	return globalIndex, localIndex, nil
+}
+
+func fileExists(filename string) bool {
+    info, err := os.Stat(filename)
+    if os.IsNotExist(err) {
+        return false
+    }
+    return !info.IsDir()
 }
 
 func marshallTransactionInfo(txInfo *TransactionInfo) ([]byte, error) {

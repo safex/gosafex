@@ -41,9 +41,16 @@ type Wallet struct {
 	account        Account
 	client         *Client
 	outputs        map[crypto.Key]Transfer
+	lockUpdate     chan bool
 	countedOutputs []string
 	wallet         *filewallet.FileWallet
 	testnet        bool
+
+	updating bool
+	syncing  bool
+	quitting bool
+	update   chan bool
+	quit     chan bool
 }
 
 type Balance struct {

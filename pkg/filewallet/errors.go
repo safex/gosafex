@@ -1,6 +1,10 @@
 package filewallet
 
-import "errors"
+import (
+	"errors"
+
+	"github.com/safex/gosafex/internal/filestore"
+)
 
 //Errors
 var (
@@ -17,4 +21,6 @@ var (
 	ErrBlockNotFound        = errors.New("Block not found")
 	ErrNoBlocks             = errors.New("No blocks available")
 	ErrMistmatchedBlock     = errors.New("Block mismatch")
+	ErrWrongFilewalletPass  = errors.New("Wrong wallet password")
+	ErrBucketNotInit        = filestore.ErrBucketNotInit
 )
