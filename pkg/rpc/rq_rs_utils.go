@@ -5,6 +5,8 @@ import (
 	"io/ioutil"
 	"encoding/json"
 	"encoding/hex"
+
+	"github.com/safex/gosafex/pkg/key"
 )
 
 type JSONElement = map[string]interface{}
@@ -47,7 +49,28 @@ func FormJSONResponse(result JSONElement,
 	json.NewEncoder(*w).Encode(res)
 }
 
+func FormErrorRes(err error, errCode StatusCodeError, w *http.ResponseWriter) bool {
+	if err == nil {
+		return false
+	}
+	data := make(JSONElement)
+	data["msg"] = err.Error()
+	FormJSONResponse(data, errCode, w)
+	return true
+}
+
 func getKeyString(key IToBytes) string {
 	temp := key.ToBytes()
 	return hex.EncodeToString(temp[:])
+}
+
+func GetNewKeyFromString(input string,  w *http.ResponseWriter) *key.PrivateKey {
+	tempBytes, err := hex.DecodeString(input)
+	if FormErrorRes(err, BadInput, w) {
+		return nil
+	}
+
+	var tempArr [32]byte
+	copy(tempArr[:], tempBytes)
+	return key.NewPrivateKeyFromBytes(tempArr)
 }

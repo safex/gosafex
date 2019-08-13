@@ -22,4 +22,6 @@ const (
 	FailedGettingTransaction = 15
 	FailedGettingOutput      = 16
 	FailedToConnectToDeamon = 17
+	FailedToGetAccounts = 18
+	BadInput = 19
 )

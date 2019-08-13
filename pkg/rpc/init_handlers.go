@@ -7,6 +7,7 @@ import (
 
 	"github.com/safex/gosafex/internal/mnemonic"
 	"github.com/safex/gosafex/pkg/chain"
+	"github.com/safex/gosafex/pkg/account"
 )
 
 // Wallet init request struct
@@ -145,11 +146,7 @@ func (w *WalletRPC) RecoverWithSeed(rw http.ResponseWriter, r *http.Request) {
 	var data JSONElement
 	data = make(JSONElement)
 
-	err := w.wallet.InitClient(rqData.DaemonHost, rqData.DaemonPort) 
-	if err != nil {
-		data["msg"] = err.Error()
-		FormJSONResponse(data, FailedToConnectToDeamon, &rw)
-	}
+	
 
 	if rqData.Seed == "" {
 		data["msg"] = "Missing field 'seed'"
@@ -158,6 +155,12 @@ func (w *WalletRPC) RecoverWithSeed(rw http.ResponseWriter, r *http.Request) {
 
 	if !w.initializeInnerWallet(&rw) {
 		return
+	}
+
+	err := w.wallet.InitClient(rqData.DaemonHost, rqData.DaemonPort) 
+	if err != nil {
+		data["msg"] = err.Error()
+		FormJSONResponse(data, FailedToConnectToDeamon, &rw)
 	}
 
 	mSeed, err := mnemonic.FromString(rqData.Seed)
@@ -203,7 +206,12 @@ func (w *WalletRPC) RecoverWithKeys(rw http.ResponseWriter, r *http.Request) {
 	data = make(JSONElement)
 
 	if rqData.Address == "" || rqData.SpendKey == "" || rqData.ViewKey == "" {
-		data["msg"] = "Missing field (addres, viewkey or spendkey)"
+		data["msg"] = "Missing field (address, viewkey or spendkey)"
+		FormJSONResponse(data, JSONRqMalformed, &rw)
+	}
+
+	if len(rqData.SpendKey) != 64 || len(rqData.ViewKey) != 64 {
+		data["msg"] = "Wrong key length (viewkey or spendkey)"
 		FormJSONResponse(data, JSONRqMalformed, &rw)
 	}
 
@@ -218,14 +226,36 @@ func (w *WalletRPC) RecoverWithKeys(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// err = w.wallet.Recover(mSeed, "primary", rqData.Nettype == "testnet")
-	// if err != nil {
-	// 	w.wallet.Close()
-	// 	os.Remove(rqData.Path)
-	// 	data["msg"] = err.Error()
-	// 	FormJSONResponse(data, FailedToRecoverAccount , &rw)
-	// 	return
-	// }
+
+	address, err := account.FromBase58(rqData.Address)
+	if FormErrorRes(err, BadInput, &rw) {
+		return
+	}
+
+	viewPriv := GetNewKeyFromString(rqData.ViewKey, &rw)
+	if viewPriv == nil {
+		return
+	}
+	
+	spendPriv := GetNewKeyFromString(rqData.SpendKey, &rw)
+	if spendPriv == nil {
+		return
+	}
+
+	store := account.NewStore(address, *viewPriv, *spendPriv)
+
+	err = w.wallet.CreateAccount("primary", store, !w.mainnet)
+	if FormErrorRes(err, FailedToOpenAccount, &rw) {
+		return
+	}
+
+	w.openAccountInner("primary", &rw)
+	data = make(JSONElement)
+	data["created_account"] = w.currentAccInfo(&rw)
+
+	if data["created_account"] == nil {
+		return
+	}
 
 	FormJSONResponse(data, EverythingOK, &rw)
 }
