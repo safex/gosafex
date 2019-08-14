@@ -75,7 +75,7 @@ func (tx *TX) Add(acc account.Address, amount uint64, originalOutputIndex int, m
 		if outType == safex.OutToken {
 			tx.Dsts[i].TokenAmount += amount
 		}
-		
+
 	} else {
 		if originalOutputIndex == len(tx.Dsts) {
 			tx.Dsts = append(tx.Dsts, DestinationEntry{0, 0, acc, false, outType == safex.OutToken})
@@ -123,16 +123,16 @@ func PopBestValueFrom(unusedIndices, selectedTransfers *[]Transfer, smallest boo
 				if (*unusedIndices)[val].Output.Amount < (*unusedIndices)[idx].Output.Amount {
 					idx = index
 				}
-				continue;
+				continue
 			}
-			
+
 			if outType == safex.OutToken {
 				if (*unusedIndices)[val].Output.TokenAmount < (*unusedIndices)[idx].Output.TokenAmount {
 					idx = index
 				}
-				continue;
+				continue
 			}
-			
+
 		}
 	} else {
 		s := rand.NewSource(time.Now().UnixNano())
@@ -153,11 +153,11 @@ func txSizeTarget(input int) int {
 }
 
 func (w *Wallet) TxCreateCash(
-	dsts []DestinationEntry, 
-	fakeOutsCount int, 
-	unlockTime uint64, 
-	priority uint32, 
-	extra []byte, 
+	dsts []DestinationEntry,
+	fakeOutsCount int,
+	unlockTime uint64,
+	priority uint32,
+	extra []byte,
 	trustedDaemon bool) []PendingTx {
 
 	// @todo error handling
@@ -349,6 +349,7 @@ func (w *Wallet) TxCreateCash(
 
 				if neededFee > availableForFee {
 					log.Println("We couldnt make a tx, switching to fee accumulation")
+					addingFee = true
 				} else {
 					log.Println("We made a tx, adjusting fee and saving it, we need " + string(neededFee) + " and we have " + string(testPtx.Fee))
 					for neededFee > testPtx.Fee {

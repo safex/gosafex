@@ -36,8 +36,8 @@ type Transfer struct {
 	MinerTx     bool
 	Height      uint64
 	KImage      derivation.Key
-	EphPub		derivation.Key
-	EphPriv		derivation.Key
+	EphPub      derivation.Key
+	EphPriv     derivation.Key
 }
 
 type Wallet struct {
@@ -72,6 +72,7 @@ func (a OutsEntryByIndex) Less(i, j int) bool { return a[i].Index < a[j].Index }
 type TxConstructionData struct {
 	Sources           []TxSourceEntry
 	ChangeDts         DestinationEntry
+	ChangeTokenDts    DestinationEntry
 	SplittedDsts      []DestinationEntry
 	SelectedTransfers *[]Transfer
 	Extra             []byte
@@ -115,7 +116,7 @@ type TxSourceEntry struct {
 	TokenAmount             uint64
 	TokenTx                 bool
 	Migration               bool
-	TransferPtr				*Transfer
+	TransferPtr             *Transfer
 }
 
 type TX struct {
@@ -125,8 +126,8 @@ type TX struct {
 	PendingTx         PendingTx
 	Outs              [][]OutsEntry
 	Bytes             uint64
-	TxPtr                *safex.Transaction
-	PendingTxPtr         *PendingTx
+	TxPtr             *safex.Transaction
+	PendingTxPtr      *PendingTx
 }
 
 // Instead of having

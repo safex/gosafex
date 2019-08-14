@@ -41,16 +41,20 @@ func (w *Wallet) transferSelected(dsts *[]DestinationEntry, selectedTransfers *[
 
 	//upperTxSizeLimit := consensus.GetUpperTransactionSizeLimit(2, 10)
 	neededMoney := fee
+	neededToken := uint64(0)
 	// @todo add tokens
 
 	//@todo Check for uint64 overflow
 	for _, dst := range *dsts {
 		neededMoney += dst.Amount
+		neededToken += dst.TokenAmount
 	}
 
 	var foundMoney uint64 = 0
+	var foundTokens uint64 = 0
 	for _, slctd := range *selectedTransfers {
 		foundMoney += slctd.Output.Amount
+		foundTokens += slctd.Output.TokenAmount
 	}
 	fmt.Println("Transfer selected outs: ", outs)
 
@@ -59,6 +63,13 @@ func (w *Wallet) transferSelected(dsts *[]DestinationEntry, selectedTransfers *[
 		// @note getOuts is fully fitted to accomodate tokens and cash outputs
 		// @todo Test this against cpp code more thoroughly
 		w.getOuts(outs, selectedTransfers, fakeOutsCount, outType)
+	}
+	if outType == safex.OutToken {
+		var outsFee [][]OutsEntry = nil
+		w.getOuts(&outsFee, selectedTransfers, fakeOutsCount, safex.OutCash)
+		for _, out := range outsFee {
+			*outs = append(*outs, out)
+		}
 	}
 
 	fmt.Println("------------------------- OUTPUTS -------------------------------------")
@@ -77,9 +88,18 @@ func (w *Wallet) transferSelected(dsts *[]DestinationEntry, selectedTransfers *[
 	var i uint64 = 0
 	for _, val := range *selectedTransfers {
 		src := TxSourceEntry{}
-		src.Amount = GetOutputAmount(val.Output, safex.OutCash)
-		src.TokenAmount = GetOutputAmount(val.Output, safex.OutToken)
-		src.TokenTx = src.TokenAmount != 0
+		outputType := GetOutputType(val.Output)
+		if outputType == safex.OutCash {
+			src.Amount = GetOutputAmount(val.Output, safex.OutCash)
+			src.TokenAmount = 0
+		}
+
+		if outputType == safex.OutToken {
+			src.Amount = 0
+			src.TokenAmount = GetOutputAmount(val.Output, safex.OutToken)
+		}
+
+		src.TokenTx = MatchOutputWithType(val.Output, safex.OutToken)
 
 		for n := 0; n <= fakeOutsCount; n++ {
 			var oe TxOutputEntry
@@ -103,12 +123,13 @@ func (w *Wallet) transferSelected(dsts *[]DestinationEntry, selectedTransfers *[
 
 		realOE := TxOutputEntry{}
 		realOE.Index = val.GlobalIndex
-		keyTemp := GetOutputKey(val.Output, outType)
+
+		keyTemp := GetOutputKey(val.Output, outputType)
 		copy(realOE.Key[:], keyTemp)
 		src.Outputs[realIndex] = realOE
 
 		tempPub := ExtractTxPubKey(val.Extra)
-		copy(tempPub[:], src.RealOutTxKey[:]) 
+		copy(tempPub[:], src.RealOutTxKey[:])
 		src.RealOutput = uint64(realIndex)
 		src.RealOutputInTxIndex = val.LocalIndex
 		src.TransferPtr = &val
@@ -120,6 +141,7 @@ func (w *Wallet) transferSelected(dsts *[]DestinationEntry, selectedTransfers *[
 	log.Println("Outputs prepared!!!")
 
 	var changeDts DestinationEntry
+	var changeTokenDts DestinationEntry
 	// fvar changeTokenDts DestinationEntry
 
 	if neededMoney < foundMoney {
@@ -127,6 +149,13 @@ func (w *Wallet) transferSelected(dsts *[]DestinationEntry, selectedTransfers *[
 		fmt.Println(tempAddr)
 		changeDts.Address = *tempAddr
 		changeDts.Amount = foundMoney - neededMoney
+	}
+
+	if neededToken < foundTokens {
+		tempAddr := convertAddress(w.Address)
+		fmt.Println(tempAddr)
+		changeTokenDts.Address = *tempAddr
+		changeTokenDts.TokenAmount = foundTokens - neededToken
 	}
 
 	// @todo Add tokens infrastructure once you find out how fee is calulated
@@ -141,7 +170,7 @@ func (w *Wallet) transferSelected(dsts *[]DestinationEntry, selectedTransfers *[
 	var dustDsts []DestinationEntry
 
 	// @todo fix this to accomodate tokens as well
-	DigitSplitStrategy(dsts, &changeDts, nil, 0, &splittedDsts, &dustDsts)
+	DigitSplitStrategy(dsts, &changeDts, &changeTokenDts, 0, &splittedDsts, &dustDsts)
 
 	// @todo implement all data needed for filling destinations.
 	var txKey [32]byte
@@ -170,13 +199,14 @@ func (w *Wallet) transferSelected(dsts *[]DestinationEntry, selectedTransfers *[
 	ptx.DustAddedToFee = uint64(0) // @todo Dust policy
 	ptx.Tx = tx
 	ptx.ChangeDts = changeDts
-	ptx.ChangeTokenDts = changeDts
+	ptx.ChangeTokenDts = changeTokenDts
 	ptx.SelectedTransfers = selectedTransfers
 	ptx.TxKey = txKey
 	ptx.Dests = dsts
 	ptx.Fee = fee
 	ptx.ConstructionData.Sources = sources
 	ptx.ConstructionData.ChangeDts = changeDts
+	ptx.ConstructionData.ChangeTokenDts = changeTokenDts
 	ptx.ConstructionData.SplittedDsts = splittedDsts
 	ptx.ConstructionData.SelectedTransfers = selectedTransfers
 	ptx.ConstructionData.Extra = tx.Extra

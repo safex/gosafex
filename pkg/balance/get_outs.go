@@ -48,7 +48,7 @@ func getOutputDistribution(type_ string, numOuts uint64, numRecentOutputs uint64
 		i--
 	}
 	fmt.Println("numOuts: ", numOuts, ", numRecentOutputs: ", numRecentOutputs, ", i: ", i)
-	
+
 	return i
 
 }
@@ -99,6 +99,9 @@ func (w *Wallet) getOuts(outs *[][]OutsEntry, selectedTransfers *[]Transfer, fak
 
 		fmt.Println("Size of selectedTransfers:", len(*selectedTransfers))
 		for index, val := range *selectedTransfers {
+			if !MatchOutputWithType(val.Output, outType) {
+				continue
+			}
 			fmt.Println(index, " ", val)
 			numSelectedTransfers++
 			valueAmount := GetOutputAmount(val.Output, outType)
@@ -182,7 +185,7 @@ func (w *Wallet) getOuts(outs *[][]OutsEntry, selectedTransfers *[]Transfer, fak
 		}
 
 		// @todo Error handling.
-		outs1, _ := w.client.GetOutputs(outsRq, safex.OutCash)
+		outs1, _ := w.client.GetOutputs(outsRq, outType)
 
 		var scantyOuts map[uint64]int
 		scantyOuts = make(map[uint64]int)
@@ -246,10 +249,13 @@ func (w *Wallet) getOuts(outs *[][]OutsEntry, selectedTransfers *[]Transfer, fak
 	} else {
 		for _, val := range *selectedTransfers {
 			var entry []OutsEntry
+			fmt.Println("sssssss")
+			fmt.Println(val)
 
+			outputType := GetOutputType(val.Output)
 			// @todo Refactor!!
 			var outputKeyTemp [32]byte
-			copy(outputKeyTemp[:], GetOutputKey(val.Output, outType))
+			copy(outputKeyTemp[:], GetOutputKey(val.Output, outputType))
 
 			entry = append(entry, OutsEntry{val.GlobalIndex, outputKeyTemp})
 			*outs = append(*outs, entry)

@@ -11,15 +11,15 @@ import (
 )
 
 func isWholeValue(input uint64) bool {
-	return (input % uint64(10000000000)) != uint64(0)
+	return (input % uint64(10000000000)) == uint64(0)
 }
 
 func (w *Wallet) TxCreateToken(
-	dsts []DestinationEntry, 
-	fakeOutsCount int, 
-	unlockTime uint64, 
-	priority uint32, 
-	extra []byte, 
+	dsts []DestinationEntry,
+	fakeOutsCount int,
+	unlockTime uint64,
+	priority uint32,
+	extra []byte,
 	trustedDaemon bool) []PendingTx {
 
 	// @todo error handling
@@ -67,21 +67,37 @@ func (w *Wallet) TxCreateToken(
 	}
 
 	var unusedOutputs []Transfer
+	var unusedTokenOutputs []Transfer
 	var dustOutputs []Transfer
+	var dustTokenOutputs []Transfer
 
 	// Find unused outputs
 	for _, val := range w.outputs {
-		if !val.Spent && isTokenOutput(val.Output) && val.IsUnlocked(height) {
-			if IsDecomposedOutputValue(val.Output.TokenAmount) {
-				unusedOutputs = append(unusedOutputs, val)
+		if !val.Spent && val.IsUnlocked(height) {
+			if MatchOutputWithType(val.Output, safex.OutToken) {
+				if IsDecomposedOutputValue(val.Output.TokenAmount) {
+					unusedTokenOutputs = append(unusedTokenOutputs, val)
+				} else {
+					dustTokenOutputs = append(dustTokenOutputs, val)
+				}
+				continue
 			} else {
-				dustOutputs = append(dustOutputs, val)
+				if IsDecomposedOutputValue(val.Output.Amount) && val.Output.Amount > 0 {
+					unusedOutputs = append(unusedOutputs, val)
+				} else {
+					dustOutputs = append(dustOutputs, val)
+				}
 			}
 		}
 	}
 
 	// If there is no usable outputs return empty array
 	if len(unusedOutputs) == 0 && len(dustOutputs) == 0 {
+		return []PendingTx{}
+	}
+
+	// If there is no usable outputs return empty array
+	if len(unusedTokenOutputs) == 0 && len(dustTokenOutputs) == 0 {
 		return []PendingTx{}
 	}
 
@@ -94,14 +110,23 @@ func (w *Wallet) TxCreateToken(
 		dustOutputs = append(dustOutputs, Transfer{})
 	}
 
+	if len(unusedTokenOutputs) == 0 {
+		unusedTokenOutputs = append(unusedTokenOutputs, Transfer{})
+	}
+	if len(dustTokenOutputs) == 0 {
+		dustTokenOutputs = append(dustTokenOutputs, Transfer{})
+	}
+
 	//@NOTE This part have good results so far in comparsion with cli wallet. There is slight mismatch in number of detected dust outputs.
 	fmt.Println("Lenght of unusedOutputs: ", len(unusedOutputs))
 	fmt.Println("Lenght of dustOutputs:", len(dustOutputs))
+	fmt.Println("Lenght of unusedTokenOutputs: ", len(unusedTokenOutputs))
+	fmt.Println("Lenght of dustTokenOutputs:", len(dustTokenOutputs))
 
 	var txes []TX
 	txes = append(txes, TX{})
 	var accumulatedFee, accumulatedOutputs, accumulatedChange, availableForFee, neededFee uint64 = 0, 0, 0, 0, 0
-
+	var accumulatedTokenOutputs, accumulatedTokenChange uint64 = 0, 0
 	outs := [][]OutsEntry{}
 
 	var originalOutputIndex int = 0
@@ -114,17 +139,27 @@ func (w *Wallet) TxCreateToken(
 	for (len(dsts) != 0 && dsts[0].TokenAmount != 0) || addingFee {
 		tx := &txes[len(txes)-1]
 
-		if len(unusedOutputs) == 0 && len(dustOutputs) == 0 {
-			panic("Not enough money")
+		if len(unusedTokenOutputs) == 0 && len(dustTokenOutputs) == 0 {
+			panic("Not enough tokens")
 		}
 
+		if len(unusedOutputs) == 0 && len(dustOutputs) == 0 {
+			panic("Not enough cash for fee")
+		}
+
+		if addingFee {
+			idx = PopBestValueFrom(&unusedOutputs, &(tx.SelectedTransfers), false, safex.OutCash)
+		} else {
+			idx = PopBestValueFrom(&unusedTokenOutputs, &(tx.SelectedTransfers), false, safex.OutToken)
+		}
 		// @todo: Check this once more.
-		idx = PopBestValueFrom(&unusedOutputs, &(tx.SelectedTransfers), false, safex.OutToken)
 
 		tx.SelectedTransfers = append(tx.SelectedTransfers, idx)
 
-		availableAmount := idx.Output.TokenAmount
+		availableAmount := idx.Output.Amount
+		availableTokenAmount := idx.Output.TokenAmount
 		accumulatedOutputs += availableAmount
+		accumulatedTokenOutputs += availableTokenAmount
 
 		outs = nil
 
@@ -132,18 +167,19 @@ func (w *Wallet) TxCreateToken(
 			availableForFee += availableAmount
 		} else {
 			for len(dsts) != 0 &&
-				dsts[0].TokenAmount <= availableAmount &&
+				dsts[0].TokenAmount <= availableTokenAmount &&
+				estimateTxSize(len(tx.SelectedTransfers), int(fakeOutsCount), len(tx.Dsts), len(extra)) < txSizeTarget(upperTxSizeLimit) {
 				tx.Add(dsts[0].Address, dsts[0].TokenAmount, originalOutputIndex, false, safex.OutToken) // <- Last field is merge_destinations. For now its false. @todo
-				availableAmount -= dsts[0].TokenAmount
+				availableTokenAmount -= dsts[0].TokenAmount
 				dsts[0].TokenAmount = 0
 				dsts = dsts[1:]
 				originalOutputIndex++
 			}
 			// @todo Check why this block exists at all.
-			if availableAmount > 0 && len(dsts) != 0 && estimateTxSize(len(tx.SelectedTransfers), int(fakeOutsCount), len(tx.Dsts), len(extra)) != 0 {
-				tx.Add(dsts[0].Address, availableAmount, originalOutputIndex, false, safex.OutToken)
-				dsts[0].TokenAmount -= availableAmount
-				availableAmount = 0
+			if availableTokenAmount > 0 && len(dsts) != 0 && estimateTxSize(len(tx.SelectedTransfers), int(fakeOutsCount), len(tx.Dsts), len(extra)) != 0 {
+				tx.Add(dsts[0].Address, availableTokenAmount, originalOutputIndex, false, safex.OutToken)
+				dsts[0].TokenAmount -= availableTokenAmount
+				availableTokenAmount = 0
 			}
 		}
 		var tryTx bool = false
@@ -175,15 +211,15 @@ func (w *Wallet) TxCreateToken(
 			// We dont have enough for the basice fee, switching to adding fee.
 			// @todo Add logs, panics and shit
 			// @todo see why this is panicing always
-			if outputs > inputs {
-				panic("You dont have enough money for fee")
+			if inputs == 0 || outputs > inputs {
+				//panic("You dont have enough money for fee")
 				addingFee = true
 				// Else is here to emulate goto skip_tx:
 			} else {
 
 				// Transfer selected
 				fmt.Println(">>>>>>>>>>>>> FIRST TRANSFER SELECTED <<<<<<<<<<<<<<<<<<")
-				w.transferSelected(&tx.Dsts, &tx.SelectedTransfers, fakeOutsCount, &outs, unlockTime, neededFee, &extra, &testTx, &testPtx, safex.OutCash)
+				w.transferSelected(&tx.Dsts, &tx.SelectedTransfers, fakeOutsCount, &outs, unlockTime, neededFee, &extra, &testTx, &testPtx, safex.OutToken)
 
 				txBlob := serialization.SerializeTransaction(testPtx.Tx, true)
 				neededFee = consensus.CalculateFee(feePerKb, len(txBlob), feeMultiplier)
@@ -213,11 +249,12 @@ func (w *Wallet) TxCreateToken(
 
 				if neededFee > availableForFee {
 					log.Println("We couldnt make a tx, switching to fee accumulation")
+					addingFee = true
 				} else {
 					log.Println("We made a tx, adjusting fee and saving it, we need " + string(neededFee) + " and we have " + string(testPtx.Fee))
 					for neededFee > testPtx.Fee {
 						fmt.Println("NeededFee: ", neededFee, ", testPtx.Fee ", testPtx.Fee)
-						w.transferSelected(&tx.Dsts, &tx.SelectedTransfers, fakeOutsCount, &outs, unlockTime, neededFee, &extra, &testTx, &testPtx, safex.OutCash)
+						w.transferSelected(&tx.Dsts, &tx.SelectedTransfers, fakeOutsCount, &outs, unlockTime, neededFee, &extra, &testTx, &testPtx, safex.OutToken)
 						txBlob = serialization.SerializeTransaction(testPtx.Tx, true)
 						neededFee = consensus.CalculateFee(feePerKb, len(txBlob), feeMultiplier)
 						log.Println("Made an attempt at a final tx, with " + string(testPtx.Fee) + " fee and " + string(testPtx.ChangeDts.Amount) + " change")
@@ -228,6 +265,7 @@ func (w *Wallet) TxCreateToken(
 					tx.Outs = outs
 					accumulatedFee += testPtx.Fee
 					accumulatedChange += testPtx.ChangeDts.Amount
+					accumulatedTokenChange += testPtx.ChangeDts.TokenAmount
 					addingFee = false
 					if len(dsts) != 0 {
 						log.Println("We have more to pay, starting another tx")
@@ -266,7 +304,7 @@ func (w *Wallet) TxCreateToken(
 			&extra,
 			testTx,
 			testPtx,
-			safex.OutCash)
+			safex.OutToken)
 		txBlob := serialization.SerializeTransaction(testPtx.Tx, true)
 		txes[index].Tx = *testTx
 		txes[index].PendingTx = *testPtx

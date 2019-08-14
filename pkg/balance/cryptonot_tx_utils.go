@@ -1,14 +1,15 @@
 package balance
 
 import (
+	"bytes"
+
+	"github.com/golang/glog"
 	"github.com/safex/gosafex/internal/crypto"
 	"github.com/safex/gosafex/internal/crypto/derivation"
 	"github.com/safex/gosafex/pkg/account"
 	"github.com/safex/gosafex/pkg/safex"
 	"github.com/safex/gosafex/pkg/serialization"
-	"github.com/golang/glog"
 
-	"bytes"
 	"encoding/hex"
 	"math/rand"
 	"sort"
@@ -142,9 +143,13 @@ func getTxInVFromTxInToKey(input TxInToKey) (ret *safex.TxinV) {
 func getKeyImage(input *safex.TxinV) []byte {
 	if input.TxinToKey != nil {
 		return input.TxinToKey.KImage
-	} else {
+	}
+	if input.TxinTokenToKey != nil {
 		return input.TxinTokenToKey.KImage
 	}
+
+	panic("Shit dude")
+	return []byte{}
 }
 
 // As we dont use subaddresses for now, we will here just count current
@@ -380,7 +385,7 @@ func (w *Wallet) constructTxWithKey(
 	if tx.Version == 1 {
 		txPrefixBytes := serialization.SerializeTransaction(tx, false)
 		txPrefixHash := []byte(crypto.Keccak256(txPrefixBytes))
-		
+
 		for _, src := range *sources {
 			keys := make([]derivation.Key, len(src.Outputs))
 			ii := 0
