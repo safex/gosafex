@@ -86,7 +86,7 @@ func (w *Wallet) transferSelected(dsts *[]DestinationEntry, selectedTransfers *[
 	var sources []TxSourceEntry
 	var outIndex uint64 = 0
 	var i uint64 = 0
-	for _, val := range *selectedTransfers {
+	for index, val := range *selectedTransfers {
 		src := TxSourceEntry{}
 		outputType := GetOutputType(val.Output)
 		if outputType == safex.OutCash {
@@ -132,7 +132,7 @@ func (w *Wallet) transferSelected(dsts *[]DestinationEntry, selectedTransfers *[
 		copy(tempPub[:], src.RealOutTxKey[:])
 		src.RealOutput = uint64(realIndex)
 		src.RealOutputInTxIndex = val.LocalIndex
-		src.TransferPtr = &val
+		src.TransferPtr = &(*selectedTransfers)[index]
 		copy(src.KeyImage[:], val.KImage[:])
 		sources = append(sources, src)
 		outIndex++

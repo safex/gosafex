@@ -38,7 +38,7 @@ func SerializeInput(input *safex.TxinV, buf *bytes.Buffer) {
 		binary.Write(buf, binary.LittleEndian, input.TxinToKey.KImage)
 
 	} else if input.TxinTokenToKey != nil {
-		binary.Write(buf, binary.LittleEndian, TxInTokenToKey) // Write marker
+		binary.Write(buf, binary.LittleEndian, byte(TxInTokenToKey)) // Write marker
 		binary.Write(buf, binary.LittleEndian, Uint64ToBytes(input.TxinTokenToKey.TokenAmount))
 		binary.Write(buf, binary.LittleEndian, Uint64ToBytes(uint64(len(input.TxinTokenToKey.KeyOffsets))))
 		for _, offset := range input.TxinTokenToKey.KeyOffsets {
