@@ -151,7 +151,7 @@ func (w *Wallet) TxCreateToken(
 		if addingFee {
 			idx = PopBestValueFrom(&unusedOutputs, &(tx.SelectedTransfers), false, safex.OutCash)
 		} else {
-			idx = PopBestValueFrom(&unusedTokenOutputs, &(tx.SelectedTransfers), false, safex.OutToken)
+			idx = PopBestValueFrom(&unusedTokenOutputs, &(tx.SelectedTransfers), true, safex.OutToken)
 		}
 		// @todo: Check this once more.
 

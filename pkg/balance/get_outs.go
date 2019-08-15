@@ -193,13 +193,17 @@ func (w *Wallet) getOuts(outs *[][]OutsEntry, selectedTransfers *[]Transfer, fak
 		var base uint64 = 0
 		for _, val := range *selectedTransfers {
 			var entry []OutsEntry
+			outputType := GetOutputType(val.Output)
+			if outputType != outType {
+				continue
+			}
 			// @note pkey is extracted as output key.
 			// @note mask is not used as its zerocommit mask for non-rct (0), as we dont support RCT
 			//		 mask will always be zero for every output, hence there is no sense in checkin
 			//		 always true condition.
 			var realOutFound bool = false
 			var n uint64 = 0
-			for n = 0; n < baseRequestedOutputsCount; n++ {
+			for n = uint64(0); n < baseRequestedOutputsCount; n++ {
 				i := base + n
 				if uint64(val.GlobalIndex) == outsRq[i].Index {
 					if bytes.Equal(outs1.Outs[i].Key, GetOutputKey(val.Output, outType)) {

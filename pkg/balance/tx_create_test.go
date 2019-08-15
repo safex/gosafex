@@ -33,7 +33,7 @@ func TestTxCreate(t *testing.T) {
 	fmt.Println(hex.EncodeToString(addr.SpendKey[:]))
 	var extra []byte
 	// ptxs := wallet.TxCreateCash([]DestinationEntry{DestinationEntry{20000000000, 0, *addr, false, false}}, 0, 0, 1, extra, true)
-	ptxs := wallet.TxCreateToken([]DestinationEntry{DestinationEntry{0, 20000000000, *addr, false, false}}, 0, 0, 1, extra, true)
+	ptxs := wallet.TxCreateToken([]DestinationEntry{DestinationEntry{0, 20000000000, *addr, false, false}}, 1, 0, 1, extra, true)
 	res, err := wallet.CommitPtx(&ptxs[0])
 	fmt.Println("Res: ", res, " err: ", err)
 	t.Errorf("Failing!")
