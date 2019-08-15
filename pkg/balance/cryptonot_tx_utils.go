@@ -148,7 +148,6 @@ func getKeyImage(input *safex.TxinV) []byte {
 		return input.TxinTokenToKey.KImage
 	}
 
-	panic("Shit dude")
 	return []byte{}
 }
 
@@ -274,11 +273,12 @@ func (w *Wallet) constructTxWithKey(
 		insOrder[index] = index
 	}
 
+	// @todo test this. Can produce input are not sorted error on node
 	sort.Slice(insOrder, func(i, j int) bool {
 		kI := getKeyImage(tx.Vin[i])
 		kJ := getKeyImage(tx.Vin[j])
 
-		return bytes.Compare(kI, kJ) < 0
+		return bytes.Compare(kI, kJ) > 0
 	})
 
 	ApplyPermutation(insOrder, func(i, j int) {

@@ -31,8 +31,7 @@ func checkInputs(inputs []*safex.TxinV) bool {
 }
 
 func (w *Wallet) transferSelected(dsts *[]DestinationEntry, selectedTransfers *[]Transfer, fakeOutsCount int, outs *[][]OutsEntry,
-	unlockTime uint64, fee uint64, extra *[]byte, tx *safex.Transaction, ptx *PendingTx, outType safex.TxOutType) { // destination_split_strategy, // dust_policy
-
+	outsFee *[][]OutsEntry, unlockTime uint64, fee uint64, extra *[]byte, tx *safex.Transaction, ptx *PendingTx, outType safex.TxOutType) { // destination_split_strategy, // dust_policy
 	fmt.Println(dsts)
 	// Check if dsts are empty
 	if len(*dsts) == 0 {
@@ -57,6 +56,7 @@ func (w *Wallet) transferSelected(dsts *[]DestinationEntry, selectedTransfers *[
 		foundTokens += slctd.Output.TokenAmount
 	}
 	fmt.Println("Transfer selected outs: ", outs)
+	fmt.Println("SelectedTransfers : ", len(*selectedTransfers))
 
 	if len(*outs) == 0 {
 		// @todo This should be refactored so it can accomodate tokens as well.
@@ -64,10 +64,10 @@ func (w *Wallet) transferSelected(dsts *[]DestinationEntry, selectedTransfers *[
 		// @todo Test this against cpp code more thoroughly
 		w.getOuts(outs, selectedTransfers, fakeOutsCount, outType)
 	}
-	if outType == safex.OutToken {
-		var outsFee [][]OutsEntry = nil
-		w.getOuts(&outsFee, selectedTransfers, fakeOutsCount, safex.OutCash)
-		for _, out := range outsFee {
+
+	if outType == safex.OutToken && len(*outsFee) == 0 {
+		w.getOuts(outsFee, selectedTransfers, fakeOutsCount, safex.OutCash)
+		for _, out := range *outsFee {
 			*outs = append(*outs, out)
 		}
 	}

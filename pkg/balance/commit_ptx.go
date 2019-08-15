@@ -1,8 +1,10 @@
 package balance
 
 import (
-	"github.com/safex/gosafex/pkg/safex"
+	"fmt"
+
 	"github.com/golang/glog"
+	"github.com/safex/gosafex/pkg/safex"
 )
 
 // @note ready for merge
@@ -11,5 +13,9 @@ import (
 // blockchain.
 func (w *Wallet) CommitPtx(ptx *PendingTx) (res safex.SendTxRes, err error) {
 	glog.Info("CommitTx: Commiting transaction: ", *ptx.Tx)
+	fmt.Println("Inputs!")
+	for _, input := range ptx.Tx.Vin {
+		fmt.Println(input)
+	}
 	return w.client.SendTransaction(ptx.Tx, false)
 }

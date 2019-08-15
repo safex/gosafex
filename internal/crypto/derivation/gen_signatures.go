@@ -3,6 +3,8 @@ package derivation
 import (
 	"encoding/hex"
 	"errors"
+	"fmt"
+
 	"github.com/golang/glog"
 )
 
@@ -17,13 +19,29 @@ func (k Key) String() string {
 	return hex.EncodeToString(k[:])
 }
 
-func GenerateRingSignature(prefixHash []byte, keyImage Key, pubs []Key, priv *Key, realIndex int) (sigs []RSig, err error){
-	glog.Info("GenerateRingSignature: RealIndex: ", realIndex)
-	glog.Info("GenerateRingSignature: PrefixHash: ", hex.EncodeToString(prefixHash))
-	glog.Info("GenerateRingSignature: KeyImage: ", hex.EncodeToString(keyImage[:]))
+func GenerateRingSignature(prefixHash []byte, keyImage Key, pubs []Key, priv *Key, realIndex int) (sigs []RSig, err error) {
+
+	fmt.Println("keys in ring signature: ")
+	fmt.Println("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
+	fmt.Println("RealIndex: ", realIndex)
+	fmt.Println("PrefixHash: ", hex.EncodeToString(prefixHash))
+	fmt.Println("Priv: ", hex.EncodeToString((*priv)[:]))
+	fmt.Println("KeyImage: ", hex.EncodeToString(keyImage[:]))
+	// glog.Info("GenerateRingSignature: RealIndex: ", realIndex)
+	// glog.Info("GenerateRingSignature: PrefixHash: ", hex.EncodeToString(prefixHash))
+	// glog.Info("GenerateRingSignature: KeyImage: ", hex.EncodeToString(keyImage[:]))
+
 	for _, k := range pubs {
-		glog.Info("GenerateRingSignature: KeyPub@RingSig: ", hex.EncodeToString(k[:]))
+		fmt.Println("KeyPub@RingSig: ", hex.EncodeToString(k[:]))
+		// glog.Info("GenerateRingSignature: KeyPub@RingSig: ", hex.EncodeToString(k[:]))
 	}
+
+	// glog.Info("GenerateRingSignature: RealIndex: ", realIndex)
+	// glog.Info("GenerateRingSignature: PrefixHash: ", hex.EncodeToString(prefixHash))
+	// glog.Info("GenerateRingSignature: KeyImage: ", hex.EncodeToString(keyImage[:]))
+	// for _, k := range pubs {
+	// 	glog.Info("GenerateRingSignature: KeyPub@RingSig: ", hex.EncodeToString(k[:]))
+	// }
 
 	imageUnp := new(ExtendedGroupElement)
 	var imagePre [8]CachedGroupElement
@@ -74,7 +92,7 @@ func GenerateRingSignature(prefixHash []byte, keyImage Key, pubs []Key, priv *Ke
 			ScAdd(sum, sum, &(sigs[i].C))
 		}
 	}
-	
+
 	h := HashToScalar(toHash)
 	ScSub(&(sigs[realIndex].C), h, sum)
 	ScMulSub(&(sigs[realIndex].R), &(sigs[realIndex].C), priv, k)

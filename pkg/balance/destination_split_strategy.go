@@ -3,9 +3,9 @@ package balance
 type digitSplitStrategyHandler func(uint64)
 
 func DecomposeAmountIntoDigits(
-	amount uint64, 
-	dustThreshold uint64, 
-	chunkHandler digitSplitStrategyHandler, 
+	amount uint64,
+	dustThreshold uint64,
+	chunkHandler digitSplitStrategyHandler,
 	dustHandler digitSplitStrategyHandler) {
 
 	if amount == 0 {
@@ -19,7 +19,7 @@ func DecomposeAmountIntoDigits(
 		chunk := (amount % 10) * order
 		amount /= 10
 		order *= 10
-		
+
 		if (dust + chunk) <= dustThreshold {
 			dust += chunk
 		} else {
@@ -39,33 +39,33 @@ func DecomposeAmountIntoDigits(
 }
 
 func DigitSplitStrategy(
-	dsts 			*[]DestinationEntry,
-	changeDst 		*DestinationEntry,
-	changeDstToken 	*DestinationEntry,
-	dustTrehshold 	uint64,
-	splittedDsts 	*[]DestinationEntry,
-	dustDsts 	 	*[]DestinationEntry) {
+	dsts *[]DestinationEntry,
+	changeDst *DestinationEntry,
+	changeDstToken *DestinationEntry,
+	dustTrehshold uint64,
+	splittedDsts *[]DestinationEntry,
+	dustDsts *[]DestinationEntry) {
 
 	*splittedDsts = nil
 	*dustDsts = nil
 
-	for _,val := range(*dsts) {
+	for _, val := range *dsts {
 		if val.TokenTransaction {
-			DecomposeAmountIntoDigits(val.TokenAmount, 0, 
-			func(input uint64) {
-				*splittedDsts = append(*splittedDsts, DestinationEntry{0, input, val.Address, false, true})
-			}, func(input uint64){
-				*dustDsts = append(*dustDsts, DestinationEntry{0, input, val.Address, false, true})
-			})
+			DecomposeAmountIntoDigits(val.TokenAmount, 0,
+				func(input uint64) {
+					*splittedDsts = append(*splittedDsts, DestinationEntry{0, input, val.Address, false, true})
+				}, func(input uint64) {
+					*dustDsts = append(*dustDsts, DestinationEntry{0, input, val.Address, false, true})
+				})
 		} else {
-			DecomposeAmountIntoDigits(val.Amount, 0, 
+			DecomposeAmountIntoDigits(val.Amount, 0,
 				func(input uint64) {
 					*splittedDsts = append(*splittedDsts, DestinationEntry{input, 0, val.Address, false, false})
-				}, func(input uint64){
+				}, func(input uint64) {
 					*dustDsts = append(*dustDsts, DestinationEntry{input, 0, val.Address, false, false})
 				})
 		}
-		
+
 	}
 
 	// @todo Investigate this. I left both of them in case for token tx when you have cash change for fee.
@@ -73,12 +73,12 @@ func DigitSplitStrategy(
 	// Cash part
 	if changeDst != nil {
 		DecomposeAmountIntoDigits(
-			changeDst.Amount, 
+			changeDst.Amount,
 			0,
 			func(input uint64) {
-				*splittedDsts = append(*splittedDsts, DestinationEntry{input, 0,  changeDst.Address, false, false})
-			}, 
-			func(input uint64){
+				*splittedDsts = append(*splittedDsts, DestinationEntry{input, 0, changeDst.Address, false, false})
+			},
+			func(input uint64) {
 				*dustDsts = append(*dustDsts, DestinationEntry{input, 0, changeDst.Address, false, false})
 			})
 	}
@@ -86,12 +86,12 @@ func DigitSplitStrategy(
 	// Token part
 	if changeDstToken != nil {
 		DecomposeAmountIntoDigits(
-			changeDstToken.Amount, 
+			changeDstToken.TokenAmount,
 			0,
 			func(input uint64) {
-				*splittedDsts = append(*splittedDsts, DestinationEntry{0, input,  changeDstToken.Address, false, true})
-			}, 
-			func(input uint64){
+				*splittedDsts = append(*splittedDsts, DestinationEntry{0, input, changeDstToken.Address, false, true})
+			},
+			func(input uint64) {
 				*dustDsts = append(*dustDsts, DestinationEntry{0, input, changeDstToken.Address, false, true})
 			})
 	}

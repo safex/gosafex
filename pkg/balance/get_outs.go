@@ -253,9 +253,12 @@ func (w *Wallet) getOuts(outs *[][]OutsEntry, selectedTransfers *[]Transfer, fak
 			fmt.Println(val)
 
 			outputType := GetOutputType(val.Output)
+			if outputType != outType {
+				continue
+			}
 			// @todo Refactor!!
 			var outputKeyTemp [32]byte
-			copy(outputKeyTemp[:], GetOutputKey(val.Output, outputType))
+			copy(outputKeyTemp[:], GetOutputKey(val.Output, outType))
 
 			entry = append(entry, OutsEntry{val.GlobalIndex, outputKeyTemp})
 			*outs = append(*outs, entry)

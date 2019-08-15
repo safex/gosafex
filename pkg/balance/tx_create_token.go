@@ -128,6 +128,7 @@ func (w *Wallet) TxCreateToken(
 	var accumulatedFee, accumulatedOutputs, accumulatedChange, availableForFee, neededFee uint64 = 0, 0, 0, 0, 0
 	var accumulatedTokenOutputs, accumulatedTokenChange uint64 = 0, 0
 	outs := [][]OutsEntry{}
+	outsFee := [][]OutsEntry{}
 
 	var originalOutputIndex int = 0
 	var addingFee bool = false
@@ -219,7 +220,7 @@ func (w *Wallet) TxCreateToken(
 
 				// Transfer selected
 				fmt.Println(">>>>>>>>>>>>> FIRST TRANSFER SELECTED <<<<<<<<<<<<<<<<<<")
-				w.transferSelected(&tx.Dsts, &tx.SelectedTransfers, fakeOutsCount, &outs, unlockTime, neededFee, &extra, &testTx, &testPtx, safex.OutToken)
+				w.transferSelected(&tx.Dsts, &tx.SelectedTransfers, fakeOutsCount, &outs, &outsFee, unlockTime, neededFee, &extra, &testTx, &testPtx, safex.OutToken)
 
 				txBlob := serialization.SerializeTransaction(testPtx.Tx, true)
 				neededFee = consensus.CalculateFee(feePerKb, len(txBlob), feeMultiplier)
@@ -254,7 +255,7 @@ func (w *Wallet) TxCreateToken(
 					log.Println("We made a tx, adjusting fee and saving it, we need " + string(neededFee) + " and we have " + string(testPtx.Fee))
 					for neededFee > testPtx.Fee {
 						fmt.Println("NeededFee: ", neededFee, ", testPtx.Fee ", testPtx.Fee)
-						w.transferSelected(&tx.Dsts, &tx.SelectedTransfers, fakeOutsCount, &outs, unlockTime, neededFee, &extra, &testTx, &testPtx, safex.OutToken)
+						w.transferSelected(&tx.Dsts, &tx.SelectedTransfers, fakeOutsCount, &outs, &outsFee, unlockTime, neededFee, &extra, &testTx, &testPtx, safex.OutToken)
 						txBlob = serialization.SerializeTransaction(testPtx.Tx, true)
 						neededFee = consensus.CalculateFee(feePerKb, len(txBlob), feeMultiplier)
 						log.Println("Made an attempt at a final tx, with " + string(testPtx.Fee) + " fee and " + string(testPtx.ChangeDts.Amount) + " change")
@@ -299,6 +300,7 @@ func (w *Wallet) TxCreateToken(
 			&tx.SelectedTransfers,
 			fakeOutsCount,
 			&outs,
+			&outsFee,
 			unlockTime,
 			tx.PendingTx.Fee,
 			&extra,
