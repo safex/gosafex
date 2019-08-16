@@ -7,6 +7,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/safex/gosafex/internal/consensus"
 	"github.com/safex/gosafex/pkg/account"
 )
 
@@ -18,6 +19,10 @@ func TestTxCreate(t *testing.T) {
 	defer f.Close()
 
 	log.SetOutput(f)
+	upperTxSizeLimit := consensus.GetUpperTransactionSizeLimit(2, 10)
+	test := txSizeTarget(upperTxSizeLimit)
+	fmt.Println("UpperTxSizeLImit: ", upperTxSizeLimit)
+	fmt.Println("test: ", test)
 	var wallet Wallet
 
 	wallet.Address.ViewKey.Public = HexToKey("77837b91924a710adc525deb941670432de30b52fb3f19e0bef8bc7ff67641c5")
@@ -32,9 +37,10 @@ func TestTxCreate(t *testing.T) {
 	fmt.Println(hex.EncodeToString(addr.ViewKey[:]))
 	fmt.Println(hex.EncodeToString(addr.SpendKey[:]))
 	var extra []byte
-	// ptxs := wallet.TxCreateCash([]DestinationEntry{DestinationEntry{20000000000, 0, *addr, false, false}}, 0, 0, 1, extra, true)
-	ptxs := wallet.TxCreateToken([]DestinationEntry{DestinationEntry{0, 20000000000, *addr, false, false}}, 1, 0, 1, extra, true)
-	res, err := wallet.CommitPtx(&ptxs[0])
-	fmt.Println("Res: ", res, " err: ", err)
+	ptxs := wallet.TxCreateCash([]DestinationEntry{DestinationEntry{300000000000000, 0, *addr, false, false}}, 0, 0, 1, extra, true)
+	// ptxs := wallet.TxCreateToken([]DestinationEntry{DestinationEntry{0, 20000000000, *addr, false, false}}, 0, 0, 1, extra, true)
+	fmt.Println("Length of ptxs: ", len(ptxs))
+	//res, err := wallet.CommitPtx(&ptxs[0])
+	//fmt.Println("Res: ", res, " err: ", err)
 	t.Errorf("Failing!")
 }

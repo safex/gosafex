@@ -149,7 +149,7 @@ func estimateTxSize(nInputs, mixin, nOutputs, extraSize int) int {
 }
 
 func txSizeTarget(input int) int {
-	return input * 3 / 2
+	return input*2/3 - 200
 }
 
 func (w *Wallet) TxCreateCash(
@@ -166,7 +166,7 @@ func (w *Wallet) TxCreateCash(
 
 	var neededMoney uint64 = 0
 
-	upperTxSizeLimit := consensus.GetUpperTransactionSizeLimit(2, 10)
+	upperTxSizeLimit := consensus.GetUpperTransactionSizeLimit(1, 10)
 	feePerKb := consensus.GetPerKBFee()
 	feeMultiplier := consensus.GetFeeMultiplier(priority, consensus.GetFeeAlgorithm())
 
@@ -296,6 +296,7 @@ func (w *Wallet) TxCreateCash(
 			var testPtx PendingTx
 			estimatedTxSize := estimateTxSize(len(tx.SelectedTransfers), fakeOutsCount, len(tx.Dsts), len(extra))
 			neededFee = consensus.CalculateFee(feePerKb, estimatedTxSize, feeMultiplier)
+			fmt.Println("NeededFee: ", neededFee)
 
 			var inputs uint64 = 0
 			var outputs uint64 = neededFee
@@ -312,7 +313,7 @@ func (w *Wallet) TxCreateCash(
 			// @todo Add logs, panics and shit
 			// @todo see why this is panicing always
 			if outputs > inputs {
-				panic("You dont have enough money for fee")
+				//panic("You dont have enough money for fee")
 				addingFee = true
 				// Else is here to emulate goto skip_tx:
 			} else {
@@ -325,11 +326,13 @@ func (w *Wallet) TxCreateCash(
 				neededFee = consensus.CalculateFee(feePerKb, len(txBlob), feeMultiplier)
 				availableForFee := testPtx.Fee + testPtx.ChangeDts.Amount
 
+				fmt.Println("NeededFee: ", neededFee, ", availableForFee: ", availableForFee)
+
 				if neededFee > availableForFee && len(dsts) > 0 && dsts[0].Amount > 0 {
 					var i *DestinationEntry = nil
-					for _, val := range tx.Dsts {
+					for index, val := range tx.Dsts {
 						if val.Address.Equals(&(dsts[0].Address)) {
-							i = &val
+							i = &tx.Dsts[index]
 							break
 						}
 					}
@@ -353,7 +356,6 @@ func (w *Wallet) TxCreateCash(
 				} else {
 					log.Println("We made a tx, adjusting fee and saving it, we need " + string(neededFee) + " and we have " + string(testPtx.Fee))
 					for neededFee > testPtx.Fee {
-						fmt.Println("NeededFee: ", neededFee, ", testPtx.Fee ", testPtx.Fee)
 						w.transferSelected(&tx.Dsts, &tx.SelectedTransfers, fakeOutsCount, &outs, nil, unlockTime, neededFee, &extra, &testTx, &testPtx, safex.OutCash)
 						txBlob = serialization.SerializeTransaction(testPtx.Tx, true)
 						neededFee = consensus.CalculateFee(feePerKb, len(txBlob), feeMultiplier)
@@ -367,6 +369,7 @@ func (w *Wallet) TxCreateCash(
 					accumulatedChange += testPtx.ChangeDts.Amount
 					addingFee = false
 					if len(dsts) != 0 {
+						fmt.Println(".............. ANOTHER TX ....................")
 						log.Println("We have more to pay, starting another tx")
 						txes = append(txes, *tx)
 						originalOutputIndex = 0

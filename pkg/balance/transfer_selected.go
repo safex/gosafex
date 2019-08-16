@@ -14,8 +14,6 @@ import (
 func convertAddress(input Address) *account.Address {
 	acc, err := account.FromBase58(input.Address)
 	if err != nil {
-		fmt.Println("String: ", input.Address)
-		fmt.Println("err: ", err)
 		return nil
 	}
 	return acc
@@ -55,7 +53,6 @@ func (w *Wallet) transferSelected(dsts *[]DestinationEntry, selectedTransfers *[
 		foundMoney += slctd.Output.Amount
 		foundTokens += slctd.Output.TokenAmount
 	}
-	fmt.Println("Transfer selected outs: ", outs)
 	fmt.Println("SelectedTransfers : ", len(*selectedTransfers))
 
 	if len(*outs) == 0 {
@@ -72,14 +69,14 @@ func (w *Wallet) transferSelected(dsts *[]DestinationEntry, selectedTransfers *[
 		}
 	}
 
-	fmt.Println("------------------------- OUTPUTS -------------------------------------")
-	fmt.Println("OUTPUTS")
-	for _, val1 := range *outs {
-		for _, val2 := range val1 {
-			fmt.Println("GlobalIndex: ", val2.Index, " Pubkey: ", val2.PubKey)
-		}
-	}
-	fmt.Println("-----------------------------------------------------------------------")
+	// fmt.Println("------------------------- OUTPUTS -------------------------------------")
+	// fmt.Println("OUTPUTS")
+	// for _, val1 := range *outs {
+	// 	for _, val2 := range val1 {
+	// 		fmt.Println("GlobalIndex: ", val2.Index, " Pubkey: ", val2.PubKey)
+	// 	}
+	// }
+	// fmt.Println("-----------------------------------------------------------------------")
 
 	// See how to handle fees for token transactions.
 
@@ -144,6 +141,8 @@ func (w *Wallet) transferSelected(dsts *[]DestinationEntry, selectedTransfers *[
 	var changeTokenDts DestinationEntry
 	// fvar changeTokenDts DestinationEntry
 
+	fmt.Println("NeededMoney: ", neededMoney, ", foundMoney: ", foundMoney)
+
 	if neededMoney < foundMoney {
 		tempAddr := convertAddress(w.Address)
 		fmt.Println(tempAddr)
@@ -157,14 +156,6 @@ func (w *Wallet) transferSelected(dsts *[]DestinationEntry, selectedTransfers *[
 		changeTokenDts.Address = *tempAddr
 		changeTokenDts.TokenAmount = foundTokens - neededToken
 	}
-
-	// @todo Add tokens infrastructure once you find out how fee is calulated
-	//		 outType is introduced to help implement this and avoid unnecessary
-	//		 complications.
-	// @warning
-	// if neededTokens < foundTokens {
-
-	// }
 
 	var splittedDsts []DestinationEntry
 	var dustDsts []DestinationEntry
@@ -185,7 +176,9 @@ func (w *Wallet) transferSelected(dsts *[]DestinationEntry, selectedTransfers *[
 	// @todo Investigate how TxSize is controlled and calculated in advance
 	//		 in order to control and predict fee.
 	blobSize := serialization.GetTxBlobSize(tx)
-	if blobSize > uint64(consensus.GetUpperTransactionSizeLimit(2, 10)) {
+	if blobSize > uint64(consensus.GetUpperTransactionSizeLimit(1, 10)) {
+		fmt.Println("Blobsize: ", blobSize)
+		fmt.Println("Limitblobsize: ", uint64(consensus.GetUpperTransactionSizeLimit(1, 10)))
 		panic("Transaction too big!!")
 	}
 
@@ -193,8 +186,6 @@ func (w *Wallet) transferSelected(dsts *[]DestinationEntry, selectedTransfers *[
 		panic("There is input of wrong type!!!")
 	}
 
-	// @todo Set PTX data!
-	// @todo ptx.KeyImage = ... // This need to be rechecked.
 	ptx.Dust = fee                 // @todo Consider adding dust to fee
 	ptx.DustAddedToFee = uint64(0) // @todo Dust policy
 	ptx.Tx = tx

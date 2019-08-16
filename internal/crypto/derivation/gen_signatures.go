@@ -3,7 +3,6 @@ package derivation
 import (
 	"encoding/hex"
 	"errors"
-	"fmt"
 
 	"github.com/golang/glog"
 )
@@ -20,29 +19,6 @@ func (k Key) String() string {
 }
 
 func GenerateRingSignature(prefixHash []byte, keyImage Key, pubs []Key, priv *Key, realIndex int) (sigs []RSig, err error) {
-
-	fmt.Println("keys in ring signature: ")
-	fmt.Println("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
-	fmt.Println("RealIndex: ", realIndex)
-	fmt.Println("PrefixHash: ", hex.EncodeToString(prefixHash))
-	fmt.Println("Priv: ", hex.EncodeToString((*priv)[:]))
-	fmt.Println("KeyImage: ", hex.EncodeToString(keyImage[:]))
-	// glog.Info("GenerateRingSignature: RealIndex: ", realIndex)
-	// glog.Info("GenerateRingSignature: PrefixHash: ", hex.EncodeToString(prefixHash))
-	// glog.Info("GenerateRingSignature: KeyImage: ", hex.EncodeToString(keyImage[:]))
-
-	for _, k := range pubs {
-		fmt.Println("KeyPub@RingSig: ", hex.EncodeToString(k[:]))
-		// glog.Info("GenerateRingSignature: KeyPub@RingSig: ", hex.EncodeToString(k[:]))
-	}
-
-	// glog.Info("GenerateRingSignature: RealIndex: ", realIndex)
-	// glog.Info("GenerateRingSignature: PrefixHash: ", hex.EncodeToString(prefixHash))
-	// glog.Info("GenerateRingSignature: KeyImage: ", hex.EncodeToString(keyImage[:]))
-	// for _, k := range pubs {
-	// 	glog.Info("GenerateRingSignature: KeyPub@RingSig: ", hex.EncodeToString(k[:]))
-	// }
-
 	imageUnp := new(ExtendedGroupElement)
 	var imagePre [8]CachedGroupElement
 	sum := new(Key)

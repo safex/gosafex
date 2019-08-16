@@ -253,8 +253,6 @@ func (w *Wallet) getOuts(outs *[][]OutsEntry, selectedTransfers *[]Transfer, fak
 	} else {
 		for _, val := range *selectedTransfers {
 			var entry []OutsEntry
-			fmt.Println("sssssss")
-			fmt.Println(val)
 
 			outputType := GetOutputType(val.Output)
 			if outputType != outType {
