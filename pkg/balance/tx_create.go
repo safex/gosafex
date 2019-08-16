@@ -149,7 +149,7 @@ func estimateTxSize(nInputs, mixin, nOutputs, extraSize int) int {
 }
 
 func txSizeTarget(input int) int {
-	return input*2/3 - 200
+	return input * 2 / 3
 }
 
 func (w *Wallet) TxCreateCash(
@@ -296,7 +296,6 @@ func (w *Wallet) TxCreateCash(
 			var testPtx PendingTx
 			estimatedTxSize := estimateTxSize(len(tx.SelectedTransfers), fakeOutsCount, len(tx.Dsts), len(extra))
 			neededFee = consensus.CalculateFee(feePerKb, estimatedTxSize, feeMultiplier)
-			fmt.Println("NeededFee: ", neededFee)
 
 			var inputs uint64 = 0
 			var outputs uint64 = neededFee
@@ -325,8 +324,6 @@ func (w *Wallet) TxCreateCash(
 				txBlob := serialization.SerializeTransaction(testPtx.Tx, true)
 				neededFee = consensus.CalculateFee(feePerKb, len(txBlob), feeMultiplier)
 				availableForFee := testPtx.Fee + testPtx.ChangeDts.Amount
-
-				fmt.Println("NeededFee: ", neededFee, ", availableForFee: ", availableForFee)
 
 				if neededFee > availableForFee && len(dsts) > 0 && dsts[0].Amount > 0 {
 					var i *DestinationEntry = nil
@@ -369,9 +366,8 @@ func (w *Wallet) TxCreateCash(
 					accumulatedChange += testPtx.ChangeDts.Amount
 					addingFee = false
 					if len(dsts) != 0 {
-						fmt.Println(".............. ANOTHER TX ....................")
 						log.Println("We have more to pay, starting another tx")
-						txes = append(txes, *tx)
+						txes = append(txes, TX{})
 						originalOutputIndex = 0
 					}
 				}
@@ -396,11 +392,12 @@ func (w *Wallet) TxCreateCash(
 	for index, tx := range txes {
 		testTx := new(safex.Transaction)
 		testPtx := new(PendingTx)
+		fmt.Println("_______________________________________ ", index, " ______+_+_+______")
 		w.transferSelected(
 			&tx.Dsts,
 			&tx.SelectedTransfers,
 			fakeOutsCount,
-			&outs,
+			&tx.Outs,
 			nil,
 			unlockTime,
 			tx.PendingTx.Fee,

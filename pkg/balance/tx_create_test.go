@@ -40,7 +40,13 @@ func TestTxCreate(t *testing.T) {
 	ptxs := wallet.TxCreateCash([]DestinationEntry{DestinationEntry{300000000000000, 0, *addr, false, false}}, 0, 0, 1, extra, true)
 	// ptxs := wallet.TxCreateToken([]DestinationEntry{DestinationEntry{0, 20000000000, *addr, false, false}}, 0, 0, 1, extra, true)
 	fmt.Println("Length of ptxs: ", len(ptxs))
-	//res, err := wallet.CommitPtx(&ptxs[0])
-	//fmt.Println("Res: ", res, " err: ", err)
+
+	totalFee := uint64(0)
+	for _, ptx := range ptxs {
+		totalFee += ptx.Fee
+		res, err := wallet.CommitPtx(&ptx)
+		fmt.Println("Res: ", res, " err: ", err)
+	}
+	fmt.Println("TotalFee was: ", totalFee, ", MoneyPaid: ", 300000000000000)
 	t.Errorf("Failing!")
 }

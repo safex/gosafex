@@ -30,7 +30,6 @@ func checkInputs(inputs []*safex.TxinV) bool {
 
 func (w *Wallet) transferSelected(dsts *[]DestinationEntry, selectedTransfers *[]Transfer, fakeOutsCount int, outs *[][]OutsEntry,
 	outsFee *[][]OutsEntry, unlockTime uint64, fee uint64, extra *[]byte, tx *safex.Transaction, ptx *PendingTx, outType safex.TxOutType) { // destination_split_strategy, // dust_policy
-	fmt.Println(dsts)
 	// Check if dsts are empty
 	if len(*dsts) == 0 {
 		panic("zero destination")
@@ -139,20 +138,15 @@ func (w *Wallet) transferSelected(dsts *[]DestinationEntry, selectedTransfers *[
 
 	var changeDts DestinationEntry
 	var changeTokenDts DestinationEntry
-	// fvar changeTokenDts DestinationEntry
-
-	fmt.Println("NeededMoney: ", neededMoney, ", foundMoney: ", foundMoney)
 
 	if neededMoney < foundMoney {
 		tempAddr := convertAddress(w.Address)
-		fmt.Println(tempAddr)
 		changeDts.Address = *tempAddr
 		changeDts.Amount = foundMoney - neededMoney
 	}
 
 	if neededToken < foundTokens {
 		tempAddr := convertAddress(w.Address)
-		fmt.Println(tempAddr)
 		changeTokenDts.Address = *tempAddr
 		changeTokenDts.TokenAmount = foundTokens - neededToken
 	}

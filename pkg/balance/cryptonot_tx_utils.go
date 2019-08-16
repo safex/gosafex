@@ -2,6 +2,7 @@ package balance
 
 import (
 	"bytes"
+	"fmt"
 
 	"github.com/golang/glog"
 	"github.com/safex/gosafex/internal/crypto"
@@ -140,12 +141,16 @@ func getTxInVFromTxInToKey(input TxInToKey) (ret *safex.TxinV) {
 }
 
 // Getter of keyImage from protobuf inputs
-func getKeyImage(input *safex.TxinV) []byte {
+func getKeyImage(input *safex.TxinV) (res []byte) {
 	if input.TxinToKey != nil {
-		return input.TxinToKey.KImage
+		res = make([]byte, len(input.TxinToKey.KImage))
+		copy(res, input.TxinToKey.KImage)
+		return
 	}
 	if input.TxinTokenToKey != nil {
-		return input.TxinTokenToKey.KImage
+		res = make([]byte, len(input.TxinTokenToKey.KImage))
+		copy(res, input.TxinTokenToKey.KImage)
+		return
 	}
 
 	return []byte{}
@@ -267,24 +272,28 @@ func (w *Wallet) constructTxWithKey(
 	rand.Seed(time.Now().UnixNano())
 	rand.Shuffle(len(*destinations), func(i, j int) { (*destinations)[i], (*destinations)[j] = (*destinations)[j], (*destinations)[i] })
 
-	insOrder := make([]int, len(*sources))
-
-	for index := range insOrder {
-		insOrder[index] = index
-	}
-
 	// @todo test this. Can produce input are not sorted error on node
-	sort.Slice(insOrder, func(i, j int) bool {
+	sort.Slice(tx.Vin, func(i, j int) bool {
 		kI := getKeyImage(tx.Vin[i])
 		kJ := getKeyImage(tx.Vin[j])
-
+	
 		return bytes.Compare(kI, kJ) > 0
 	})
 
-	ApplyPermutation(insOrder, func(i, j int) {
-		tx.Vin[i], tx.Vin[j] = tx.Vin[j], tx.Vin[i]
-		(*sources)[i], (*sources)[j] = (*sources)[j], (*sources)[i]
+	sort.Slice(*sources, func(i, j int) bool {
+		kI := (*sources)[i].KeyImage
+		kJ := (*sources)[j].KeyImage
+		
+	
+		return bytes.Compare(kI[:], kJ[:]) > 0
 	})
+
+	fmt.Println("============================= Key Images ============================================")
+	for index, input := range tx.Vin {
+		kimg := getKeyImage(input)
+		fmt.Println(index, " : ", kimg)
+	}
+	fmt.Println("============================= Key Images END ========================================")
 
 	pubTxKey := derivation.ScalarmultBase(*txKey)
 	glog.Info("PubTxKey: ", hex.EncodeToString(pubTxKey[:]))

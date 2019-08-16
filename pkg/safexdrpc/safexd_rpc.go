@@ -281,11 +281,11 @@ func (c Client) GetOutputs(out_entries []safex.GetOutputRq, txOutType safex.TxOu
 
 func (c Client) SendTransaction(tx *safex.Transaction, doNotRelay bool) (res safex.SendTxRes, err error) {
 	data, err := proto.Marshal(tx)
-	
+
 	result, err := c.SafexdProtoCall("proto/sendrawtransaction", data, "POST")
 	must(err)
 	fmt.Println("Result SendTx: ", result)
-	err = json.Unmarshal(getSliceForPath(result, "result"), &res)
+	err = json.Unmarshal(result, &res)
 	must(err)
 	return res, err
 }
