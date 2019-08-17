@@ -34,13 +34,25 @@ type TxInputV = safex.TxinV
 // TxOut is the alias to safex.Txout.
 type TxOut = safex.Txout
 
+const blockInterval = 100
+
 type Wallet struct {
-	balance balance.Balance
-	account Account
-	client  *Client
-	outputs map[crypto.Key]Transfer
-	wallet  *filewallet.FileWallet
+	balance        balance.Balance
+	account        Account
+	client         *Client
+	outputs        map[crypto.Key]Transfer
+	lockUpdate     chan bool
+	countedOutputs []string
+	wallet         *filewallet.FileWallet
+	testnet        bool
+
+	updating bool
+	syncing  bool
+	quitting bool
+	update   chan bool
+	quit     chan bool
 }
+
 type Balance struct {
 	CashUnlocked  uint64
 	CashLocked    uint64

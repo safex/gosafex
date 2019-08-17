@@ -89,6 +89,9 @@ func (priv PrivateKey) Public() *PublicKey {
 func (priv *PrivateKey) Equal(other *PrivateKey) bool {
 	return equalKeys(&priv.key, &other.key)
 }
+func (priv PrivateKey) String() string {
+	return priv.key.String()
+}
 
 // ToBytes implements ByteSerializer.
 func (pub PublicKey) ToBytes() [KeyLength]byte {
@@ -105,4 +108,8 @@ func (pub PublicKey) Digest() Digest {
 // Retuns true if keys are byte-level equal.
 func (pub *PublicKey) Equal(other *PublicKey) bool {
 	return equalKeys(&pub.key, &other.key)
+}
+
+func (pub PublicKey) String() string {
+	return pub.key.String()
 }

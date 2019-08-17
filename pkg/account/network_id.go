@@ -1,6 +1,7 @@
 package account
 
 import (
+	"bytes"
 	"encoding/binary"
 )
 
@@ -61,13 +62,21 @@ var (
 )
 
 func uint64ToNetworkID(rawInt uint64) (result *NetworkID, err error) {
-	buf := make([]byte, 8)
-	binary.PutUvarint(buf, rawInt)
-	return bytesToNetworkID(buf)
+	size := binary.Size(rawInt)
+	if size < MinNetworkIDSize {
+		return nil, ErrInvalidNetworkID
+	}
+	result = &NetworkID{
+		Val:  rawInt,
+		Size: size,
+	}
+
+	return
 }
 
 func bytesToNetworkID(raw []byte) (result *NetworkID, err error) {
 	val, size := binary.Uvarint(raw)
+	val, err = ReadVarInt(bytes.NewReader(raw))
 	if size < MinNetworkIDSize {
 		return nil, ErrInvalidNetworkID
 	}
@@ -80,10 +89,7 @@ func bytesToNetworkID(raw []byte) (result *NetworkID, err error) {
 }
 
 func networkIDToBytes(nid NetworkID) []byte {
-	buf := make([]byte, 8)
-	binary.PutUvarint(buf, uint64(nid.Val))
-
-	return buf
+	return Uint64ToBytes(nid.Val)
 }
 
 // AddressType will return the address Type

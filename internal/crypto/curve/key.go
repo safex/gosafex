@@ -1,7 +1,6 @@
 package curve
 
 import (
-	"crypto/sha512"
 	"encoding/hex"
 	"fmt"
 
@@ -68,16 +67,10 @@ func NewFromString(raw string) (result *Key, err error) {
 // with RFC 8032. RFC 8032's private keys correspond to seeds in this
 // package.
 func NewKeyFromSeed(seed *Seed) (pub, priv *Key) {
-	digest := sha512.Sum512(seed[:])
-	digest[0] &= 248
-	digest[31] &= 127
-	digest[31] |= 64
-
-	priv1 := new(Key)
-	ScReduce(priv1, &digest)
-	ScReduce32(priv1)
-
-	return priv1.ToPublic(), priv1
+	priv = New(*seed)
+	ScReduce32(priv)
+	pub = priv.ToPublic()
+	return
 }
 
 func (key *Key) toECPoint() (result *ExtendedGroupElement) {

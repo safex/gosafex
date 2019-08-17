@@ -1,8 +1,7 @@
 package account
 
 import (
-	"unsafe"
-
+	"github.com/safex/gosafex/internal/crypto/curve"
 	"github.com/safex/gosafex/pkg/key"
 )
 
@@ -37,7 +36,7 @@ func NewStore(adr *Address, viewPriv, spendPriv PrivateKey) *Store {
 }
 
 // AddressMaker is a type of function that returns an address from view/spend public keys.
-type AddressMaker = func(viewPub, spendPub PublicKey) *Address
+type AddressMaker = func(spendPub, viewPub PublicKey) *Address
 
 func addressMaker(testnet bool) AddressMaker {
 	if testnet {
@@ -74,14 +73,19 @@ func FromSeed(seed *Seed, isTestnet bool) *Store {
 // If testnet is true it will generate a testnet account
 // View keys are derived from spend keys.
 // Returns an error if the mnemonic is invalid or cannot be parsed.
-func FromMnemonic(mnemonic *Mnemonic, isTestnet bool) (result *Store, err error) {
-	seed, err := mnemonic.ToSeed()
+func FromMnemonic(mnemonic *Mnemonic, password string, isTestnet bool) (*Store, error) {
+	seedBytes, err := mnemonic.ToSeed()
 	if err != nil {
 		return nil, err
 	}
-	//We can use unsafe since we are sure of the underlying type
-	result = FromSeed((*Seed)(unsafe.Pointer(seed)), isTestnet)
-	return
+	if password != "" {
+		encPass := cn_slow_hash([]byte(password))
+		scSub(*seedBytes, *seedBytes, encPass)
+	}
+	seed := curve.Seed(*seedBytes)
+	set := key.SetFromSeed(&seed)
+	adr := addressMaker(isTestnet)(set.Spend.Pub, set.View.Pub)
+	return NewStore(adr, set.View.Priv, set.Spend.Priv), nil
 }
 
 // Address implements Account. It returns the account's address.

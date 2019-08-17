@@ -19,6 +19,7 @@ type FileWallet struct {
 	db                *filestore.EncryptedDB
 	knownOutputs      []string //REMEMBER TO INITIALIZE THIS
 	unspentOutputs    []string
+	lockedOutputs	  []string
 	latestBlockNumber uint64
 	latestBlockHash   string
 }
@@ -141,8 +142,8 @@ func (w *FileWallet) getInfo() (*WalletInfo, error) {
 //PutData Writes data in a key in the generic data bucket
 func (w *FileWallet) PutData(key string, data []byte) error {
 	if w.info != nil{
-        defer w.db.SetBucket(w.info.Name)
-    }
+		defer w.db.SetBucket(w.info.Name)
+	}
 	if err := w.db.SetBucket(genericDataBucketName); err == filestore.ErrBucketNotInit {
 		if err = w.db.CreateBucket(genericDataBucketName); err != nil {
 			return err
@@ -168,7 +169,6 @@ func (w *FileWallet) GetData(key string) ([]byte, error) {
 	}
 	data, err := w.readKey(key)
 	if err != nil {
-
 		return nil, err
 	}
 	return data, nil
@@ -313,6 +313,18 @@ func (w *FileWallet) RemoveAccount(accountName string) error {
 	return nil
 }
 
+func (w *FileWallet) GetLatestBlockHeight() uint64{
+	return w.latestBlockNumber
+}
+
+func (w *FileWallet) GetInfo() *WalletInfo{
+	return w.info
+}
+
+func (w *FileWallet) GetLockedOutputs() []string{
+	return w.lockedOutputs
+}
+
 //Close close the wallet
 func (w *FileWallet) Close() {
 	w.db.Close()
@@ -320,16 +332,12 @@ func (w *FileWallet) Close() {
 
 //New Opens or creates a new wallet file. If the file exists it will be read, otherwise if createOnFail is set it will create it
 func New(file string, accountName string, masterkey string, createOnFail bool, isTestnet bool, keystore *account.Store) (*FileWallet, error) {
-	w := new(FileWallet)
-	var err error
-	if w.db, err = filestore.NewEncryptedDB(file, masterkey); err != nil {
+	w, err := NewClean(file,masterkey,isTestnet)
+	
+	if err != nil{
 		return nil, err
 	}
-	if !w.db.BucketExists(genericDataBucketName) {
-		if err := w.db.CreateBucket(genericDataBucketName); err != nil {
-			return nil, err
-		}
-	}
+
 	if err = w.OpenAccount(&WalletInfo{Name: accountName, Keystore: keystore}, createOnFail, isTestnet); err != nil {
 		return nil, err
 	}
@@ -341,13 +349,30 @@ func New(file string, accountName string, masterkey string, createOnFail bool, i
 func NewClean(file string, masterkey string, isTestnet bool) (*FileWallet, error) {
 	w := new(FileWallet)
 	var err error
-	if w.db, err = filestore.NewEncryptedDB(file, masterkey); err != nil {
-		return nil, err
-	}
-	if !w.db.BucketExists(genericDataBucketName) {
-		if err := w.db.CreateBucket(genericDataBucketName); err != nil {
+	if fileExists(file){
+		if w.db, err = filestore.NewEncryptedDB(file, masterkey); err != nil {
+			return nil, err
+		}
+		passData,err := w.GetData(passwordCheckField)
+		if err != nil && err.Error() != ErrBucketNotInit.Error(){
+			return nil, err
+		}
+		if string(passData) != passwordCheckField || err.Error() == ErrBucketNotInit.Error(){
+			return nil, ErrWrongFilewalletPass
+		}
+	}else{
+		if w.db, err = filestore.NewEncryptedDB(file, masterkey); err != nil {
+			return nil, err
+		}
+		if err := w.PutData(passwordCheckField, []byte(passwordCheckField)); err != nil{
 			return nil, err
 		}
 	}
+	if !w.db.BucketExists(genericBlockBucketName) {
+		if err := w.db.CreateBucket(genericBlockBucketName); err != nil {
+			return nil, err
+		}
+	}
+	
 	return w, nil
 }

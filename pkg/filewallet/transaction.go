@@ -5,12 +5,17 @@ import (
 )
 
 //GetAllTransactionInfoOutputs Returns a list of outputIDs associated with the given transactionID
-func (w *FileWallet) GetAllTransactionInfoOutputs(transactionID string) ([][]byte, error) {
-	if data, err := w.readAppendedKey(transactionOutputReferencePrefix + transactionID); err != nil {
+func (w *FileWallet) GetAllTransactionInfoOutputs(transactionID string) ([]string, error) {
+	tempData, err := w.readAppendedKey(transactionOutputReferencePrefix + transactionID)
+	if err != nil {
 		return nil, err
-	} else {
-		return data, nil
 	}
+	data := []string{}
+	for _, el := range tempData {
+		data = append(data, string(el))
+	}
+	return data, nil
+
 }
 
 //Inserts a reference to the given transactionID in the given block
@@ -24,22 +29,55 @@ func (w *FileWallet) putTransactionInfoInBlock(transactionID string, blockHash s
 	return nil
 }
 
+func (w *FileWallet) GetTransactionInfosFromBlockHash(blockHash string) ([]*TransactionInfo, error) {
+	if i := w.CheckIfBlockExists(blockHash); i < 0 {
+		return nil, ErrBlockNotFound
+	}
+	data, err := w.readAppendedKey(blockTransactionReferencePrefix + blockHash)
+	if err != nil {
+		return nil, err
+	}
+
+	var ret []*TransactionInfo
+
+	for _, el := range data {
+		txinfo, err := w.GetTransactionInfo(string(el))
+		if err != nil {
+			return ret, err
+		}
+		ret = append(ret, txinfo)
+	}
+	return ret, nil
+}
+
+func (w *FileWallet) GetTransactionInfosFromBlockHeight(blockHeight uint64) ([]*TransactionInfo, error) {
+	blck, err := w.GetBlockHeaderFromHeight(blockHeight)
+	if err != nil {
+		return nil, err
+	}
+	return w.GetTransactionInfosFromBlockHash(blck.GetHash())
+}
+
 //PutTransactionInfo Inserts a new TransactionInfo
 func (w *FileWallet) PutTransactionInfo(txInfo *TransactionInfo, blockHash string) error {
-	if w.CheckIfTransactionInfoExists(txInfo.txHash) >= 0 {
+	if w.CheckIfTransactionInfoExists(txInfo.TxHash) >= 0 {
 		return ErrTxInfoPresent
 	}
 	data, err := marshallTransactionInfo(txInfo)
 	if err != nil {
 		return err
 	}
-	if err := w.writeKey(transactionInfoKeyPrefix+txInfo.txHash, data); err != nil {
+	if err := w.writeKey(transactionInfoKeyPrefix+txInfo.TxHash, data); err != nil {
 		return err
 	}
-	if err := w.appendKey(transactionInfoReferenceKey, []byte(txInfo.txHash)); err != nil {
+	if err := w.appendKey(transactionInfoReferenceKey, []byte(txInfo.TxHash)); err != nil {
+		w.deleteKey(transactionInfoKeyPrefix + txInfo.TxHash)
 		return err
 	}
-	if err := w.putTransactionInfoInBlock(txInfo.txHash, blockHash); err != nil {
+	if err := w.putTransactionInfoInBlock(txInfo.TxHash, blockHash); err != nil {
+		i, _ := w.findKeyInReference(transactionInfoReferenceKey, txInfo.TxHash)
+		w.deleteAppendedKey(transactionInfoReferenceKey, i)
+		w.deleteKey(transactionInfoKeyPrefix + txInfo.TxHash)
 		return err
 	}
 	return nil
@@ -96,6 +134,18 @@ func (w *FileWallet) GetAllTransactionInfos() ([]string, error) {
 	ret := []string{}
 	for _, el := range transactionInfoIDList {
 		ret = append(ret, string(el))
+	}
+	return ret, nil
+}
+
+func (w *FileWallet) GetMultipleTransactionInfos(input []string) ([]*TransactionInfo, error) {
+	var ret []*TransactionInfo
+	for _, el := range input {
+		tx, err := w.GetTransactionInfo(el)
+		if err != nil {
+			return ret, err
+		}
+		ret = append(ret, tx)
 	}
 	return ret, nil
 }
