@@ -15,10 +15,10 @@ func UseForkRules(version uint32, earlyBlocks uint64) bool {
 
 func GetUpperTransactionSizeLimit(forkVersion uint32, earlyBlocks uint64) int {
 	var fullRewardZone uint64
-	if UseForkRules(forkVersion, earlyBlocks) {
-		fullRewardZone = BlockGrantedFullRewardZoneV2
-	} else {
+	if forkVersion == 1 {
 		fullRewardZone = BlockGrantedFullRewardZoneV1
+	} else if forkVersion == 2 {
+		fullRewardZone = BlockGrantedFullRewardZoneV2
 	}
 
 	return int(fullRewardZone - CoinbaseBlobReservedSize)
