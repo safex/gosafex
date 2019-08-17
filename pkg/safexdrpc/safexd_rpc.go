@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
@@ -284,7 +283,6 @@ func (c Client) SendTransaction(tx *safex.Transaction, doNotRelay bool) (res saf
 
 	result, err := c.SafexdProtoCall("proto/sendrawtransaction", data, "POST")
 	must(err)
-	fmt.Println("Result SendTx: ", result)
 	err = json.Unmarshal(result, &res)
 	must(err)
 	return res, err

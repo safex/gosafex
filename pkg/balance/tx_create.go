@@ -140,7 +140,9 @@ func PopBestValueFrom(unusedIndices, selectedTransfers *[]Transfer, smallest boo
 		idx = r.Int() % len(candidates)
 	}
 	copier.Copy(&ret, &(*unusedIndices)[candidates[idx]])
+	idx = candidates[idx]
 	*unusedIndices = append((*unusedIndices)[:idx], (*unusedIndices)[idx+1:]...)
+
 	return ret
 }
 
@@ -335,7 +337,7 @@ func (w *Wallet) TxCreateCash(
 					}
 
 					if i == nil {
-						panic("Paid Address not fouind in outputs")
+						panic("Paid Address not found in outputs")
 					}
 
 					if i.Amount > neededFee {
@@ -361,7 +363,11 @@ func (w *Wallet) TxCreateCash(
 
 					tx.Tx = testTx
 					tx.PendingTx = testPtx
-					tx.Outs = outs
+					tx.Outs = make([][]OutsEntry, len(outs))
+					for index, _ := range outs {
+						tx.Outs[index] = make([]OutsEntry, len(outs[index]))
+						copy(tx.Outs[index], outs[index])
+					}
 					accumulatedFee += testPtx.Fee
 					accumulatedChange += testPtx.ChangeDts.Amount
 					addingFee = false

@@ -2,7 +2,6 @@ package balance
 
 import (
 	"bytes"
-	"fmt"
 
 	"github.com/golang/glog"
 	"github.com/safex/gosafex/internal/crypto"
@@ -276,24 +275,16 @@ func (w *Wallet) constructTxWithKey(
 	sort.Slice(tx.Vin, func(i, j int) bool {
 		kI := getKeyImage(tx.Vin[i])
 		kJ := getKeyImage(tx.Vin[j])
-	
+
 		return bytes.Compare(kI, kJ) > 0
 	})
 
 	sort.Slice(*sources, func(i, j int) bool {
 		kI := (*sources)[i].KeyImage
 		kJ := (*sources)[j].KeyImage
-		
-	
+
 		return bytes.Compare(kI[:], kJ[:]) > 0
 	})
-
-	fmt.Println("============================= Key Images ============================================")
-	for index, input := range tx.Vin {
-		kimg := getKeyImage(input)
-		fmt.Println(index, " : ", kimg)
-	}
-	fmt.Println("============================= Key Images END ========================================")
 
 	pubTxKey := derivation.ScalarmultBase(*txKey)
 	glog.Info("PubTxKey: ", hex.EncodeToString(pubTxKey[:]))
