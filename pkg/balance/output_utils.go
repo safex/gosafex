@@ -40,10 +40,13 @@ func GetOutputAmount(output *safex.Txout, outType safex.TxOutType) uint64 {
 }
 
 func GetOutputKey(output *safex.Txout, outType safex.TxOutType) (ret []byte) {
+	ret = make([]byte, 32)
 	if outType == safex.OutCash {
-		return output.Target.TxoutToKey.Key
+		copy(ret, output.Target.TxoutToKey.Key)
+		return ret
 	} else if outType == safex.OutToken {
-		return output.Target.TxoutTokenToKey.Key
+		copy(ret, output.Target.TxoutTokenToKey.Key)
+		return ret
 	} else {
 		panic("Output type mismatch!!!")
 	}
