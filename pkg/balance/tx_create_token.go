@@ -228,15 +228,15 @@ func (w *Wallet) TxCreateToken(
 
 				if neededFee > availableForFee && len(dsts) > 0 && dsts[0].Amount > 0 {
 					var i *DestinationEntry = nil
-					for _, val := range tx.Dsts {
+					for index, val := range tx.Dsts {
 						if val.Address.Equals(&(dsts[0].Address)) {
-							i = &val
+							i = &tx.Dsts[index]
 							break
 						}
 					}
 
 					if i == nil {
-						panic("Paid Address not fouind in outputs")
+						panic("Paid Address not found in outputs")
 					}
 
 					if i.Amount > neededFee {
@@ -263,14 +263,26 @@ func (w *Wallet) TxCreateToken(
 
 					tx.Tx = testTx
 					tx.PendingTx = testPtx
-					tx.Outs = outs
+
+					tx.Outs = make([][]OutsEntry, len(outs))
+					for index := range outs {
+						tx.Outs[index] = make([]OutsEntry, len(outs[index]))
+						copy(tx.Outs[index], outs[index])
+					}
+
+					tx.OutsFee = make([][]OutsEntry, len(outsFee))
+					for index := range outsFee {
+						tx.OutsFee[index] = make([]OutsEntry, len(outsFee[index]))
+						copy(tx.OutsFee[index], outsFee[index])
+					}
+
 					accumulatedFee += testPtx.Fee
 					accumulatedChange += testPtx.ChangeDts.Amount
 					accumulatedTokenChange += testPtx.ChangeDts.TokenAmount
 					addingFee = false
 					if len(dsts) != 0 {
 						log.Println("We have more to pay, starting another tx")
-						txes = append(txes, *tx)
+						txes = append(txes, TX{})
 						originalOutputIndex = 0
 					}
 				}
@@ -299,8 +311,8 @@ func (w *Wallet) TxCreateToken(
 			&tx.Dsts,
 			&tx.SelectedTransfers,
 			fakeOutsCount,
-			&outs,
-			&outsFee,
+			&tx.Outs,
+			&tx.OutsFee,
 			unlockTime,
 			tx.PendingTx.Fee,
 			&extra,

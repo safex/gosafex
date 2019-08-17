@@ -125,6 +125,7 @@ type TX struct {
 	Tx                safex.Transaction
 	PendingTx         PendingTx
 	Outs              [][]OutsEntry
+	OutsFee           [][]OutsEntry
 	Bytes             uint64
 	TxPtr             *safex.Transaction
 	PendingTxPtr      *PendingTx

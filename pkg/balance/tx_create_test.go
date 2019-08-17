@@ -37,8 +37,8 @@ func TestTxCreate(t *testing.T) {
 	fmt.Println(hex.EncodeToString(addr.ViewKey[:]))
 	fmt.Println(hex.EncodeToString(addr.SpendKey[:]))
 	var extra []byte
-	ptxs := wallet.TxCreateCash([]DestinationEntry{DestinationEntry{300000000000000, 0, *addr, false, false}}, 0, 0, 1, extra, true)
-	// ptxs := wallet.TxCreateToken([]DestinationEntry{DestinationEntry{0, 20000000000, *addr, false, false}}, 0, 0, 1, extra, true)
+	ptxs := wallet.TxCreateCash([]DestinationEntry{DestinationEntry{3000000000000, 0, *addr, false, false}}, 2, 0, 1, extra, true)
+	// ptxs := wallet.TxCreateToken([]DestinationEntry{DestinationEntry{0, 20000000000, *addr, false, true}}, 0, 0, 1, extra, true)
 	fmt.Println("Length of ptxs: ", len(ptxs))
 
 	totalFee := uint64(0)
