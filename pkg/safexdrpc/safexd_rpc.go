@@ -4,10 +4,11 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
 	"time"
 
@@ -36,9 +37,17 @@ func must(err error) {
 	log.Panicln(err)
 }
 
-// InitClient creates and initializes RPC client and returns client object
-// takes host and port as arguments
+//InitClient creates and initializes RPC client and returns client object
+//takes host and port as arguments
 func InitClient(host string, port uint) (client *Client) {
+
+	file, e := os.OpenFile("rpc_dump_log.txt", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	if e != nil {
+		log.Fatalln("Failed to open rpc_dump_log.txt file")
+	}
+
+	wrtr := io.MultiWriter(file)
+	log.SetOutput(wrtr)
 
 	client = &Client{
 		Port: port,
@@ -79,7 +88,9 @@ func (c Client) JSONSafexdCall(method string, params interface{}) ([]byte, error
 
 	jsonBuff, _ := json.Marshal(body)
 
-	fmt.Println(string(jsonBuff))
+	log.Println("-----------------------------------------------------------------------------------------")
+	log.Println("endpoint: ", url, "body: ", string(jsonBuff))
+	log.Println("*****************************************************************************************")
 
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonBuff))
 	must(err)
@@ -98,6 +109,10 @@ func (c Client) JSONSafexdCall(method string, params interface{}) ([]byte, error
 		err = errors.New(errorJson.Str)
 		return nil, err
 	}
+
+	log.Println(" Response: -----------------------------------------------------------------------------------------")
+	log.Println(string(resBody))
+	log.Println("-----------------------------------------------------------------------------------------")
 	return resBody, err
 }
 
@@ -113,7 +128,9 @@ func (c Client) SafexdCall(method string, params interface{}, httpMethod string)
 	must(err)
 	url := "http://" + c.Host + ":" + strconv.Itoa(int(c.Port)) + "/" + method
 
-	fmt.Println(string(body))
+	log.Println("-----------------------------------------------------------------------------------------")
+	log.Println("endpoint: ", url, "body: ", string(body))
+	log.Println("*****************************************************************************************")
 
 	req, err := http.NewRequest(httpMethod, url, bytes.NewBuffer(body))
 	must(err)
@@ -132,6 +149,38 @@ func (c Client) SafexdCall(method string, params interface{}, httpMethod string)
 		err = errors.New(errorJson.Str)
 		return nil, err
 	}
+
+	log.Println(" Response: -----------------------------------------------------------------------------------------")
+	log.Println(string(resBody))
+	log.Println("-----------------------------------------------------------------------------------------")
+
+	return resBody, err
+
+}
+
+func (c Client) SafexdProtoCall(method string, body []byte, httpMethod string) ([]byte, error) {
+	var err error
+	url := "http://" + c.Host + ":" + strconv.Itoa(int(c.Port)) + "/" + method
+
+	log.Println("-----------------------------------------------------------------------------------------")
+	log.Println("endpoint: ", url, "body: ", string(body))
+	log.Println("*****************************************************************************************")
+
+	req, err := http.NewRequest(httpMethod, url, bytes.NewBuffer(body))
+	must(err)
+
+	req.Header.Set("Content-Type", "application/x-protobuf")
+
+	resp, err := c.httpClient.Do(req)
+	must(err)
+	defer resp.Body.Close()
+
+	resBody, err := ioutil.ReadAll(resp.Body)
+	must(err)
+
+	log.Println(" Response: -----------------------------------------------------------------------------------------")
+	log.Println(string(resBody))
+	log.Println("-----------------------------------------------------------------------------------------")
 	return resBody, err
 
 }
@@ -168,8 +217,8 @@ func (c Client) GetDaemonInfo() (info safex.DaemonInfo, err error) {
 	return info, err
 }
 
-func (c Client) GetHardForkInfo() (info safex.HardForkInfo, err error) {
-	result, err := c.JSONSafexdCall("hard_fork_info", JSONElement{})
+func (c Client) GetHardForkInfo(version uint32) (info safex.HardForkInfo, err error) {
+	result, err := c.JSONSafexdCall("hard_fork_info", JSONElement{"version": version})
 	must(err)
 
 	err = json.Unmarshal(getSliceForPath(result, "result"), &info)
@@ -189,4 +238,52 @@ func (c Client) GetBlocks(start uint64, end uint64) (blcks safex.Blocks, err err
 	err = proto.Unmarshal(result, &blcks)
 	must(err)
 	return blcks, err
+}
+
+func (c Client) GetDynamicFeeEstimate() (fee uint64, err error) {
+	result, err := c.JSONSafexdCall("get_fee_estimate", JSONElement{})
+	must(err)
+	fee = uint64(gjson.GetBytes(result, "result.fee").Num)
+
+	return fee, err
+}
+
+func (c Client) GetOutputHistogram(amounts *[]uint64,
+	minCount uint64,
+	maxCount uint64,
+	unlocked bool,
+	recentCutoff uint64,
+	txOutType safex.TxOutType) (histograms safex.Histograms, err error) {
+	result, err := c.SafexdCall("proto/get_output_histogram", JSONElement{"amounts": *amounts,
+		"min_count":     minCount,
+		"max_count":     maxCount,
+		"unlocked":      unlocked,
+		"recent_cutoff": recentCutoff,
+		"out_type":      txOutType}, "POST")
+	must(err)
+
+	err = proto.Unmarshal(result, &histograms)
+	must(err)
+	return histograms, err
+}
+
+func (c Client) GetOutputs(out_entries []safex.GetOutputRq, txOutType safex.TxOutType) (outs safex.Outs, err error) {
+	log.Println("REQUEST: ", out_entries)
+	result, err := c.SafexdCall("proto/get_outputs", JSONElement{"outputs": out_entries,
+		"out_type": txOutType}, "POST")
+	must(err)
+
+	err = proto.Unmarshal(result, &outs)
+	must(err)
+	return outs, err
+}
+
+func (c Client) SendTransaction(tx *safex.Transaction, doNotRelay bool) (res safex.SendTxRes, err error) {
+	data, err := proto.Marshal(tx)
+
+	result, err := c.SafexdProtoCall("proto/sendrawtransaction", data, "POST")
+	must(err)
+	err = json.Unmarshal(result, &res)
+	must(err)
+	return res, err
 }

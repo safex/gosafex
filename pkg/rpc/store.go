@@ -46,7 +46,8 @@ func (w *WalletRPC) StoreData(rw http.ResponseWriter, r *http.Request) {
 	bah := []byte(rqData.Value)
 	err := w.wallet.GetFilewallet().PutData(rqData.Key, bah)
 	if err != nil {
-		FormJSONResponse(nil, FileStoreFailed , &rw)
+		data["msg"] = err.Error()
+		FormJSONResponse(data, FileStoreFailed , &rw)
 		return
 	}
 	FormJSONResponse(data, EverythingOK, &rw)
@@ -72,7 +73,8 @@ func (w *WalletRPC) LoadData(rw http.ResponseWriter, r *http.Request) {
 	fileWallet := w.wallet.GetFilewallet()
 	val, err := fileWallet.GetData(rqData.Key)
 	if err != nil {
-		FormJSONResponse(nil, FileLoadFailed , &rw)
+		data["msg"] = err.Error()
+		FormJSONResponse(data, FileLoadFailed , &rw)
 		return
 	}
 
