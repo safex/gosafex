@@ -19,6 +19,7 @@ func (w *WalletRPC) GetRoutes() (routes []Route) {
 	routes = append(routes, Route{"RecoverWithKeys", "POST", "/init/recover-keys", w.RecoverWithKeys})
 	routes = append(routes, Route{"Status", "POST", "/status", w.GetStatus})
 	routes = append(routes, Route{"GetAccountInfo", "POST", "/account/info", w.GetAccountInfo})
+	routes = append(routes, Route{"GetBalance", "GET", "/balance/get", w.GetAccountBalance})
 
 	routes = append(routes, Route{"SyncAccount", "POST", "/account/sync", w.SyncAccount})
 	routes = append(routes, Route{"OpenAccount", "POST", "/account/open", w.OpenAccount})
@@ -37,8 +38,6 @@ func (w *WalletRPC) GetRoutes() (routes []Route) {
 	routes = append(routes, Route{"GetOutputInfoFromTransaction", "POST", "/output/get-from-tx", w.GetOutputInfoFromTransaction})
 	routes = append(routes, Route{"GetOutputInfoFromType", "POST", "/output/get-from-type", w.GetOutputInfoFromType})
 	routes = append(routes, Route{"GetUnspentOutputs", "POST", "/output/get-unspent", w.GetUnspentOutputs})
-
-	
 
 	routes = append(routes, Route{"CloseWallet", "POST", "/close", w.Close})
 

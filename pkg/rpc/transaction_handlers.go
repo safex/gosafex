@@ -1,6 +1,8 @@
 package SafexRPC
 
 import (
+	"encoding/hex"
+	"fmt"
 	"log"
 	"net/http"
 )
@@ -8,7 +10,15 @@ import (
 type TransactionRq struct {
 	TransactionID string `json:"transactionid"`
 	BlockDepth    uint64 `json:"blockdepth"`
+
+	Amount      uint64 `json:"amount"`
+	Destination string `json:"destination"`
+	Mixin       uint32 `json:"mixin"`
+	PaymentID   string `json:"payment_id`
 }
+
+// @todo txSend mockup
+var txSendMock int = 0
 
 func transactionGetData(w *http.ResponseWriter, r *http.Request, rqData *TransactionRq) bool {
 	statusErr := UnmarshalRequest(r, rqData)
@@ -101,4 +111,95 @@ func (w *WalletRPC) GetHistory(rw http.ResponseWriter, r *http.Request) {
 		data["tx-"+string(n)] = *el
 	}
 	FormJSONResponse(data, EverythingOK, &rw)
+}
+
+func (w *WalletRPC) SendTransactionCash(rw http.ResponseWriter, r *http.Request) {
+	var rqData TransactionRq
+	if !transactionGetData(&rw, r, &rqData) {
+		// Error response already handled
+		return
+	}
+
+	if rqData.Amount == 0 {
+		FormJSONResponse(nil, TransactionAmountZero, &rw)
+		return
+	}
+
+	if rqData.Destination == "" {
+		FormJSONResponse(nil, TransactionDestinationZero, &rw)
+		return
+	}
+
+	if rqData.Mixin == uint32(0) {
+		log.Println("Mixin zero, assuming default value of 6")
+		rqData.Mixin = 6
+	}
+
+	var pid []byte
+	if rqData.PaymentID != "" && (len(rqData.PaymentID) != 16 || len(rqData.PaymentID) != 64) {
+		FormJSONResponse(nil, WrongPaymentIDFormat, &rw)
+		return
+	}
+
+	pid, err := hex.DecodeString(rqData.PaymentID)
+
+	// @todo This should be encoded to extra
+	extra := pid
+	fmt.Println("exttra: ", extra)
+
+	if err != nil {
+		data := make(JSONElement)
+		data["msg"] = err.Error()
+		FormJSONResponse(data, PaymentIDParseError, &rw)
+		return
+	}
+
+}
+
+func (w *WalletRPC) SendTransactionToken(rw http.ResponseWriter, r *http.Request) {
+	var rqData TransactionRq
+	if !transactionGetData(&rw, r, &rqData) {
+		// Error response already handled
+		return
+	}
+
+	if rqData.Amount == 0 {
+		FormJSONResponse(nil, TransactionAmountZero, &rw)
+		return
+	}
+
+	if rqData.Destination == "" {
+		FormJSONResponse(nil, TransactionDestinationZero, &rw)
+		return
+	}
+
+	if rqData.Mixin == uint32(0) {
+		log.Println("Mixin zero, assuming default value of 6")
+		rqData.Mixin = 6
+	}
+
+	var pid []byte
+	if rqData.PaymentID != "" && (len(rqData.PaymentID) != 16 || len(rqData.PaymentID) != 64) {
+		FormJSONResponse(nil, WrongPaymentIDFormat, &rw)
+		return
+	}
+	pid, err := hex.DecodeString(rqData.PaymentID)
+	if err != nil {
+		data := make(JSONElement)
+		data["msg"] = err.Error()
+		FormJSONResponse(data, PaymentIDParseError, &rw)
+		return
+	}
+
+	// @todo This should be encoded to extra
+	extra := pid
+
+	fmt.Println("exttra: ", extra)
+
+	if txSendMock%2 != 0 {
+		txSendMock++
+		FormJSONResponse(nil, ErrorDuringSendingTx, &rw)
+		return
+	}
+
 }
