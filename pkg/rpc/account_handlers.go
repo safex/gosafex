@@ -1,11 +1,12 @@
 package SafexRPC
 
 import (
+	"fmt"
+	"log"
+	"net/http"
+
 	"github.com/safex/gosafex/internal/mnemonic"
 	"github.com/safex/gosafex/internal/mnemonic/dictionary"
-	"net/http"
-	"log"
-	"fmt"
 )
 
 type AccountRq struct {
@@ -19,7 +20,7 @@ func accountGetData(w *http.ResponseWriter, r *http.Request, rqData *AccountRq) 
 	if statusErr != EverythingOK {
 		FormJSONResponse(nil, statusErr, w)
 		return false
-	} 
+	}
 	return true
 }
 
@@ -27,22 +28,20 @@ func (w *WalletRPC) GetAccountInfo(rw http.ResponseWriter, r *http.Request) {
 	var rqData AccountRq
 	if !accountGetData(&rw, r, &rqData) {
 		// Error response already handled
-		return 
+		return
 	}
-	
+
 	if w.wallet == nil || !w.wallet.IsOpen() {
-		FormJSONResponse(nil, WalletIsNotOpened , &rw)
+		FormJSONResponse(nil, WalletIsNotOpened, &rw)
 		return
 	}
 
 	var data JSONElement
 	data = make(JSONElement)
 
-	
-
 	store, err := w.wallet.GetKeys()
 	if err != nil {
-		FormJSONResponse(nil, NoOpenAccount , &rw)
+		FormJSONResponse(nil, NoOpenAccount, &rw)
 		return
 	}
 	var viewkey JSONElement
@@ -67,7 +66,7 @@ func (w *WalletRPC) GetAccountInfo(rw http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		data = make(JSONElement)
 		data["msg"] = err.Error()
-		FormJSONResponse(data, GettingMnemonicFailed , &rw)
+		FormJSONResponse(data, GettingMnemonicFailed, &rw)
 		return
 	}
 
@@ -82,18 +81,37 @@ func (w *WalletRPC) GetAccountInfo(rw http.ResponseWriter, r *http.Request) {
 	FormJSONResponse(data, EverythingOK, &rw)
 }
 
+func (w *WalletRPC) GetAccountBalance(rw http.ResponseWriter, r *http.Request) {
+	var rqData AccountRq
+	if !accountGetData(&rw, r, &rqData) {
+		// Error response already handled
+		return
+	}
+
+	if w.wallet == nil || !w.wallet.IsOpen() {
+		FormJSONResponse(nil, WalletIsNotOpened, &rw)
+		return
+	}
+
+	var data JSONElement
+	data = make(JSONElement)
+
+	data["balance"] = w.wallet.GetBalance()
+
+	FormJSONResponse(data, EverythingOK, &rw)
+}
+
 func (w *WalletRPC) OpenAccount(rw http.ResponseWriter, r *http.Request) {
 	var rqData AccountRq
 	if !accountGetData(&rw, r, &rqData) {
 		// Error response already handled
-		return 
-	}
-	
-	if w.wallet == nil || !w.wallet.IsOpen() {
-		FormJSONResponse(nil, WalletIsNotOpened , &rw)
 		return
 	}
 
+	if w.wallet == nil || !w.wallet.IsOpen() {
+		FormJSONResponse(nil, WalletIsNotOpened, &rw)
+		return
+	}
 
 	var data JSONElement
 	data = make(JSONElement)
@@ -102,11 +120,10 @@ func (w *WalletRPC) OpenAccount(rw http.ResponseWriter, r *http.Request) {
 	err := w.wallet.OpenAccount(rqData.Name, !w.mainnet)
 	if err != nil {
 		data["msg"] = err.Error()
-		FormJSONResponse(data, FailedToOpenAccount , &rw)
-		return		
+		FormJSONResponse(data, FailedToOpenAccount, &rw)
+		return
 	}
 
 	data["name"] = rqData.Name
 	FormJSONResponse(data, EverythingOK, &rw)
 }
-
