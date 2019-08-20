@@ -173,7 +173,7 @@ func (w *WalletRPC) GetAllAccountsInfo(rw http.ResponseWriter, r *http.Request) 
 
 	var data JSONElement
 	data = make(JSONElement)
-
+	data["accounts"] = make(JSONArray, 0)
 	accounts, err := w.wallet.GetAccounts()
 	if err != nil {
 		data["msg"] = err.Error()
@@ -203,10 +203,7 @@ func (w *WalletRPC) GetAllAccountsInfo(rw http.ResponseWriter, r *http.Request) 
 			return
 		}
 
-		accDat := make(JSONElement)
-		accDat["name"] = acc
-		accDat["address"] = store.Address().String()
-		data["accounts_info"] = append(data["accounts_info"].(JSONArray), accDat)
+		data["accounts"] = append(data["accounts"].([]interface{}), w.accountInfoFromStore(store, &rw))
 	}
 
 	// Back to before opened account
