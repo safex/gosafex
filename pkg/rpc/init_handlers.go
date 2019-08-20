@@ -8,6 +8,7 @@ import (
 	"github.com/safex/gosafex/internal/mnemonic"
 	"github.com/safex/gosafex/pkg/account"
 	"github.com/safex/gosafex/pkg/chain"
+	keysFile "github.com/safex/gosafex/pkg/keys_file"
 )
 
 // Wallet init request struct
@@ -306,8 +307,30 @@ func (w *WalletRPC) RecoverWithKeysFile(rw http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	store, err := keysFile.ReadKeysFile(rqData.KeysFilePath, rqData.KeysFilePass)
+	if FormErrorRes(err, BadParseOrPassword, &rw) {
+		return
+	}
+
+	err = w.wallet.OpenFile(rqData.Path, rqData.Password, rqData.Nettype == "testnet")
+	if err != nil {
+		data["msg"] = err.Error()
+		FormJSONResponse(data, FailedToOpen, &rw)
+		return
+	}
+
+	err = w.wallet.CreateAccount("primary", store, !w.mainnet)
+	if FormErrorRes(err, FailedToOpenAccount, &rw) {
+		return
+	}
+
+	w.openAccountInner("primary", &rw)
 	data = make(JSONElement)
-	data["msg"] = "Hello RecoverWithKeys"
+	data["created_account"] = w.currentAccInfo(&rw)
+
+	if data["created_account"] == nil {
+		return
+	}
 
 	if noConn {
 		FormJSONResponse(data, FailedToConnectToDeamon, &rw)

@@ -17,6 +17,7 @@ func (w *WalletRPC) GetRoutes() (routes []Route) {
 	routes = append(routes, Route{"CreateWallet", "POST", "/init/create", w.CreateNew})
 	routes = append(routes, Route{"RecoverWithSeed", "POST", "/init/recover-seed", w.RecoverWithSeed})
 	routes = append(routes, Route{"RecoverWithKeys", "POST", "/init/recover-keys", w.RecoverWithKeys})
+	routes = append(routes, Route{"RecoverWithKeysFile", "POST", "/init/recover-keys-file", w.RecoverWithKeysFile})
 	routes = append(routes, Route{"Status", "POST", "/status", w.GetStatus})
 	routes = append(routes, Route{"GetAccountInfo", "POST", "/account/info", w.GetAccountInfo})
 	routes = append(routes, Route{"GetBalance", "GET", "/balance/get", w.GetAccountBalance})
@@ -25,11 +26,14 @@ func (w *WalletRPC) GetRoutes() (routes []Route) {
 	routes = append(routes, Route{"OpenAccount", "POST", "/account/open", w.OpenAccount})
 	routes = append(routes, Route{"GetAllAccountsInfo", "POST", "/accounts/all-info", w.GetAllAccountsInfo})
 	routes = append(routes, Route{"CreateAccountFromKeys", "POST", "/accounts/create-keys", w.CreateAccountFromKeys})
+	routes = append(routes, Route{"CreateAccountFromKeysFile", "POST", "/accounts/create-keys-file", w.CreateAccountFromKeysFile})
 	routes = append(routes, Route{"CreateAccountFromSeed", "POST", "/accounts/create-seed", w.CreateAccountFromMnemonic})
 
 	routes = append(routes, Route{"StoreData", "POST", "/store/put", w.StoreData})
 	routes = append(routes, Route{"LoadData", "POST", "/store/get", w.LoadData})
 
+	routes = append(routes, Route{"TransactionCash", "POST", "/transaction/send-cash", w.TransactionCash})
+	routes = append(routes, Route{"TransactionToken", "POST", "/transaction/send-token", w.TransactionToken})
 	routes = append(routes, Route{"GetTransactionInfo", "POST", "/transaction/get", w.GetTransactionInfo})
 	routes = append(routes, Route{"GetHistory", "POST", "/transaction/history", w.GetHistory})
 	routes = append(routes, Route{"GetTransactionUpToBlockHeight", "POST", "/transaction/history-up-to", w.GetTransactionUpToBlockHeight})

@@ -31,4 +31,6 @@ const (
 	WrongPaymentIDFormat       = 24
 	PaymentIDParseError        = 25
 	ErrorDuringSendingTx       = 26
+	FailedToCreateAccount      = 27
+	BadParseOrPassword         = 28
 )

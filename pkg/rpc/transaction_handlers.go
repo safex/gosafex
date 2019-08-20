@@ -113,7 +113,7 @@ func (w *WalletRPC) GetHistory(rw http.ResponseWriter, r *http.Request) {
 	FormJSONResponse(data, EverythingOK, &rw)
 }
 
-func (w *WalletRPC) SendTransactionCash(rw http.ResponseWriter, r *http.Request) {
+func (w *WalletRPC) TransactionCash(rw http.ResponseWriter, r *http.Request) {
 	var rqData TransactionRq
 	if !transactionGetData(&rw, r, &rqData) {
 		// Error response already handled
@@ -154,9 +154,26 @@ func (w *WalletRPC) SendTransactionCash(rw http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	if txSendMock%2 != 0 {
+		FormJSONResponse(nil, ErrorDuringSendingTx, &rw)
+		txSendMock++
+		return
+	}
+	txSendMock++
+
+	data := make(JSONElement)
+	data["txs"] = make(JSONArray, 0)
+	txJSON := make(JSONElement)
+	txJSON["txid"] = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	txJSON["fee"] = 100000000
+	txJSON["amount"] = 200000000000
+	txJSON["success"] = "ok"
+	data["txs"] = append(data["txs"].([]interface{}), txJSON)
+
+	FormJSONResponse(data, EverythingOK, &rw)
 }
 
-func (w *WalletRPC) SendTransactionToken(rw http.ResponseWriter, r *http.Request) {
+func (w *WalletRPC) TransactionToken(rw http.ResponseWriter, r *http.Request) {
 	var rqData TransactionRq
 	if !transactionGetData(&rw, r, &rqData) {
 		// Error response already handled
@@ -197,9 +214,20 @@ func (w *WalletRPC) SendTransactionToken(rw http.ResponseWriter, r *http.Request
 	fmt.Println("exttra: ", extra)
 
 	if txSendMock%2 != 0 {
-		txSendMock++
 		FormJSONResponse(nil, ErrorDuringSendingTx, &rw)
+		txSendMock++
 		return
 	}
+	txSendMock++
 
+	data := make(JSONElement)
+	data["txs"] = make(JSONArray, 0)
+	txJSON := make(JSONElement)
+	txJSON["txid"] = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	txJSON["fee"] = 100000000
+	txJSON["amount"] = 200000000000
+	txJSON["success"] = "ok"
+	data["txs"] = append(data["txs"].([]interface{}), txJSON)
+
+	FormJSONResponse(data, EverythingOK, &rw)
 }

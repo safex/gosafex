@@ -1,9 +1,12 @@
 package SafexRPC
 
 import (
+	"os"
+
 	"github.com/safex/gosafex/internal/mnemonic"
 	"github.com/safex/gosafex/internal/mnemonic/dictionary"
 	"github.com/safex/gosafex/pkg/account"
+	keysFile "github.com/safex/gosafex/pkg/keys_file"
 
 	"fmt"
 	"log"
@@ -11,12 +14,14 @@ import (
 )
 
 type AccountRq struct {
-	Name     string `json:"name"`
-	Seed     string `json:"seed"`
-	SeedPass string `json:"seed_pass"`
-	Address  string `json:"address"`
-	ViewKey  string `json:"viewkey"`
-	SpendKey string `json:"spendkey"`
+	Name         string `json:"name"`
+	Seed         string `json:"seed"`
+	SeedPass     string `json:"seed_pass"`
+	Address      string `json:"address"`
+	ViewKey      string `json:"viewkey"`
+	SpendKey     string `json:"spendkey"`
+	KeysFilePath string `json:"keys_file_path"`
+	KeysFilePass string `json:"keys_file_password"`
 }
 
 func (w *WalletRPC) openAccountInner(name string, rw *http.ResponseWriter) bool {
@@ -211,15 +216,46 @@ func (w *WalletRPC) GetAllAccountsInfo(rw http.ResponseWriter, r *http.Request) 
 }
 
 func (w *WalletRPC) CreateNewAccount(rw http.ResponseWriter, r *http.Request) {
-
-}
-
-func (w *WalletRPC) GetAccountBalance(rw http.ResponseWriter, r *http.Request) {
 	var rqData AccountRq
 	if !accountGetData(&rw, r, &rqData) {
 		// Error response already handled
 		return
 	}
+
+	if rqData.Name == "" {
+		var data JSONElement
+		data = make(JSONElement)
+		data["msg"] = "Name field empty"
+		FormJSONResponse(data, JSONRqMalformed, &rw)
+		return
+	}
+	if !w.OpenCheck(&rw) {
+		return
+	}
+
+	store, err := account.GenerateAccount(!w.mainnet)
+	if FormErrorRes(err, FailedToCreateAccount, &rw) {
+		return
+	}
+
+	err = w.wallet.CreateAccount(rqData.Name, store, !w.mainnet)
+	if FormErrorRes(err, FailedToOpenAccount, &rw) {
+		return
+	}
+
+	w.openAccountInner(rqData.Name, &rw)
+	data := make(JSONElement)
+	data["created_account"] = w.currentAccInfo(&rw)
+
+	if data["created_account"] == nil {
+		return
+	}
+
+	FormJSONResponse(data, EverythingOK, &rw)
+
+}
+
+func (w *WalletRPC) GetAccountBalance(rw http.ResponseWriter, r *http.Request) {
 
 	if w.wallet == nil || !w.wallet.IsOpen() {
 		FormJSONResponse(nil, WalletIsNotOpened, &rw)
@@ -321,6 +357,60 @@ func (w *WalletRPC) CreateAccountFromKeys(rw http.ResponseWriter, r *http.Reques
 	data["created_account"] = w.currentAccInfo(&rw)
 
 	if data["created_account"] == nil {
+		return
+	}
+
+	FormJSONResponse(data, EverythingOK, &rw)
+}
+
+func (w *WalletRPC) CreateAccountFromKeysFile(rw http.ResponseWriter, r *http.Request) {
+	var rqData AccountRq
+	if !accountGetData(&rw, r, &rqData) {
+		// Error response already handled
+		return
+	}
+
+	if rqData.KeysFilePath == "" {
+		data := make(JSONElement)
+		data["msg"] = "Missing keys file path"
+
+		FormJSONResponse(nil, BadInput, &rw)
+		return
+	}
+
+	if rqData.Name == "" {
+		data := make(JSONElement)
+		data["msg"] = "Missing name of account"
+
+		FormJSONResponse(nil, BadInput, &rw)
+		return
+	}
+
+	if !w.OpenCheck(&rw) {
+		FormJSONResponse(nil, WalletIsNotOpened, &rw)
+		return
+	}
+
+	if _, err := os.Stat(rqData.KeysFilePath); os.IsNotExist(err) {
+		FormJSONResponse(nil, KeysFileDoesntExists, &rw)
+		return
+	}
+
+	store, err := keysFile.ReadKeysFile(rqData.KeysFilePath, rqData.KeysFilePass)
+	if FormErrorRes(err, BadParseOrPassword, &rw) {
+		return
+	}
+
+	err = w.wallet.CreateAccount(rqData.Name, store, !w.mainnet)
+	if FormErrorRes(err, FailedToOpenAccount, &rw) {
+		return
+	}
+
+	w.openAccountInner(rqData.Name, &rw)
+	data := make(JSONElement)
+	data["account"] = w.currentAccInfo(&rw)
+
+	if data["account"] == nil {
 		return
 	}
 
