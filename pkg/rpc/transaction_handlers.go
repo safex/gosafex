@@ -15,6 +15,8 @@ type TransactionRq struct {
 	Destination string `json:"destination"`
 	Mixin       uint32 `json:"mixin"`
 	PaymentID   string `json:"payment_id`
+
+	TxAsHex JSONArray `json:"tx_as_hex"`
 }
 
 // @todo txSend mockup
@@ -154,6 +156,7 @@ func (w *WalletRPC) TransactionCash(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// @todo Add here actual logic for creating txs.
 	if txSendMock%2 != 0 {
 		FormJSONResponse(nil, ErrorDuringSendingTx, &rw)
 		txSendMock++
@@ -164,7 +167,7 @@ func (w *WalletRPC) TransactionCash(rw http.ResponseWriter, r *http.Request) {
 	data := make(JSONElement)
 	data["txs"] = make(JSONArray, 0)
 	txJSON := make(JSONElement)
-	txJSON["txid"] = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	txJSON["tx_as_hex"] = "ABA123CD331F99809D9F0398320F8"
 	txJSON["fee"] = 100000000
 	txJSON["amount"] = 200000000000
 	txJSON["success"] = "ok"
@@ -212,7 +215,7 @@ func (w *WalletRPC) TransactionToken(rw http.ResponseWriter, r *http.Request) {
 	extra := pid
 
 	fmt.Println("exttra: ", extra)
-
+	// @todo Add here actual logic for creating txs.
 	if txSendMock%2 != 0 {
 		FormJSONResponse(nil, ErrorDuringSendingTx, &rw)
 		txSendMock++
@@ -223,11 +226,44 @@ func (w *WalletRPC) TransactionToken(rw http.ResponseWriter, r *http.Request) {
 	data := make(JSONElement)
 	data["txs"] = make(JSONArray, 0)
 	txJSON := make(JSONElement)
-	txJSON["txid"] = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	txJSON["tx_as_hex"] = "ABA123CD331F99809D9F0398320F8"
 	txJSON["fee"] = 100000000
 	txJSON["amount"] = 200000000000
 	txJSON["success"] = "ok"
 	data["txs"] = append(data["txs"].([]interface{}), txJSON)
+
+	FormJSONResponse(data, EverythingOK, &rw)
+}
+
+func (w *WalletRPC) TransactionCommit(rw http.ResponseWriter, r *http.Request) {
+	var rqData TransactionRq
+	if !transactionGetData(&rw, r, &rqData) {
+		// Error response already handled
+		return
+	}
+
+	if rqData.TxAsHex == nil {
+		data := make(JSONElement)
+		data["msg"] = "Missing tx data!!"
+		FormJSONResponse(nil, JSONRqMalformed, &rw)
+		return
+	}
+
+	for _, val := range rqData.TxAsHex {
+		// @todo aggregate data
+		fmt.Println("val: ", val)
+	}
+
+	// @todo convert it to txs
+	// @todo Try to send it.
+	// @todo Check results.
+	data := make(JSONElement)
+	data["status"] = "ALL OK"
+	data["txids"] = make(JSONElement, 0)
+	data["txids"] = append(data["txids"].([]interface{}), "e8cae985315e43ded87c33185716366486d0af8cda9d276ec03d9301ed70e634")
+	data["txids"] = append(data["txids"].([]interface{}), "dfb06134cfd5c526392f4466c30951a8a0b2ddfba6f6fe242664bc507900693f")
+	data["txids"] = append(data["txids"].([]interface{}), "b2c4f6dcff66d272160bdcbd4b374822b94527f403cd2931ab81a2b0f70b859a")
+	data["txids"] = append(data["txids"].([]interface{}), "c959b344ab3d7696bbb822ea89259103291e5fa47084a5db27e981d12b488110")
 
 	FormJSONResponse(data, EverythingOK, &rw)
 }

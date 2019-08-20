@@ -163,6 +163,7 @@ func (w *WalletRPC) OpenAccount(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	data["name"] = rqData.Name
+	data["info"] = w.currentAccInfo(&rw)
 	FormJSONResponse(data, EverythingOK, &rw)
 }
 

@@ -16,7 +16,7 @@ type WalletRPC struct {
 
 func (w *WalletRPC) OpenCheck(rw *http.ResponseWriter) bool {
 	if w.wallet == nil || !w.wallet.IsOpen() {
-		FormJSONResponse(nil, WalletIsNotOpened , rw)
+		FormJSONResponse(nil, WalletIsNotOpened, rw)
 		return false
 	}
 	return true
@@ -35,12 +35,10 @@ func (w *WalletRPC) GetStatus(rw http.ResponseWriter, r *http.Request) {
 // Getting status of current wallet. If its open, syncing etc.
 func (w *WalletRPC) Close(rw http.ResponseWriter, r *http.Request) {
 	w.wallet.Close()
-	w = nil
+	w.wallet = nil
 	data := make(JSONElement)
 	data["msg"] = "Its closed!"
 
 	FormJSONResponse(data, EverythingOK, &rw)
 
 }
-
-
