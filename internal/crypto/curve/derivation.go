@@ -2,11 +2,37 @@ package curve
 
 import (
 	"bytes"
+	"crypto/rand"
 	"encoding/binary"
 
 	"github.com/safex/gosafex/internal/crypto/hash"
 )
 
+func RandomScalar() (result *Key) {
+	result = new(Key)
+	var reduceFrom [KeyLength * 2]byte
+	tmp := make([]byte, KeyLength*2)
+	rand.Read(tmp)
+	copy(reduceFrom[:], tmp)
+	ScReduce(result, &reduceFrom)
+	return
+}
+
+// Creates a point on the Edwards Curve by hashing the key
+func (p *Key) HashToEC() (result *ExtendedGroupElement) {
+	result = new(ExtendedGroupElement)
+	var p1 ProjectiveGroupElement
+	var p2 CompletedGroupElement
+	temp := hash.Keccak256(p[:])
+	var h Key
+	copy(h[:], temp[:])
+	p1.fromBytes(&h)
+	GeMul8(&p2, &p1)
+	p2.toExtended(result)
+	return
+}
+
+// =========================================================================================
 func hashToScalar(data ...[]byte) (result *Key) {
 	result = new(Key)
 	buf := hash.Keccak256(data...)
@@ -41,6 +67,15 @@ func hashToEC(data []byte) (result *ExtendedGroupElement) {
 	return
 }
 
+func ScalarmultBase(a Key) (aG Key) {
+	reduce32copy := a
+	ScReduce32(&reduce32copy)
+	point := new(ExtendedGroupElement)
+	GeScalarMultBase(point, &a)
+	point.toBytes(&aG)
+	return aG
+}
+
 // DeriveKey derives a new private key derivation
 // from a given public key and a secret (private key).
 // Returns ErrInvalidPrivKey if the given private key (secret) is invalid.
@@ -62,7 +97,7 @@ func DeriveKey(pub, priv *Key) (result *Key, err error) {
 	copy(keyBuf[:], priv[:])
 	GeScalarMult(point2, keyBuf, point)
 	GeMul8(point3, point2)
-	point3.toProjective(point2) 
+	point3.toProjective(point2)
 
 	point2.toBytes(keyBuf)
 	return keyBuf, nil
