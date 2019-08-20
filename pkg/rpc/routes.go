@@ -28,6 +28,7 @@ func (w *WalletRPC) GetRoutes() (routes []Route) {
 	routes = append(routes, Route{"CreateAccountFromKeys", "POST", "/accounts/create-keys", w.CreateAccountFromKeys})
 	routes = append(routes, Route{"CreateAccountFromKeysFile", "POST", "/accounts/create-keys-file", w.CreateAccountFromKeysFile})
 	routes = append(routes, Route{"CreateAccountFromSeed", "POST", "/accounts/create-seed", w.CreateAccountFromMnemonic})
+	routes = append(routes, Route{"CreateNewAccount", "POST", "/accounts/create-new", w.CreateNewAccount})
 
 	routes = append(routes, Route{"StoreData", "POST", "/store/put", w.StoreData})
 	routes = append(routes, Route{"LoadData", "POST", "/store/get", w.LoadData})
