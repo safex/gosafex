@@ -74,6 +74,7 @@ func (a ByIndex) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a ByIndex) Less(i, j int) bool { return a[i].Index < a[j].Index }
 
 type SendTxRes struct {
+	Txid          string `json:"txid"`
 	DoubleSpend   bool   `json:"double_spend"`
 	FeeTooLow     bool   `"json:"fee_too_low"`
 	InvalidInput  bool   `json:"invalid_input"`
