@@ -182,7 +182,6 @@ func (w *WalletRPC) GetAllAccountsInfo(rw http.ResponseWriter, r *http.Request) 
 	}
 
 	currAcc := w.wallet.GetOpenAccount()
-	data["accounts_info"] = make(JSONArray, 0)
 
 	for _, acc := range accounts {
 		err := w.wallet.OpenAccount(acc, !w.mainnet)
