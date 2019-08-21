@@ -41,6 +41,8 @@ const transactionInfoReferenceKey = "TransactionInfoReference"
 const genericDataBucketName = "Generic"
 const genericBlockBucketName = "Blocks"
 
+const passwordCheckField = "Check"
+
 const outputKeyPrefix = "Out-"
 const outputInfoPrefix = "OutInfo-"
 const blockKeyPrefix = "Blk-"

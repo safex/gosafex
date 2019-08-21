@@ -30,8 +30,9 @@ func prepareFolder() {
 
 func CleanAfterTests(w *FileWallet, fullpath string) {
 
-	w.Close()
-
+	if w != nil{
+		w.Close()
+	}
 	err := os.Remove(fullpath)
 	if err != nil {
 		fmt.Println(err)
@@ -65,6 +66,27 @@ func prepareWallet(w *FileWallet) {
 	}
 }
 */
+
+func TestWrongPassword(t *testing.T){
+	prepareFolder()
+	fullpath := strings.Join([]string{foldername, filename}, "/")
+	store, _ := account.GenerateAccount(false)
+	w, err := New(fullpath, walletName, masterPass, true, false, store)
+
+	if err != nil {
+		t.Fatalf("%s", err)
+	}
+
+	w.Close()
+
+	w, err = New(fullpath,walletName,"asdasdasd",true,false,store)
+	defer CleanAfterTests(w, fullpath)
+	if err != ErrWrongFilewalletPass{
+		t.Fatalf("Password seen as good: %s", err)
+	}
+
+}
+
 func TestGenericDataRW(t *testing.T) {
 
 	prepareFolder()
