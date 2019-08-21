@@ -23,6 +23,7 @@ func (w *WalletRPC) GetRoutes() (routes []Route) {
 	routes = append(routes, Route{"GetBalance", "GET", "/balance/get", w.GetAccountBalance})
 
 	routes = append(routes, Route{"SyncAccount", "POST", "/account/sync", w.SyncAccount})
+	routes = append(routes, Route{"RemoveAccount", "POST", "/account/remove", w.RemoveAccount})
 	routes = append(routes, Route{"OpenAccount", "POST", "/account/open", w.OpenAccount})
 	routes = append(routes, Route{"GetAllAccountsInfo", "POST", "/accounts/all-info", w.GetAllAccountsInfo})
 	routes = append(routes, Route{"CreateAccountFromKeys", "POST", "/accounts/create-keys", w.CreateAccountFromKeys})

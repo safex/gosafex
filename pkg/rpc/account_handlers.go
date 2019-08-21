@@ -436,3 +436,33 @@ func (w *WalletRPC) SyncAccount(rw http.ResponseWriter, r *http.Request) {
 
 	FormJSONResponse(data, EverythingOK, &rw)
 }
+
+func (w *WalletRPC) RemoveAccount(rw http.ResponseWriter, r *http.Request) {
+	var rqData AccountRq
+	if !accountGetData(&rw, r, &rqData) {
+		// Error response already handled
+		return
+	}
+
+	if rqData.Name == "" {
+		FormJSONResponse(nil, JSONRqMalformed, &rw)
+		return
+	}
+
+	if !w.OpenCheck(&rw) {
+		FormJSONResponse(nil, WalletIsNotOpened, &rw)
+		return
+	}
+
+	if rqData.Name == w.wallet.GetOpenAccount() {
+		FormJSONResponse(nil, RemovingCurrentAccount, &rw)
+		return
+	}
+
+	err := w.wallet.RemoveAccount(rqData.Name)
+	if FormErrorRes(err, RemovingAccountError, &rw) {
+		return
+	}
+
+	FormJSONResponse(nil, EverythingOK, &rw)
+}

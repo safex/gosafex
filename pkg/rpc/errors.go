@@ -33,4 +33,6 @@ const (
 	ErrorDuringSendingTx       = 26
 	FailedToCreateAccount      = 27
 	BadParseOrPassword         = 28
+	RemovingCurrentAccount     = 29
+	RemovingAccountError       = 30
 )
