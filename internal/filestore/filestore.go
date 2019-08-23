@@ -352,7 +352,7 @@ func (e *EncryptedDB) Close() {
 }
 
 //NewEncryptedDB .
-func NewEncryptedDB(file string, masterkey string) (*EncryptedDB, error) {
+func NewEncryptedDB(file string, masterkey string, exists bool) (*EncryptedDB, error) {
 
 	err := error(nil)
 	DB := new(EncryptedDB)
@@ -365,11 +365,11 @@ func NewEncryptedDB(file string, masterkey string) (*EncryptedDB, error) {
 
 	DB.stream.targetKey = nil
 	DB.stream.targetBucket = nil
-
 	DB.masterkey = SafexCrypto.NewDigest([]byte(masterkey))
 	DB.masternonce = [32]byte{}
 
 	DB.InitMaster()
+	
 
 	return DB, nil
 }

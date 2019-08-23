@@ -116,7 +116,7 @@ func (w *Wallet) OpenFile(filename string, masterkey string, isTestnet bool) err
 	if w.IsOpen() {
 		w.Close()
 	}
-	if w.wallet, err = filewallet.NewClean(filename, masterkey, isTestnet); err != nil {
+	if w.wallet, err = filewallet.NewClean(filename, masterkey, isTestnet, true); err != nil {
 		return err
 	}
 	w.countedOutputs = []string{}

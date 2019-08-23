@@ -2,7 +2,6 @@ package filewallet
 
 import (
 	"encoding/hex"
-
 	"github.com/safex/gosafex/internal/filestore"
 	"github.com/safex/gosafex/pkg/account"
 	"github.com/safex/gosafex/pkg/key"
@@ -332,10 +331,10 @@ func (w *FileWallet) Close() {
 
 //New Opens or creates a new wallet file. If the file exists it will be read, otherwise if createOnFail is set it will create it
 func New(file string, accountName string, masterkey string, createOnFail bool, isTestnet bool, keystore *account.Store) (*FileWallet, error) {
-	w, err := NewClean(file,masterkey,isTestnet)
+	w, err := NewClean(file,masterkey,isTestnet,createOnFail)
 	
 	if err != nil{
-		return nil, err
+		return w, err
 	}
 
 	if err = w.OpenAccount(&WalletInfo{Name: accountName, Keystore: keystore}, createOnFail, isTestnet); err != nil {
@@ -346,31 +345,32 @@ func New(file string, accountName string, masterkey string, createOnFail bool, i
 }
 
 //NewClean Opens or creates a new wallet file without opening an account on creation
-func NewClean(file string, masterkey string, isTestnet bool) (*FileWallet, error) {
+func NewClean(file string, masterkey string, isTestnet bool,createOnFail bool) (*FileWallet, error) {
 	w := new(FileWallet)
 	var err error
 	if fileExists(file){
-		if w.db, err = filestore.NewEncryptedDB(file, masterkey); err != nil {
-			return nil, err
+		if w.db, err = filestore.NewEncryptedDB(file, masterkey, true); err != nil {
+			return w, err
 		}
 		passData,err := w.GetData(passwordCheckField)
 		if err != nil && err.Error() != ErrBucketNotInit.Error(){
-			return nil, err
+			return w, err
 		}
-		if string(passData) != passwordCheckField || err.Error() == ErrBucketNotInit.Error(){
-			return nil, ErrWrongFilewalletPass
+		s := string(passData)
+		if s != passwordCheckField ||(err != nil && err.Error() == ErrBucketNotInit.Error()){
+			return w, ErrWrongFilewalletPass
 		}
-	}else{
-		if w.db, err = filestore.NewEncryptedDB(file, masterkey); err != nil {
-			return nil, err
+	}else if createOnFail{
+		if w.db, err = filestore.NewEncryptedDB(file, masterkey, false); err != nil {
+			return w, err
 		}
 		if err := w.PutData(passwordCheckField, []byte(passwordCheckField)); err != nil{
-			return nil, err
+			return w, err
 		}
 	}
 	if !w.db.BucketExists(genericBlockBucketName) {
 		if err := w.db.CreateBucket(genericBlockBucketName); err != nil {
-			return nil, err
+			return w, err
 		}
 	}
 	

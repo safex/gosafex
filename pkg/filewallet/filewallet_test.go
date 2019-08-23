@@ -74,16 +74,37 @@ func TestWrongPassword(t *testing.T){
 	w, err := New(fullpath, walletName, masterPass, true, false, store)
 
 	if err != nil {
+		defer CleanAfterTests(w,fullpath)
 		t.Fatalf("%s", err)
 	}
 
 	w.Close()
-
-	w, err = New(fullpath,walletName,"asdasdasd",true,false,store)
-	defer CleanAfterTests(w, fullpath)
-	if err != ErrWrongFilewalletPass{
-		t.Fatalf("Password seen as good: %s", err)
+	
+	w, err = New(fullpath,walletName,masterPass,false,false,store)
+	if err != nil{
+		t.Fatalf("%s",err)
 	}
+	
+	w.Close()
+
+	w, err = New(fullpath,walletName,"asdasdasd",false,false,store)
+	if err != ErrWrongFilewalletPass{
+		if err != nil{
+			t.Fatalf("%s",err)
+		} else {
+			defer CleanAfterTests(w,fullpath)
+			t.Fatalf("Password seen as good when it shouldn't")
+		}
+	}
+
+	w.Close()
+
+	w, err = New(fullpath,walletName,masterPass,true,false,store)
+	defer CleanAfterTests(w,fullpath)
+	if err != nil{
+		t.Fatalf("%s",err)
+	}
+
 
 }
 
@@ -382,7 +403,7 @@ func TestColdAccountCreation(t *testing.T){
 	fullpath := strings.Join([]string{foldername, filename}, "/")
 	store, _ := account.GenerateAccount(false)
 	store2, _ := account.GenerateAccount(false)
-	w, err := NewClean(fullpath, masterPass, false)
+	w, err := NewClean(fullpath, masterPass, false,true)
 	head1 := &safex.BlockHeader{Depth: 10, Hash: "aaaab", PrevHash: ""}
 	head2 := &safex.BlockHeader{Depth: 11, Hash: "aaaac", PrevHash: "aaaab"}
 	defer CleanAfterTests(w, fullpath)
@@ -410,7 +431,7 @@ func TestColdAccountCreation(t *testing.T){
 
 	w.Close()
 
-	w, err = NewClean (fullpath,masterPass, false)
+	w, err = NewClean (fullpath,masterPass, false,true)
 	defer CleanAfterTests(w, fullpath)
 	if err != nil{
 		t.Fatalf("%s",err)
@@ -444,7 +465,7 @@ func TestAccountDeletion(t *testing.T){
 	fullpath := strings.Join([]string{foldername, filename}, "/")
 	store, _ := account.GenerateAccount(false)
 	store2, _ := account.GenerateAccount(false)
-	w, err := NewClean(fullpath, masterPass, false)
+	w, err := NewClean(fullpath, masterPass, false,true)
 	defer CleanAfterTests(w, fullpath)
 	if err != nil {
 		t.Fatalf("%s", err)

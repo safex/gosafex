@@ -90,7 +90,7 @@ func CleanAfterTests(db *EncryptedDB, fullpath string) {
 func TestCreateRW(t *testing.T) {
 	prepareFolder()
 	fullpath := strings.Join([]string{foldername, filename}, "/")
-	db, err := NewEncryptedDB(fullpath, goodReadWrite.masterpass)
+	db, err := NewEncryptedDB(fullpath, goodReadWrite.masterpass,false)
 	defer CleanAfterTests(db,fullpath)
 
 	if err != nil {
@@ -132,7 +132,7 @@ func TestCreateRW(t *testing.T) {
 func TestAppendRW(t *testing.T) {
 	prepareFolder()
 	fullpath := strings.Join([]string{foldername, filename}, "/")
-	db, err := NewEncryptedDB(fullpath, goodReadWrite.masterpass)
+	db, err := NewEncryptedDB(fullpath, goodReadWrite.masterpass,false)
 	defer CleanAfterTests(db,fullpath)
 
 	if err != nil {
@@ -179,7 +179,7 @@ func TestAppendRW(t *testing.T) {
 func TestColdRW(t *testing.T) {
 	prepareFolder()
 	fullpath := strings.Join([]string{foldername, filename}, "/")
-	db, err := NewEncryptedDB(fullpath, goodReadWrite.masterpass)
+	db, err := NewEncryptedDB(fullpath, goodReadWrite.masterpass,false)
 
 	if err != nil {
 		t.Fatalf("Failed: %s", err)
@@ -202,7 +202,7 @@ func TestColdRW(t *testing.T) {
 		t.Fatalf("Failed: %s", err)
 	}
 	db.Close()
-	db, err = NewEncryptedDB(fullpath, goodReadWrite.masterpass)
+	db, err = NewEncryptedDB(fullpath, goodReadWrite.masterpass,true)
 	defer CleanAfterTests(db,fullpath)
 
 	if err := db.SetBucket(goodReadWrite.bucket); err != nil {
@@ -227,7 +227,7 @@ func TestColdRW(t *testing.T) {
 func TestOverwrite(t *testing.T) {
 	prepareFolder()
 	fullpath := strings.Join([]string{foldername, filename}, "/")
-	db, err := NewEncryptedDB(fullpath, goodReadWrite.masterpass)
+	db, err := NewEncryptedDB(fullpath, goodReadWrite.masterpass,false)
 	defer CleanAfterTests(db,fullpath)
 
 	if err != nil {
@@ -272,7 +272,7 @@ func TestOverwrite(t *testing.T) {
 func TestWrongKeyRW(t *testing.T) {
 	prepareFolder()
 	fullpath := strings.Join([]string{foldername, filename}, "/")
-	db, err := NewEncryptedDB(fullpath, goodReadWrite.masterpass)
+	db, err := NewEncryptedDB(fullpath, goodReadWrite.masterpass,false)
 	defer CleanAfterTests(db,fullpath)
 
 	if err != nil {
@@ -296,7 +296,7 @@ func TestWrongKeyRW(t *testing.T) {
 		t.Fatalf("Failed: %s", err)
 	}
 	db.Close()
-	db, err = NewEncryptedDB(fullpath, WrongKey.masterpass)
+	db, err = NewEncryptedDB(fullpath, WrongKey.masterpass,true)
 	defer db.Close()
 
 	if err := db.SetBucket(WrongKey.bucket); err == nil {
@@ -307,7 +307,7 @@ func TestWrongKeyRW(t *testing.T) {
 func TestBucketSwitch(t *testing.T) {
 	prepareFolder()
 	fullpath := strings.Join([]string{foldername, filename}, "/")
-	db, err := NewEncryptedDB(fullpath, goodReadWrite.masterpass)
+	db, err := NewEncryptedDB(fullpath, goodReadWrite.masterpass,false)
 	defer CleanAfterTests(db,fullpath)
 
 	if err != nil {
