@@ -8,7 +8,7 @@ import (
 )
 
 // @brief Functions used for deserializing data from epee portable storage
-//		  serialization. 
+//		  serialization.
 // @note  Currently used just here but in future can be moved to its own module.
 
 const (
@@ -90,9 +90,9 @@ func convertJSONMessageToByte(input json.RawMessage) []byte {
 				continue
 			}
 
-			if bah[i+1] == '\\' && bah[i+2] == '"' {
+			if bah[i+1] == '"' {
 				ret = append(ret, byte('"'))
-				i += 3
+				i += 2
 				continue
 			}
 
@@ -101,6 +101,13 @@ func convertJSONMessageToByte(input json.RawMessage) []byte {
 				i += 2
 				continue
 			}
+
+			if bah[i+1] == '/' {
+				ret = append(ret, '/')
+				i += 2
+				continue
+			}
+
 		}
 		ret = append(ret, bah[i])
 		i++
@@ -113,7 +120,7 @@ func loadStorageArrayEntry(buf *bytes.Reader, entryType byte) {
 	panic("Not implemented!")
 }
 
-// Reading section from binary input. 
+// Reading section from binary input.
 func readSection(buf *bytes.Reader) (ret StorageEntry) {
 	count := readVarint(buf)
 	ret = make(StorageEntry)
@@ -138,7 +145,6 @@ func readString(buf *bytes.Reader) string {
 func loadStorageEntry(buf *bytes.Reader) interface{} {
 	var entryType byte = 0
 	binary.Read(buf, binary.LittleEndian, &entryType)
-
 	switch entryType {
 	case SERIALIZE_TYPE_INT64:
 		var ret int64

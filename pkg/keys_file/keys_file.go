@@ -5,20 +5,20 @@ import (
 	"io/ioutil"
 
 	"github.com/safex/gosafex/internal/crypto"
-	"github.com/safex/gosafex/pkg/account"	
-	"github.com/safex/gosafex/pkg/key"	
+	"github.com/safex/gosafex/pkg/account"
+	"github.com/safex/gosafex/pkg/key"
 
 	"github.com/Yawning/chacha20"
 
+	"bytes"
 	"encoding/binary"
 	"encoding/json"
-	"bytes"
 )
 
 type KeyFilesData struct {
 	KeyData   json.RawMessage `json:"key_data"`
 	WatchOnly uint64          `json:"watch_only"`
-	Nettype	  uint32		  `json:"nettype"`
+	Nettype   uint32          `json:"nettype"`
 }
 
 func getAccountData(data []byte) StorageEntry {
@@ -68,7 +68,7 @@ func ReadKeysFile(path string, password string) (store *account.Store, err error
 	if offset == 0 {
 		return nil, err
 	}
-	
+
 	offset += len(iv)
 	var dst []byte
 	dst = make([]byte, size)
@@ -79,7 +79,7 @@ func ReadKeysFile(path string, password string) (store *account.Store, err error
 	if err != nil {
 		return nil, err
 	}
-	
+
 	readStorage := getAccountData(convertJSONMessageToByte(keyFilesData.KeyData))
 
 	mKeys := readStorage["m_keys"].(StorageEntry)
@@ -89,7 +89,7 @@ func ReadKeysFile(path string, password string) (store *account.Store, err error
 	var privViewKey crypto.Key
 	var pubSpendKey crypto.Key
 	var privSpendKey crypto.Key
-	
+
 	copy(pubViewKey[:], []byte(mPubAddress["m_view_public_key"].(string)))
 	copy(privViewKey[:], []byte(mKeys["m_view_secret_key"].(string)))
 	copy(pubSpendKey[:], []byte(mPubAddress["m_spend_public_key"].(string)))
