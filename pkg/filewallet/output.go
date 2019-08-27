@@ -254,7 +254,6 @@ func (w *FileWallet) putOutput(out *safex.Txout, localIndex uint64, blockHash st
 		w.deleteKey(outputKeyPrefix+outID)
 		return "", err
 	}
-
 	return outID, nil
 
 }

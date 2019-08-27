@@ -8,6 +8,7 @@ import (
 	"github.com/safex/gosafex/pkg/filewallet"
 	"github.com/safex/gosafex/pkg/safex"
 	"github.com/safex/gosafex/pkg/safexdrpc"
+	log "github.com/sirupsen/logrus"
 )
 
 // TODO: figure out where to place the wallet struct.
@@ -77,13 +78,13 @@ func (w *Wallet) Recover(mnemonic *account.Mnemonic, password string, accountNam
 	return nil
 }
 
-//OpenAndCreate Opens a filewallet and creates an account
-func (w *Wallet) OpenAndCreate(accountName string, filename string, masterkey string, isTestnet bool) error {
+//OpenAndCreate Opens a filewallet and creates an account 
+func (w *Wallet) OpenAndCreate(accountName string, filename string, masterkey string, isTestnet bool, prevLog *log.Logger) error {
 	var err error
 	if w.IsOpen() {
 		w.Close()
 	}
-	if w.wallet, err = filewallet.New(filename, accountName, masterkey, true, isTestnet, nil); err != nil {
+	if w.wallet, err = filewallet.New(filename, accountName, masterkey, true, isTestnet, nil, prevLog); err != nil {
 		return err
 	}
 	w.countedOutputs = []string{}
@@ -111,12 +112,12 @@ func (w *Wallet) CreateAccountFromKeyStore(accountName string, store *account.St
 }
 
 //OpenFile Opens a filewallet
-func (w *Wallet) OpenFile(filename string, masterkey string, isTestnet bool) error {
+func (w *Wallet) OpenFile(filename string, masterkey string, isTestnet bool, prevLog *log.Logger) error {
 	var err error
 	if w.IsOpen() {
 		w.Close()
 	}
-	if w.wallet, err = filewallet.NewClean(filename, masterkey, isTestnet, true); err != nil {
+	if w.wallet, err = filewallet.NewClean(filename, masterkey, isTestnet, true, prevLog); err != nil {
 		return err
 	}
 	w.countedOutputs = []string{}

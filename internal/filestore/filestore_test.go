@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 	"fmt"
+	log "github.com/sirupsen/logrus"
 )
 
 const filename = "test.db"
@@ -66,6 +67,9 @@ var (
 	}
 )
 
+var testLogger = log.StandardLogger()
+var testLogFile = "test.log"
+
 func prepareFolder() {
 
 	fullpath := strings.Join([]string{foldername, filename}, "/")
@@ -73,6 +77,11 @@ func prepareFolder() {
 	if _, err := os.Stat(fullpath); os.IsExist(err) {
 		os.Remove(fullpath)
 	}
+	logFile, _ := os.OpenFile(testLogFile, os.O_WRONLY | os.O_CREATE, 0755)
+
+	testLogger.SetOutput(logFile)
+	testLogger.SetLevel(log.DebugLevel)
+
 	os.Mkdir(foldername, os.FileMode(int(0700)))
 }
 
@@ -90,7 +99,7 @@ func CleanAfterTests(db *EncryptedDB, fullpath string) {
 func TestCreateRW(t *testing.T) {
 	prepareFolder()
 	fullpath := strings.Join([]string{foldername, filename}, "/")
-	db, err := NewEncryptedDB(fullpath, goodReadWrite.masterpass,false)
+	db, err := NewEncryptedDB(fullpath, goodReadWrite.masterpass,false, testLogger)
 	defer CleanAfterTests(db,fullpath)
 
 	if err != nil {
@@ -132,7 +141,7 @@ func TestCreateRW(t *testing.T) {
 func TestAppendRW(t *testing.T) {
 	prepareFolder()
 	fullpath := strings.Join([]string{foldername, filename}, "/")
-	db, err := NewEncryptedDB(fullpath, goodReadWrite.masterpass,false)
+	db, err := NewEncryptedDB(fullpath, goodReadWrite.masterpass,false, testLogger)
 	defer CleanAfterTests(db,fullpath)
 
 	if err != nil {
@@ -179,7 +188,7 @@ func TestAppendRW(t *testing.T) {
 func TestColdRW(t *testing.T) {
 	prepareFolder()
 	fullpath := strings.Join([]string{foldername, filename}, "/")
-	db, err := NewEncryptedDB(fullpath, goodReadWrite.masterpass,false)
+	db, err := NewEncryptedDB(fullpath, goodReadWrite.masterpass,false, testLogger)
 
 	if err != nil {
 		t.Fatalf("Failed: %s", err)
@@ -202,7 +211,7 @@ func TestColdRW(t *testing.T) {
 		t.Fatalf("Failed: %s", err)
 	}
 	db.Close()
-	db, err = NewEncryptedDB(fullpath, goodReadWrite.masterpass,true)
+	db, err = NewEncryptedDB(fullpath, goodReadWrite.masterpass,true, testLogger)
 	defer CleanAfterTests(db,fullpath)
 
 	if err := db.SetBucket(goodReadWrite.bucket); err != nil {
@@ -227,7 +236,7 @@ func TestColdRW(t *testing.T) {
 func TestOverwrite(t *testing.T) {
 	prepareFolder()
 	fullpath := strings.Join([]string{foldername, filename}, "/")
-	db, err := NewEncryptedDB(fullpath, goodReadWrite.masterpass,false)
+	db, err := NewEncryptedDB(fullpath, goodReadWrite.masterpass,false, testLogger)
 	defer CleanAfterTests(db,fullpath)
 
 	if err != nil {
@@ -272,7 +281,7 @@ func TestOverwrite(t *testing.T) {
 func TestWrongKeyRW(t *testing.T) {
 	prepareFolder()
 	fullpath := strings.Join([]string{foldername, filename}, "/")
-	db, err := NewEncryptedDB(fullpath, goodReadWrite.masterpass,false)
+	db, err := NewEncryptedDB(fullpath, goodReadWrite.masterpass,false, testLogger)
 	defer CleanAfterTests(db,fullpath)
 
 	if err != nil {
@@ -296,7 +305,7 @@ func TestWrongKeyRW(t *testing.T) {
 		t.Fatalf("Failed: %s", err)
 	}
 	db.Close()
-	db, err = NewEncryptedDB(fullpath, WrongKey.masterpass,true)
+	db, err = NewEncryptedDB(fullpath, WrongKey.masterpass,true, testLogger)
 	defer db.Close()
 
 	if err := db.SetBucket(WrongKey.bucket); err == nil {
@@ -307,7 +316,7 @@ func TestWrongKeyRW(t *testing.T) {
 func TestBucketSwitch(t *testing.T) {
 	prepareFolder()
 	fullpath := strings.Join([]string{foldername, filename}, "/")
-	db, err := NewEncryptedDB(fullpath, goodReadWrite.masterpass,false)
+	db, err := NewEncryptedDB(fullpath, goodReadWrite.masterpass,false, testLogger)
 	defer CleanAfterTests(db,fullpath)
 
 	if err != nil {

@@ -1,7 +1,6 @@
 package SafexRPC
 
 import (
-	"log"
 	"net/http"
 	"os"
 
@@ -9,6 +8,7 @@ import (
 	"github.com/safex/gosafex/pkg/account"
 	"github.com/safex/gosafex/pkg/chain"
 	keysFile "github.com/safex/gosafex/pkg/keys_file"
+	log "github.com/sirupsen/logrus"
 )
 
 // Wallet init request struct
@@ -74,7 +74,7 @@ func (w *WalletRPC) OpenExisting(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = w.wallet.OpenFile(rqData.Path, rqData.Password, !w.mainnet)
+	err = w.wallet.OpenFile(rqData.Path, rqData.Password, !w.mainnet, log.StandardLogger())
 	if err != nil {
 
 		data["msg"] = err.Error()
@@ -116,7 +116,7 @@ func (w *WalletRPC) CreateNew(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = w.wallet.OpenAndCreate("primary", rqData.Path, rqData.Password, !w.mainnet)
+	err = w.wallet.OpenAndCreate("primary", rqData.Path, rqData.Password, !w.mainnet, log.StandardLogger())
 
 	if err != nil {
 		data["msg"] = err.Error()
@@ -169,7 +169,7 @@ func (w *WalletRPC) RecoverWithSeed(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = w.wallet.OpenFile(rqData.Path, rqData.Password, rqData.Nettype == "testnet")
+	err = w.wallet.OpenFile(rqData.Path, rqData.Password, rqData.Nettype == "testnet", log.StandardLogger())
 	if err != nil {
 		data["msg"] = err.Error()
 		FormJSONResponse(data, FailedToOpen, &rw)
@@ -226,7 +226,7 @@ func (w *WalletRPC) RecoverWithKeys(rw http.ResponseWriter, r *http.Request) {
 	err := w.wallet.InitClient(rqData.DaemonHost, rqData.DaemonPort)
 	noConn := err != nil
 
-	err = w.wallet.OpenFile(rqData.Path, rqData.Password, rqData.Nettype == "testnet")
+	err = w.wallet.OpenFile(rqData.Path, rqData.Password, rqData.Nettype == "testnet", log.StandardLogger())
 	if err != nil {
 		data["msg"] = err.Error()
 		FormJSONResponse(data, FailedToOpen, &rw)
@@ -312,7 +312,7 @@ func (w *WalletRPC) RecoverWithKeysFile(rw http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	err = w.wallet.OpenFile(rqData.Path, rqData.Password, rqData.Nettype == "testnet")
+	err = w.wallet.OpenFile(rqData.Path, rqData.Password, rqData.Nettype == "testnet", log.StandardLogger())
 	if err != nil {
 		data["msg"] = err.Error()
 		FormJSONResponse(data, FailedToOpen, &rw)

@@ -5,6 +5,7 @@ import (
 	"github.com/safex/gosafex/internal/filestore"
 	"github.com/safex/gosafex/pkg/account"
 	"github.com/safex/gosafex/pkg/key"
+	log "github.com/sirupsen/logrus"
 )
 
 type WalletInfo struct {
@@ -14,6 +15,7 @@ type WalletInfo struct {
 
 //FileWallet is a wrapper for an EncryptedDB that includes wallet specific data and operations
 type FileWallet struct {
+	logger      	  *log.Logger
 	info              *WalletInfo
 	db                *filestore.EncryptedDB
 	knownOutputs      []string //REMEMBER TO INITIALIZE THIS
@@ -269,7 +271,9 @@ func (w *FileWallet) GetAccounts() ([]string, error) {
 	}
 	ret := []string{}
 	for _, el := range data {
-		ret = append(ret, string(el))
+		if el != nil{
+			ret = append(ret, string(el))
+		}
 	}
 	return ret, nil
 }
@@ -330,8 +334,8 @@ func (w *FileWallet) Close() {
 }
 
 //New Opens or creates a new wallet file. If the file exists it will be read, otherwise if createOnFail is set it will create it
-func New(file string, accountName string, masterkey string, createOnFail bool, isTestnet bool, keystore *account.Store) (*FileWallet, error) {
-	w, err := NewClean(file,masterkey,isTestnet,createOnFail)
+func New(file string, accountName string, masterkey string, createOnFail bool, isTestnet bool, keystore *account.Store, prevLog *log.Logger) (*FileWallet, error) {
+	w, err := NewClean(file,masterkey,isTestnet,createOnFail, prevLog)
 	
 	if err != nil{
 		return w, err
@@ -345,11 +349,11 @@ func New(file string, accountName string, masterkey string, createOnFail bool, i
 }
 
 //NewClean Opens or creates a new wallet file without opening an account on creation
-func NewClean(file string, masterkey string, isTestnet bool,createOnFail bool) (*FileWallet, error) {
+func NewClean(file string, masterkey string, isTestnet bool,createOnFail bool, prevLog *log.Logger) (*FileWallet, error) {
 	w := new(FileWallet)
 	var err error
 	if fileExists(file){
-		if w.db, err = filestore.NewEncryptedDB(file, masterkey, true); err != nil {
+		if w.db, err = filestore.NewEncryptedDB(file, masterkey, true, log.StandardLogger()); err != nil {
 			return w, err
 		}
 		passData,err := w.GetData(passwordCheckField)
@@ -361,7 +365,7 @@ func NewClean(file string, masterkey string, isTestnet bool,createOnFail bool) (
 			return w, ErrWrongFilewalletPass
 		}
 	}else if createOnFail{
-		if w.db, err = filestore.NewEncryptedDB(file, masterkey, false); err != nil {
+		if w.db, err = filestore.NewEncryptedDB(file, masterkey, false, log.StandardLogger()); err != nil {
 			return w, err
 		}
 		if err := w.PutData(passwordCheckField, []byte(passwordCheckField)); err != nil{

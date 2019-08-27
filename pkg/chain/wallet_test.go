@@ -12,6 +12,7 @@ import (
 	"github.com/safex/gosafex/pkg/filewallet"
 	"github.com/safex/gosafex/pkg/key"
 	"github.com/safex/gosafex/pkg/safex"
+	log "github.com/sirupsen/logrus"
 )
 
 const filename = "test.db"
@@ -32,6 +33,8 @@ const wallet1privspend = "c55a2fa96b04b8f019afeaca883fdfd1e7ee775486eec32648579e
 const mnemonic_seed = "shrugged january avatar fungal pawnshop thwart grunt yoga stunning honked befit already ungainly fancy camp liquid revamp evaluate height evolved bowling knife gasp gotten honked"
 const mnemonic_key = "ace8f0a434437935b01ca3d2aa7438f1ec27d7dc02a33b8d7a62dfda1fe13907"
 const mnemonic_address = "Safex5zgYGP2tyGNaqkrAoirRqrEw8Py79KPLRhwqEHbDcnPVvSwvCx2iTUbTR6PVMHR9qapyAq6Fj5TF9ATn5iq27YPrxCkJyD11"
+var testLogger = log.StandardLogger()
+var testLogFile = "test.log"
 
 func prepareFolder() {
 
@@ -40,8 +43,14 @@ func prepareFolder() {
 	if _, err := os.Stat(fullpath); os.IsExist(err) {
 		os.Remove(fullpath)
 	}
-	os.Mkdir(foldername, os.FileMode(int(0770)))
+	logFile, _ := os.OpenFile(testLogFile, os.O_WRONLY | os.O_CREATE, 0755)
+
+	testLogger.SetOutput(logFile)
+	testLogger.SetLevel(log.DebugLevel)
+
+	os.Mkdir(foldername, os.FileMode(int(0700)))
 }
+
 
 func CleanAfterTests(w *Wallet, fullpath string) {
 
@@ -59,7 +68,7 @@ func TestRecoverFromMnemonic(t *testing.T) {
 	w := new(Wallet)
 	fullpath := strings.Join([]string{foldername, filename}, "/")
 
-	if err := w.OpenFile(fullpath, masterPass, false); err != nil {
+	if err := w.OpenFile(fullpath, masterPass, false, testLogger); err != nil {
 		t.Fatalf("%s", err)
 	}
 	defer CleanAfterTests(w, fullpath)
@@ -86,6 +95,35 @@ func TestRecoverFromMnemonic(t *testing.T) {
 	}
 }
 
+func TestOpen(t *testing.T) {
+	prepareFolder()
+	w := new(Wallet)
+	fullpath := strings.Join([]string{foldername, filename}, "/")
+
+	if w.IsOpen() != false {
+		t.Fatalf("Error in open status")
+	}
+	if err := w.OpenAndCreate(accountName1, fullpath, masterPass, false, testLogger); err != nil {
+		t.Fatalf("%s", err)
+	}
+	defer CleanAfterTests(w, fullpath)
+
+	if err := w.CreateAccount(accountName1, nil, false); err == nil {
+		t.Fatalf("No duplicate error")
+	}
+	if err := w.CreateAccount(accountName2, nil, false); err != nil {
+		t.Fatalf("%s", err)
+	}
+	if err := w.OpenAccount(accountName1, false); err != nil {
+		t.Fatalf("%s", err)
+	}
+	if accs, err := w.GetAccounts(); err != nil {
+		t.Fatalf("%s", err)
+	} else if len(accs) != 2 || accs[0] != accountName1 || accs[1] != accountName2 {
+		t.Fatalf("Error in reading account list")
+	}
+}
+
 func TestOpenCreate(t *testing.T) {
 	prepareFolder()
 	w := new(Wallet)
@@ -94,7 +132,7 @@ func TestOpenCreate(t *testing.T) {
 	if w.IsOpen() != false {
 		t.Fatalf("Error in open status")
 	}
-	if err := w.OpenFile(fullpath, masterPass, false); err != nil {
+	if err := w.OpenFile(fullpath, masterPass, false, testLogger); err != nil {
 		t.Fatalf("%s", err)
 	}
 	defer CleanAfterTests(w, fullpath)
@@ -108,6 +146,41 @@ func TestOpenCreate(t *testing.T) {
 	if err := w.OpenAccount(accountName1, false); err != nil {
 		t.Fatalf("%s", err)
 	}
+	if accs, err := w.GetAccounts(); err != nil {
+		t.Fatalf("%s", err)
+	} else if len(accs) != 2 || accs[0] != accountName1 || accs[1] != accountName2 {
+		t.Fatalf("Error in reading account list")
+	}
+}
+
+func TestColdOpen(t *testing.T) {
+	prepareFolder()
+	w := new(Wallet)
+	fullpath := strings.Join([]string{foldername, filename}, "/")
+
+	if w.IsOpen() != false {
+		t.Fatalf("Error in open status")
+	}
+	if err := w.OpenAndCreate(accountName1, fullpath, masterPass, false, testLogger); err != nil {
+		t.Fatalf("%s", err)
+	}
+	if err := w.CreateAccount(accountName2, nil, false); err != nil {
+		t.Fatalf("%s", err)
+	}
+	w.Close()
+	if err := w.OpenFile(fullpath, "asdasdasd", false, testLogger);err == nil{
+		t.Fatalf("No password error")
+	}
+	w.Close()
+	if err := w.OpenFile(fullpath,masterPass,false, testLogger); err != nil{
+		t.Fatalf("%s",err)
+	}
+	defer CleanAfterTests(w,fullpath)
+	if accs, err := w.GetAccounts(); err != nil {
+		t.Fatalf("%s", err)
+	} else if len(accs) != 2 || accs[0] != accountName1 || accs[1] != accountName2 {
+		t.Fatalf("Error in reading account list")
+	}
 }
 
 func TestRPC(t *testing.T) {
@@ -116,7 +189,7 @@ func TestRPC(t *testing.T) {
 	w := new(Wallet)
 	fullpath := strings.Join([]string{foldername, filename}, "/")
 
-	if err := w.OpenAndCreate("wallet1", fullpath, masterPass, true); err != nil {
+	if err := w.OpenAndCreate("wallet1", fullpath, masterPass, true, testLogger); err != nil {
 		t.Fatalf("%s", err)
 	}
 	defer CleanAfterTests(w, fullpath)
@@ -137,7 +210,7 @@ func TestGetHistory(t *testing.T) {
 	w := new(Wallet)
 	fullpath := strings.Join([]string{foldername, filename}, "/")
 
-	if err := w.OpenAndCreate("wallet1", fullpath, masterPass, true); err != nil {
+	if err := w.OpenAndCreate("wallet1", fullpath, masterPass, true, testLogger); err != nil {
 		t.Fatalf("%s", err)
 	}
 	defer CleanAfterTests(w, fullpath)
@@ -185,7 +258,7 @@ func TestGetTransaction(t *testing.T) {
 	w := new(Wallet)
 	fullpath := strings.Join([]string{foldername, filename}, "/")
 
-	if err := w.OpenAndCreate("wallet1", fullpath, masterPass, true); err != nil {
+	if err := w.OpenAndCreate("wallet1", fullpath, masterPass, true, testLogger); err != nil {
 		t.Fatalf("%s", err)
 	}
 	defer CleanAfterTests(w, fullpath)
@@ -218,7 +291,7 @@ func TestGetTransactionByBlock(t *testing.T) {
 	w := new(Wallet)
 	fullpath := strings.Join([]string{foldername, filename}, "/")
 
-	if err := w.OpenAndCreate("wallet1", fullpath, masterPass, true); err != nil {
+	if err := w.OpenAndCreate("wallet1", fullpath, masterPass, true, testLogger); err != nil {
 		t.Fatalf("%s", err)
 	}
 	defer CleanAfterTests(w, fullpath)
@@ -267,7 +340,7 @@ func TestUpdateBalance(t *testing.T) {
 	w := new(Wallet)
 	fullpath := strings.Join([]string{foldername, filename}, "/")
 
-	if err := w.OpenAndCreate("wallet1", fullpath, masterPass, true); err != nil {
+	if err := w.OpenAndCreate("wallet1", fullpath, masterPass, true, testLogger); err != nil {
 		t.Fatalf("%s", err)
 	}
 	defer CleanAfterTests(w, fullpath)
