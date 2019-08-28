@@ -21,6 +21,7 @@ func (w *FileWallet) GetAllTransactionInfoOutputs(transactionID string) ([]strin
 //Inserts a reference to the given transactionID in the given block
 func (w *FileWallet) putTransactionInfoInBlock(transactionID string, blockHash string) error {
 	if i := w.CheckIfBlockExists(blockHash); i < 0 {
+		w.logger.Errorf("[FileWallet] %s", ErrBlockNotFound)
 		return ErrBlockNotFound
 	}
 	if err := w.appendKey(blockTransactionReferencePrefix+blockHash, []byte(transactionID)); err != nil {
@@ -31,6 +32,7 @@ func (w *FileWallet) putTransactionInfoInBlock(transactionID string, blockHash s
 
 func (w *FileWallet) GetTransactionInfosFromBlockHash(blockHash string) ([]*TransactionInfo, error) {
 	if i := w.CheckIfBlockExists(blockHash); i < 0 {
+		w.logger.Errorf("[FileWallet] %s", ErrBlockNotFound)
 		return nil, ErrBlockNotFound
 	}
 	data, err := w.readAppendedKey(blockTransactionReferencePrefix + blockHash)
@@ -61,6 +63,7 @@ func (w *FileWallet) GetTransactionInfosFromBlockHeight(blockHeight uint64) ([]*
 //PutTransactionInfo Inserts a new TransactionInfo
 func (w *FileWallet) PutTransactionInfo(txInfo *TransactionInfo, blockHash string) error {
 	if w.CheckIfTransactionInfoExists(txInfo.TxHash) >= 0 {
+		w.logger.Errorf("[FileWallet] %s", ErrTxInfoNotPresent)
 		return ErrTxInfoPresent
 	}
 	data, err := marshallTransactionInfo(txInfo)
@@ -101,6 +104,7 @@ func (w *FileWallet) GetTransactionInfo(transactionID string) (*TransactionInfo,
 //RemoveTransactionInfo Removes the given TransactionInfo, if it exists
 func (w *FileWallet) RemoveTransactionInfo(transactionID string) error {
 	if i := w.CheckIfTransactionInfoExists(transactionID); i < 0 {
+		w.logger.Errorf("[FileWallet] %s", ErrTxInfoNotPresent)
 		return ErrTxInfoNotPresent
 	} else {
 		outputIDList, err := w.GetAllTransactionInfoOutputs(transactionID)

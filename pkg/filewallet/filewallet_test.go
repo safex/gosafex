@@ -29,10 +29,10 @@ func prepareFolder() {
 	if _, err := os.Stat(fullpath); os.IsExist(err) {
 		os.Remove(fullpath)
 	}
-	logFile, _ := os.OpenFile(testLogFile, os.O_WRONLY | os.O_CREATE, 0755)
+	logFile, _ := os.OpenFile(testLogFile, os.O_APPEND | os.O_CREATE, 0755) 
 
 	testLogger.SetOutput(logFile)
-	testLogger.SetLevel(log.DebugLevel)
+	testLogger.SetLevel(log.InfoLevel)
 
 	os.Mkdir(foldername, os.FileMode(int(0700)))
 }
@@ -79,6 +79,7 @@ func prepareWallet(w *FileWallet) {
 
 func TestWrongPassword(t *testing.T){
 	prepareFolder()
+	testLogger.Infof("[Test] Testing wrong password")
 	fullpath := strings.Join([]string{foldername, filename}, "/")
 	store, _ := account.GenerateAccount(false)
 	w, err := New(fullpath, walletName, masterPass, true, false, store, testLogger)
@@ -115,12 +116,13 @@ func TestWrongPassword(t *testing.T){
 		t.Fatalf("%s",err)
 	}
 
-
+	
+	testLogger.Infof("[Test] Passed wrong password")
 }
 
 func TestGenericDataRW(t *testing.T) {
-
 	prepareFolder()
+	testLogger.Infof("[Test] Testing generic data R/W")
 	fullpath := strings.Join([]string{foldername, filename}, "/")
 	store, _ := account.GenerateAccount(false)
 	w, err := New(fullpath, walletName, masterPass, true, false, store, testLogger)
@@ -185,11 +187,13 @@ func TestGenericDataRW(t *testing.T) {
 			t.Fatalf("Failing reading generic data")
 		}
 	}
+	testLogger.Infof("[Test] Passed generic data R/W")
 
 }
 
 func TestBlockRW(t *testing.T) {
 	prepareFolder()
+	testLogger.Infof("[Test] Testing block R/W")
 	fullpath := strings.Join([]string{foldername, filename}, "/")
 	store, _ := account.GenerateAccount(false)
 	w, err := New(fullpath, walletName, masterPass, true, false, store, testLogger)
@@ -247,10 +251,12 @@ func TestBlockRW(t *testing.T) {
 			t.Fatalf("Block not rewinded")
 		}
 	}
+	testLogger.Infof("[Test] Passed block R/W")
 }
 
 func TestTransactionRW(t *testing.T) {
 	prepareFolder()
+	testLogger.Infof("[Test] Testing transaction R/W")
 	fullpath := strings.Join([]string{foldername, filename}, "/")
 	store, _ := account.GenerateAccount(false)
 	w, err := New(fullpath, walletName, masterPass, true, false, store, testLogger)
@@ -297,10 +303,12 @@ func TestTransactionRW(t *testing.T) {
 	if len(transactionInfoArray) != 0 {
 		t.Fatalf("Error removing data")
 	}
+	testLogger.Infof("[Test] Passed transaction R/W")
 }
 
 func TestOutputRW(t *testing.T) {
 	prepareFolder()
+	testLogger.Infof("[Test] Testing output R/W")
 	fullpath := strings.Join([]string{foldername, filename}, "/")
 	store, _ := account.GenerateAccount(false)
 	w, err := New(fullpath, walletName, masterPass, true, false, store, testLogger)
@@ -406,10 +414,12 @@ func TestOutputRW(t *testing.T) {
 	if len(out) != 0 {
 		t.Fatalf("Error removing data")
 	}
+	testLogger.Infof("[Test] Passed output R/W")
 }
 
 func TestColdAccountCreation(t *testing.T){
 	prepareFolder()
+	testLogger.Infof("[Test] Testing cold account creation")
 	fullpath := strings.Join([]string{foldername, filename}, "/")
 	store, _ := account.GenerateAccount(false)
 	store2, _ := account.GenerateAccount(false)
@@ -468,10 +478,12 @@ func TestColdAccountCreation(t *testing.T){
 	}else if len(data) != 2{
 		t.Fatalf("Error while reading blocks from account1")
 	}
+	testLogger.Infof("[Test] Passed cold account creation")
 }
 
 func TestAccountDeletion(t *testing.T){
 	prepareFolder()
+	testLogger.Infof("[Test] Testing account deletion")
 	fullpath := strings.Join([]string{foldername, filename}, "/")
 	store, _ := account.GenerateAccount(false)
 	store2, _ := account.GenerateAccount(false)
@@ -497,11 +509,12 @@ func TestAccountDeletion(t *testing.T){
 	}else if len(data) != 0{
 		t.Fatalf("Error retrieving account list")
 	}
-
+	testLogger.Infof("[Test] Passed account deletion")
 }
 
 func TestAccountSwitch(t *testing.T) {
 	prepareFolder()
+	testLogger.Infof("[Test] Testing account switching")
 	fullpath := strings.Join([]string{foldername, filename}, "/")
 	store, _ := account.GenerateAccount(false)
 	store2, _ := account.GenerateAccount(false)
@@ -558,11 +571,13 @@ func TestAccountSwitch(t *testing.T) {
 	} else if len(data) != 1 {
 		t.Fatalf("Error switching accounts, outputs not found")
 	}
+	testLogger.Infof("[Test] Passed account switching")
 }
 
 
 func TestMultipleAccounts(t *testing.T){
 	prepareFolder()
+	testLogger.Infof("[Test] Testing multiple account creation")
 	fullpath := strings.Join([]string{foldername, filename}, "/")
 	store1, _ := account.GenerateAccount(false)
 	store2, _ := account.GenerateAccount(false)
@@ -599,4 +614,5 @@ func TestMultipleAccounts(t *testing.T){
 	if len(accs) != 5{
 		t.Fatalf("Error retrieving accounts")
 	}
+	testLogger.Infof("[Test] Passed multiple account creation")
 }

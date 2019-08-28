@@ -133,6 +133,7 @@ func (w *FileWallet) IsUnspent(outID string) bool {
 //Inserts the given outputID within the transaction reference if it exists
 func (w *FileWallet) putOutputInTransaction(outID string, transactionID string) error {
 	if w.CheckIfTransactionInfoExists(transactionID) < 0 {
+		w.logger.Errorf("[FileWallet] %s",ErrOutputTypeNotPresent)
 		return ErrOutputTypeNotPresent
 	}
 	return w.appendKey(transactionOutputReferencePrefix+transactionID, []byte(outID))
@@ -141,6 +142,7 @@ func (w *FileWallet) putOutputInTransaction(outID string, transactionID string) 
 //FindOutputInTransaction Finds the position within the transaction reference of the given outputID
 func (w *FileWallet) FindOutputInTransaction(outID string, transactionID string) (int, error) {
 	if w.CheckIfTransactionInfoExists(transactionID) < 0 {
+		w.logger.Errorf("[FileWallet] %s",ErrBlockNotFound)
 		return -1, ErrBlockNotFound
 	}
 	return w.findKeyInReference(transactionOutputReferencePrefix+transactionID, outID)
@@ -152,6 +154,7 @@ func (w *FileWallet) removeOutputFromTransaction(outID string, transactionID str
 	if err != nil {
 		return err
 	} else if i < 0 {
+		w.logger.Errorf("[FileWallet] %s",ErrUnknownListErr)
 		return ErrUnknownListErr
 	}
 	return w.deleteAppendedKey(transactionOutputReferencePrefix+transactionID, i)
@@ -160,6 +163,7 @@ func (w *FileWallet) removeOutputFromTransaction(outID string, transactionID str
 //Inserts the given outputID within the type reference if it exists
 func (w *FileWallet) putOutputInType(outID string, outputType string) error {
 	if w.CheckIfOutputTypeExists(outputType) < 0 {
+		w.logger.Errorf("[FileWallet] %s",ErrOutputTypeNotPresent)
 		return ErrOutputTypeNotPresent
 	}
 	w.appendKey(outputTypeKeyPrefix+outputType, []byte(outID))
@@ -169,6 +173,7 @@ func (w *FileWallet) putOutputInType(outID string, outputType string) error {
 //FindOutputInType Finds the position within the transaction reference of the given outputID
 func (w *FileWallet) FindOutputInType(outID string, outputType string) (int, error) {
 	if w.CheckIfOutputTypeExists(outputType) < 0 {
+		w.logger.Errorf("[FileWallet] %s",ErrOutputTypeNotPresent)
 		return -1, ErrOutputTypeNotPresent
 	}
 	return w.findKeyInReference(outputTypeKeyPrefix+outputType, outID)
@@ -180,7 +185,8 @@ func (w *FileWallet) removeOutputFromType(outID string, outputType string) error
 	if err != nil {
 		return err
 	} else if i < 0 {
-		return ErrUnknownListErr
+		w.logger.Errorf("[FileWallet] %s",ErrUnknownListErr)
+		return ErrUnknownListErr 
 	}
 	return w.deleteAppendedKey(outputTypeKeyPrefix+outputType, i)
 }
@@ -245,6 +251,7 @@ func (w *FileWallet) putOutput(out *safex.Txout, localIndex uint64, blockHash st
 		return "", err
 	}
 	if tempout, _ := w.GetOutput(outID); tempout != nil {
+		w.logger.Errorf("[FileWallet] %s",ErrOutputPresent)
 		return "", ErrOutputPresent
 	}
 	if err = w.writeKey(outputKeyPrefix+outID, data); err != nil {
@@ -266,22 +273,27 @@ func (w *FileWallet) AddOutput(out *safex.Txout, localIndex uint64, outInfo *Out
 			if status, err := w.GetOutputLock(inputID); err != nil {
 				return "", err
 			} else if status == "L" {
+				w.logger.Errorf("[FileWallet] %s",ErrInputLocked)
 				return "", ErrInputLocked
 			}
 			//Need specific checks
 			w.RemoveUnspentOutput(inputID)
 		} else {
+			w.logger.Errorf("[FileWallet] %s",ErrInputSpent)
 			return "", ErrInputSpent
 		}
 	}
 
 	if w.CheckIfBlockExists(outInfo.BlockHash) < 0 {
+		w.logger.Errorf("[FileWallet] %s",ErrBlockNotFound)
 		return "", ErrBlockNotFound
 	}
 	if w.CheckIfTransactionInfoExists(outInfo.TransactionID) < 0 {
+		w.logger.Errorf("[FileWallet] %s",ErrTxInfoNotPresent)
 		return "", ErrTxInfoNotPresent
 	}
 	if w.CheckIfOutputTypeExists(outInfo.OutputType) < 0 {
+		w.logger.Errorf("[FileWallet] %s",ErrOutputTypeNotPresent)
 		return "", ErrOutputTypeNotPresent
 	}
 
@@ -386,6 +398,7 @@ func (w *FileWallet) GetAllOutputs() ([]string, error) {
 
 func (w *FileWallet) GetAllTypeOutputs(outputType string) ([]string, error){
 	if w.CheckIfOutputTypeExists(outputType) < 0{
+		w.logger.Errorf("[FileWallet] %s",ErrOutputTypeNotPresent)
 		return nil, ErrOutputTypeNotPresent
 	}
 	tempData, err := w.readAppendedKey(outputTypeKeyPrefix+outputType)
@@ -408,12 +421,14 @@ func (w *FileWallet) GetUnspentOutputs() []string {
 func (w *FileWallet) AddUnspentOutput(outputID string) error {
 	if i, _ := w.findKeyInReference(outputReferenceKey, outputID); i != -1 {
 		if j, _ := w.findKeyInReference(unspentOutputReferenceKey, outputID); j != -1 {
+			w.logger.Errorf("[FileWallet] %s",ErrOutputAlreadyUnspent)
 			return ErrOutputAlreadyUnspent
 		} else {
 			w.appendKey(unspentOutputReferenceKey, []byte(outputID))
 			w.unspentOutputs = append(w.unspentOutputs, outputID)
 		}
 	} else {
+		w.logger.Errorf("[FileWallet] %s",ErrOutputNotPresent)
 		return ErrOutputNotPresent
 	}
 	return nil
@@ -430,6 +445,7 @@ func (w *FileWallet) RemoveUnspentOutput(outputID string) error {
 			}
 		}
 	} else {
+		w.logger.Errorf("[FileWallet] %s",ErrOutputNotPresent)
 		return ErrOutputNotPresent
 	}
 	return nil

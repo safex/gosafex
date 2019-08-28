@@ -16,6 +16,7 @@ const appendSeparator = byte('\n')
 
 //Stream .
 type Stream struct {
+	logger       *log.Logger
 	db           *bolt.DB
 	targetBucket []byte
 	targetKey    []byte

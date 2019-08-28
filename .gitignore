@@ -2,8 +2,13 @@
 bin
 vendor
 
+#Logs
+*.log
+
 # Configuration
 config*.json
+settings*.json
+*.patch
 
 #Personal
 TODO.md
