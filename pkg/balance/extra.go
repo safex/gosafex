@@ -1,17 +1,18 @@
-package chain
+package balance
 
-import(
+import (	
+	"log"
 	"bytes"
 	"errors"
+	"fmt"
+	"github.com/golang/glog"
 )
-
-// Extra represents extra (context dependent) tx bytes.
-type Extra []byte
 
 type ExtraTag byte
 
-type ExtraMap map[ExtraTag]interface{}
-
+// @todo Most of extra tags are not used at the moment.
+// 		 But they are here just in case. It would probably good to delete unnecessary 
+//		 tags when everything is properly tested. Or just leave them being
 const (
 	NonceMaxCount ExtraTag = 255
 	Padding = 0x00
@@ -26,10 +27,6 @@ const (
 	NoncePaymentId = 0xF0
 	NonceEncryptedPaymentId = 0xF1
 )
-
-func (ex Extra) matchTag(tag byte) bool {
-	return ex[0] == tag
-}
 
 func ExtractTxPubKey(extra []byte) (pubTxKey [32]byte) {
 	// @todo Also if serialization is ok
@@ -46,11 +43,13 @@ func ExtractTxPubKeys(extra []byte) (pubTxKeys [][32]byte) {
 
 func checkForError(err error, msg string) (r bool) {
 	if err != nil {
-		generalLogger.Println(msg)
+		log.Println(msg)
 		return true
 	}
 	return false
 }
+
+type ExtraMap map[ExtraTag]interface{}
 
 func getNonce(extraMap ExtraMap) []byte {
 	buf := bytes.NewBuffer(nil)
@@ -63,7 +62,7 @@ func getNonce(extraMap ExtraMap) []byte {
 			buf.WriteByte(0x00)
 			buf.Write(dataBytes)
 		} else {
-			generalLogger.Println("unencrypted payment id size mismatch expected")
+			log.Println("unencrypted payment id size mismatch expected")
 		}
 	}
 
@@ -74,7 +73,7 @@ func getNonce(extraMap ExtraMap) []byte {
 			buf.WriteByte(0x01)
 			buf.Write(dataBytes)
 		} else {
-			generalLogger.Println("encrypted payment id size mismatch expected")
+			log.Println("encrypted payment id size mismatch expected")
 		}
 	}
 
@@ -133,7 +132,7 @@ func ParseExtra(extra *[]byte) (r bool, extraMap ExtraMap) {
 			readBytes, err = buf.Read(nonce)
 			
 			if err != nil || readBytes != int(length) {
-				generalLogger.Println(1, "Extra Nonce could not be read ")
+				log.Println(1, "Extra Nonce could not be read ")
 				return false, extraMap
 			}
 
@@ -147,7 +146,7 @@ func ParseExtra(extra *[]byte) (r bool, extraMap ExtraMap) {
 				}
 
 			case 9: // encrypted 9 byte payment id
-				generalLogger.Warning("EXTRA 9 fuck")
+				fmt.Println("EXTRA 9 fuck")
 				if nonce[0] == byte(0x01) {
 					extraMap[NonceEncryptedPaymentId] = (*extra)[1:]
 				} else {
@@ -161,7 +160,7 @@ func ParseExtra(extra *[]byte) (r bool, extraMap ExtraMap) {
 			extraMap[Nonce] = nonce
 
 		default: // any any other unknown tag or data, fails the parsing
-			generalLogger.Println("Unhandled tag! ", readPortion[0])
+			log.Println("Unhandled tag! ", readPortion[0])
 
 			return false, extraMap
 
@@ -178,7 +177,7 @@ func SerializeExtra(extraMap ExtraMap) (bool, []byte) {
 		key := extraMap[PubKey].([32]byte)
 		buf.Write(key[:]) 
 	} else {
-		generalLogger.Error("There is no TX public key")
+		glog.Error("There is no TX public key")
 		return false, buf.Bytes()
 	}
 
@@ -191,7 +190,7 @@ func SerializeExtra(extraMap ExtraMap) (bool, []byte) {
 		buf.WriteByte(byte(Nonce)) // write marker
 		tempExtra = append(tempExtra, dataExtra.([]byte)...)
 		if len(tempExtra) > 255 {
-			generalLogger.Warning("TX extra none is spilling, trimming the nonce to 254 bytes")
+			glog.Warning("TX extra none is spilling, trimming the nonce to 254 bytes")
 			tempExtra = tempExtra[:254]
 		}
 		buf.WriteByte(byte(len(tempExtra))) // write length of extra nonce single byte

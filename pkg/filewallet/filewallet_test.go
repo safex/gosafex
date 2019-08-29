@@ -29,7 +29,7 @@ func prepareFolder() {
 	if _, err := os.Stat(fullpath); os.IsExist(err) {
 		os.Remove(fullpath)
 	}
-	logFile, _ := os.OpenFile(testLogFile, os.O_APPEND | os.O_CREATE, 0755) 
+	logFile, _ := os.OpenFile(testLogFile, os.O_APPEND | os.O_CREATE | os.O_WRONLY, 0755) 
 
 	testLogger.SetOutput(logFile)
 	testLogger.SetLevel(log.DebugLevel) 

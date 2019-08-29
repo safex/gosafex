@@ -1,101 +1,54 @@
-package chain
+package balance
 
 import (
-	"github.com/safex/gosafex/internal/crypto"
 	"github.com/safex/gosafex/internal/crypto/derivation"
 	"github.com/safex/gosafex/pkg/account"
-	"github.com/safex/gosafex/pkg/balance"
-	"github.com/safex/gosafex/pkg/filewallet"
-	"github.com/safex/gosafex/pkg/key"
 	"github.com/safex/gosafex/pkg/safex"
 	"github.com/safex/gosafex/pkg/safexdrpc"
-	log "github.com/sirupsen/logrus"
 )
 
-// Digest is the alias to crypto.Digest.
-type Digest = crypto.Digest
-
-// KeyLength is the size of public/private keys (in bytes).
-const KeyLength = key.KeyLength
-
-// PublicKey is an alias to crypto.PublicKey.
-type PublicKey = key.PublicKey
-
-// PrivateKey is an alias to crypto.PrivateKey.
-type PrivateKey = key.PrivateKey
-
-// Account is an alias to account.Account
-type Account = account.Account
-
-// Client is an alias to safexdrpc.Client.
-type Client = safexdrpc.Client
-
-type Address = account.Address
-
-// TxInputV is the alias to safex.TxinV.
-type TxInputV = safex.TxinV
-
-// TxOut is the alias to safex.Txout.
-type TxOut = safex.Txout
-
-const blockInterval = 100
-
-var generalLogger *log.Logger
-
-type Wallet struct {
-	logger         *log.Logger
-	balance        balance.Balance
-	account        Account
-	address        Address
-	client         *Client
-	outputs        map[crypto.Key]Transfer
-	lockUpdate     chan bool
-	countedOutputs []string
-	wallet         *filewallet.FileWallet
-	testnet        bool
-
-	updating bool
-	syncing  bool
-	quitting bool
-	update   chan bool
-	quit     chan bool
-}
-
+// Containing balance status
 type Balance struct {
 	CashUnlocked  uint64
 	CashLocked    uint64
 	TokenUnlocked uint64
 	TokenLocked   uint64
 }
+
+type Key struct {
+	Public  [32]byte
+	Private [32]byte
+}
+
+type Address struct {
+	SpendKey Key
+	ViewKey  Key
+	Address  string
+}
+
+// Data structure for storing outputs.
 type Transfer struct {
-	Output  *safex.Txout
-	Spent   bool
-	MinerTx bool
-	Height  uint64
-	KImage  crypto.Key
+	Output      *safex.Txout
+	Extra       []byte
+	LocalIndex  int
+	GlobalIndex uint64
+	Spent       bool
+	MinerTx     bool
+	Height      uint64
+	KImage      derivation.Key
+	EphPub      derivation.Key
+	EphPriv     derivation.Key
 }
 
-//OutputInfo is a syntesis of useful information to be stored concerning an output
-type OutputInfo struct {
-	outputType    string
-	blockHash     string
-	transactionID string
-	txLocked      string
-	txType        string
+type Wallet struct {
+	balance         Balance
+	Address         Address
+	client          *safexdrpc.Client
+	outputs         map[derivation.Key]Transfer // Save output keys.
+	watchOnlyWallet bool
 }
 
-//TransactionInfo is a syntesis of useful information to be stored concerning a transaction
-type TransactionInfo struct {
-	version         uint64
-	unlockTime      uint64
-	extra           []byte
-	blockHeight     uint64
-	blockTimestamp  uint64
-	doubleSpendSeen bool
-	inPool          bool
-	txHash          string
-}
-
+//---------------------------------- CREATE TRANSACTION TYPES --------------------------------------
 // Structure for keeping destination entries for transaction.
 type DestinationEntry struct {
 	Amount           uint64
@@ -155,9 +108,9 @@ type InContext struct {
 type TxSourceEntry struct {
 	Outputs                 []TxOutputEntry
 	RealOutput              uint64
-	RealOutTxKey            crypto.Key
+	RealOutTxKey            derivation.Key
 	RealOutAdditionalTxKeys [][32]byte
-	KeyImage                crypto.Key
+	KeyImage                derivation.Key
 	RealOutputInTxIndex     int
 	Amount                  uint64
 	TokenAmount             uint64
