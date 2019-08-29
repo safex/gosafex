@@ -48,6 +48,7 @@ func (w *WalletRPC) initializeInnerWallet(rw *http.ResponseWriter) bool {
 
 	// Creating new Wallet
 	w.wallet = new(chain.Wallet)
+	w.wallet.SetLogger(w.logger)
 	return true
 }
 
@@ -95,6 +96,7 @@ func (w *WalletRPC) OpenExisting(rw http.ResponseWriter, r *http.Request) {
 }
 
 func (w *WalletRPC) CreateNew(rw http.ResponseWriter, r *http.Request) {
+	w.logger.Infof("[RPC] Create new wallet request")
 	var rqData WalletInitRq
 	if !initGetData(&rw, r, &rqData) {
 		// Error response already handled
@@ -135,6 +137,7 @@ func (w *WalletRPC) CreateNew(rw http.ResponseWriter, r *http.Request) {
 }
 
 func (w *WalletRPC) RecoverWithSeed(rw http.ResponseWriter, r *http.Request) {
+	w.logger.Infof("[RPC] Recover with seed request")
 	var rqData WalletInitRq
 	if !initGetData(&rw, r, &rqData) {
 		// Error response already handled
@@ -194,6 +197,7 @@ func (w *WalletRPC) RecoverWithSeed(rw http.ResponseWriter, r *http.Request) {
 }
 
 func (w *WalletRPC) RecoverWithKeys(rw http.ResponseWriter, r *http.Request) {
+	w.logger.Infof("[RPC] Recover with keys request")
 	var rqData WalletInitRq
 	if !initGetData(&rw, r, &rqData) {
 		// Error response already handled
@@ -272,6 +276,7 @@ func (w *WalletRPC) RecoverWithKeys(rw http.ResponseWriter, r *http.Request) {
 }
 
 func (w *WalletRPC) RecoverWithKeysFile(rw http.ResponseWriter, r *http.Request) {
+	w.logger.Infof("[RPC] Recover with keys file request")
 	var rqData WalletInitRq
 	if !initGetData(&rw, r, &rqData) {
 		// Error response already handled

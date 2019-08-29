@@ -1,8 +1,6 @@
 package chain
 
 import (
-	"errors"
-
 	"github.com/safex/gosafex/pkg/account"
 	"github.com/safex/gosafex/pkg/balance"
 	"github.com/safex/gosafex/pkg/filewallet"
@@ -19,7 +17,8 @@ const BlockFetchCnt = 100
 
 func (w *Wallet) UpdateBlock(nblocks uint64) error {
 	if w.client == nil {
-		return errors.New("Client not initialized")
+		w.logger.Errorf("[Wallet] %s",ErrClientNotInit)		
+		return ErrClientNotInit
 	}
 
 	info, err := w.client.GetDaemonInfo()
@@ -94,7 +93,8 @@ func (w *Wallet) OpenAndCreate(accountName string, filename string, masterkey st
 //CreateAccount Creates and account in the locally open filewallet
 func (w *Wallet) CreateAccount(accountName string, keystore *account.Store, isTestnet bool) error {
 	if !w.IsOpen() {
-		return errors.New("FileWallet not open")
+		w.logger.Errorf("[Wallet] %s",ErrFilewalletNotOpen)
+		return ErrFilewalletNotOpen
 	}
 	if err := w.wallet.CreateAccount(&filewallet.WalletInfo{Name: accountName, Keystore: keystore}, isTestnet); err != nil {
 		return err
@@ -106,7 +106,8 @@ func (w *Wallet) CreateAccount(accountName string, keystore *account.Store, isTe
 //CreateAccount Creates and account in the locally open filewallet
 func (w *Wallet) CreateAccountFromKeyStore(accountName string, store *account.Store, isTestnet bool) error {
 	if !w.IsOpen() {
-		return errors.New("FileWallet not open")
+		w.logger.Errorf("[Wallet] %s",ErrFilewalletNotOpen)
+		return ErrFilewalletNotOpen
 	}
 	return w.wallet.CreateAccount(&filewallet.WalletInfo{Name: accountName, Keystore: store}, isTestnet)
 }
@@ -127,7 +128,8 @@ func (w *Wallet) OpenFile(filename string, masterkey string, isTestnet bool, pre
 //OpenAccount opens an account if it exists
 func (w *Wallet) OpenAccount(accountName string, isTestnet bool) error {
 	if !w.IsOpen() {
-		return errors.New("FileWallet not open")
+		w.logger.Errorf("[Wallet] %s",ErrFilewalletNotOpen)
+		return ErrFilewalletNotOpen
 	}
 	if err := w.wallet.OpenAccount(&filewallet.WalletInfo{Name: accountName, Keystore: nil}, false, isTestnet); err != nil {
 		return err
@@ -151,7 +153,8 @@ func (w *Wallet) RemoveAccount(accountName string) error {
 //GetAccounts returns a list of all known accounts
 func (w *Wallet) GetAccounts() ([]string, error) {
 	if !w.IsOpen() {
-		return nil, errors.New("FileWallet not open")
+		w.logger.Errorf("[Wallet] %s",ErrFilewalletNotOpen)
+		return nil, ErrFilewalletNotOpen
 	}
 	return w.wallet.GetAccounts()
 }
@@ -169,7 +172,7 @@ func (w *Wallet) Status() string {
 func (w *Wallet) InitClient(client string, port uint) (err error) {
 	defer func() {
         if r := recover(); r != nil {
-            err = errors.New("Cant connect to node!!")
+            err = ErrNodeConnection
         }
     }()
 	w.client = safexdrpc.InitClient(client, port)
@@ -192,10 +195,12 @@ func (w *Wallet) GetOpenAccount() string {
 //GetKeys returns the keypair of the opened account
 func (w *Wallet) GetKeys() (*account.Store, error) {
 	if !w.IsOpen() {
-		return nil, errors.New("FileWallet not open")
+		w.logger.Errorf("[Wallet] %s",ErrFilewalletNotOpen)
+		return nil, ErrFilewalletNotOpen
 	}
 	if w.wallet.GetAccount() == "" {
-		return nil, errors.New("No open account")
+		w.logger.Errorf("[Wallet] %s",ErrAccountNotOpen)
+		return nil, ErrAccountNotOpen
 	}
 	return w.wallet.GetKeys()
 }
@@ -208,10 +213,12 @@ func (w *Wallet) GetBalance() balance.Balance {
 //GetHistory returns all transaction infos for the active user
 func (w *Wallet) GetHistory() ([]*filewallet.TransactionInfo, error) {
 	if !w.IsOpen() {
-		return nil, errors.New("FileWallet not open")
+		w.logger.Errorf("[Wallet] %s",ErrFilewalletNotOpen)
+		return nil, ErrFilewalletNotOpen
 	}
 	if w.wallet.GetAccount() == "" {
-		return nil, errors.New("No open account")
+		w.logger.Errorf("[Wallet] %s",ErrAccountNotOpen)
+		return nil, ErrAccountNotOpen
 	}
 	ids, err := w.wallet.GetAllTransactionInfos()
 	if err != nil {
@@ -227,10 +234,12 @@ func (w *Wallet) GetHistory() ([]*filewallet.TransactionInfo, error) {
 //GetTransactionInfo returns all transaction infos for the active user
 func (w *Wallet) GetTransactionInfo(transactionID string) (*filewallet.TransactionInfo, error) {
 	if !w.IsOpen() {
-		return nil, errors.New("FileWallet not open")
+		w.logger.Errorf("[Wallet] %s",ErrFilewalletNotOpen)
+		return nil, ErrFilewalletNotOpen
 	}
 	if w.wallet.GetAccount() == "" {
-		return nil, errors.New("No open account")
+		w.logger.Errorf("[Wallet] %s",ErrAccountNotOpen)
+		return nil, ErrAccountNotOpen
 	}
 	return w.wallet.GetTransactionInfo(transactionID)
 }
@@ -238,10 +247,12 @@ func (w *Wallet) GetTransactionInfo(transactionID string) (*filewallet.Transacti
 //GetTransactionUpToBlockHeight returns all txinfos up to the given block height.
 func (w *Wallet) GetTransactionUpToBlockHeight(blockHeight uint64) ([]*filewallet.TransactionInfo, error) {
 	if !w.IsOpen() {
-		return nil, errors.New("FileWallet not open")
+		w.logger.Errorf("[Wallet] %s",ErrFilewalletNotOpen)
+		return nil, ErrFilewalletNotOpen
 	}
 	if w.wallet.GetAccount() == "" {
-		return nil, errors.New("No open account")
+		w.logger.Errorf("[Wallet] %s",ErrAccountNotOpen)
+		return nil, ErrAccountNotOpen
 	}
 	latestHeight := w.wallet.GetLatestBlockHeight()
 	if latestHeight < blockHeight {
@@ -293,10 +304,12 @@ func (w *Wallet) formatOutputMap(outIDs []string)(map[string]interface{}, error)
 //GetOutput .
 func (w *Wallet) GetOutput(outID string) (map[string]interface{}, error) {
 	if !w.IsOpen() {
-		return nil, errors.New("FileWallet not open")
+		w.logger.Errorf("[Wallet] %s",ErrFilewalletNotOpen)
+		return nil, ErrFilewalletNotOpen
 	}
 	if w.wallet.GetAccount() == "" {
-		return nil, errors.New("No open account")
+		w.logger.Errorf("[Wallet] %s",ErrAccountNotOpen)
+		return nil, ErrAccountNotOpen
 	}
 	info, err := w.wallet.GetOutputInfo(outID)
 	if err != nil {
@@ -312,10 +325,12 @@ func (w *Wallet) GetOutput(outID string) (map[string]interface{}, error) {
 //GetOutputsFromTransaction .
 func (w *Wallet) GetOutputsFromTransaction(transactionID string) (map[string]interface{}, error) {
 	if !w.IsOpen() {
-		return nil, errors.New("FileWallet not open")
+		w.logger.Errorf("[Wallet] %s",ErrFilewalletNotOpen)
+		return nil, ErrFilewalletNotOpen
 	}
 	if w.wallet.GetAccount() == "" {
-		return nil, errors.New("No open account")
+		w.logger.Errorf("[Wallet] %s",ErrAccountNotOpen)
+		return nil, ErrAccountNotOpen
 	}
 	outIDs, err := w.wallet.GetAllTransactionInfoOutputs(transactionID)
 	if err != nil {
@@ -340,6 +355,10 @@ func (w *Wallet) GetLatestLoadedBlockHeight() uint64{
 //GetUnspentOutputs .
 func (w *Wallet) GetUnspentOutputs() (map[string]interface{}, error){
 	return w.formatOutputMap(w.wallet.GetUnspentOutputs())
+}
+
+func (w *Wallet) SetLogger(prevLog *log.Logger){
+	w.logger = prevLog
 }
 
 //Close closes the wallet

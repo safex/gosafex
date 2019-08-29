@@ -42,6 +42,7 @@ func extractTxPubKey(extra []byte) (pubTxKey [crypto.KeyLength]byte) {
 func (w *Wallet) addOutput(output *safex.Txout, accountName string, index uint64, minertx bool, blckHash string, txHash string, height uint64, keyimage *crypto.Key) error {
 	var typ string
 	var txtyp string
+	w.logger.Infof("[Chain] Adding new output to user: %s out: %s", accountName, output.GetTarget().String())
 	if output.GetAmount() != 0 {
 		typ = "Cash"
 	} else {
@@ -114,6 +115,7 @@ func (w *Wallet) ProcessTransaction(tx *safex.Transaction, blckHash string, mine
 					continue
 				}
 				if !txPresent {
+					w.logger.Infof("[Chain] Adding new transaction to user: %s TxHash: %s", acc, tx.GetTxHash())
 					if inf, _ := w.wallet.GetTransactionInfo(tx.GetTxHash()); inf == nil {
 						if err := w.wallet.PutTransactionInfo(&filewallet.TransactionInfo{Version: tx.GetVersion(), UnlockTime: tx.GetUnlockTime(), Extra: tx.GetExtra(), BlockHeight: tx.GetBlockHeight(), BlockTimestamp: tx.GetBlockTimestamp(), DoubleSpendSeen: tx.GetDoubleSpendSeen(), InPool: tx.GetInPool(), TxHash: tx.GetTxHash()}, blckHash); err != nil {
 							return err
@@ -159,6 +161,7 @@ func (w *Wallet) ProcessTransaction(tx *safex.Transaction, blckHash string, mine
 
 					if val, ok := w.outputs[crypto.Key(kImage)]; ok {
 						if !txPresent {
+							w.logger.Infof("[Chain] Adding new transaction to user: %s TxHash: %s", acc, tx.GetTxHash())
 							if inf, _ := w.wallet.GetTransactionInfo(tx.GetTxHash()); inf == nil {
 								if err := w.wallet.PutTransactionInfo(&filewallet.TransactionInfo{Version: tx.GetVersion(), UnlockTime: tx.GetUnlockTime(), Extra: tx.GetExtra(), BlockHeight: tx.GetBlockHeight(), BlockTimestamp: tx.GetBlockTimestamp(), DoubleSpendSeen: tx.GetDoubleSpendSeen(), InPool: tx.GetInPool(), TxHash: tx.GetTxHash()}, blckHash); err != nil {
 									return err
@@ -175,6 +178,7 @@ func (w *Wallet) ProcessTransaction(tx *safex.Transaction, blckHash string, mine
 						copy(kImage[:], input.TxinTokenToKey.KImage[0:crypto.KeyLength])
 						if val, ok := w.outputs[crypto.Key(kImage)]; ok {
 							if !txPresent {
+								w.logger.Infof("[Chain] Adding new transaction to user: %s TxHash: %s", acc, tx.GetTxHash())
 								if inf, _ := w.wallet.GetTransactionInfo(tx.GetTxHash()); inf == nil {
 									if err := w.wallet.PutTransactionInfo(&filewallet.TransactionInfo{Version: tx.GetVersion(), UnlockTime: tx.GetUnlockTime(), Extra: tx.GetExtra(), BlockHeight: tx.GetBlockHeight(), BlockTimestamp: tx.GetBlockTimestamp(), DoubleSpendSeen: tx.GetDoubleSpendSeen(), InPool: tx.GetInPool(), TxHash: tx.GetTxHash()}, blckHash); err != nil {
 										return err

@@ -32,7 +32,7 @@ func prepareFolder() {
 	logFile, _ := os.OpenFile(testLogFile, os.O_APPEND | os.O_CREATE, 0755) 
 
 	testLogger.SetOutput(logFile)
-	testLogger.SetLevel(log.InfoLevel)
+	testLogger.SetLevel(log.DebugLevel) 
 
 	os.Mkdir(foldername, os.FileMode(int(0700)))
 }

@@ -35,6 +35,7 @@ func transactionGetData(w *http.ResponseWriter, r *http.Request, rqData *Transac
 
 //GetTransactionInfo .
 func (w *WalletRPC) GetTransactionInfo(rw http.ResponseWriter, r *http.Request) {
+	w.logger.Infof("[RPC] Get transactions info request")
 	var rqData TransactionRq
 	if !transactionGetData(&rw, r, &rqData) {
 		// Error response already handled
@@ -62,6 +63,8 @@ func (w *WalletRPC) GetTransactionInfo(rw http.ResponseWriter, r *http.Request) 
 
 //GetTransactionUpToBlockHeight .
 func (w *WalletRPC) GetTransactionUpToBlockHeight(rw http.ResponseWriter, r *http.Request) {
+	w.logger.Infof("[RPC] Get transactions up to block request")
+
 	var rqData TransactionRq
 	if !transactionGetData(&rw, r, &rqData) {
 		// Error response already handled
@@ -92,6 +95,7 @@ func (w *WalletRPC) GetTransactionUpToBlockHeight(rw http.ResponseWriter, r *htt
 
 //GetTransactionUpToBlockHeight .
 func (w *WalletRPC) GetHistory(rw http.ResponseWriter, r *http.Request) {
+	w.logger.Infof("[RPC] Get history request")
 
 	if w.wallet == nil || !w.wallet.IsOpen() {
 		FormJSONResponse(nil, WalletIsNotOpened, &rw)
@@ -116,6 +120,7 @@ func (w *WalletRPC) GetHistory(rw http.ResponseWriter, r *http.Request) {
 }
 
 func (w *WalletRPC) TransactionCash(rw http.ResponseWriter, r *http.Request) {
+	w.logger.Infof("[RPC] Generating cash transaction")
 	var rqData TransactionRq
 	if !transactionGetData(&rw, r, &rqData) {
 		// Error response already handled
@@ -177,6 +182,7 @@ func (w *WalletRPC) TransactionCash(rw http.ResponseWriter, r *http.Request) {
 }
 
 func (w *WalletRPC) TransactionToken(rw http.ResponseWriter, r *http.Request) {
+	w.logger.Infof("[RPC] Generating token transaction")
 	var rqData TransactionRq
 	if !transactionGetData(&rw, r, &rqData) {
 		// Error response already handled
@@ -236,6 +242,7 @@ func (w *WalletRPC) TransactionToken(rw http.ResponseWriter, r *http.Request) {
 }
 
 func (w *WalletRPC) TransactionCommit(rw http.ResponseWriter, r *http.Request) {
+	w.logger.Infof("[RPC] Committing transaction")
 	var rqData TransactionRq
 	if !transactionGetData(&rw, r, &rqData) {
 		// Error response already handled

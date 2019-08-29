@@ -64,6 +64,7 @@ func CleanAfterTests(w *Wallet, fullpath string) {
 
 func TestRecoverFromMnemonic(t *testing.T) {
 	prepareFolder()
+	testLogger.Infof("[Test] Testing account recovery from mnemonic")
 
 	w := new(Wallet)
 	fullpath := strings.Join([]string{foldername, filename}, "/")
@@ -93,10 +94,12 @@ func TestRecoverFromMnemonic(t *testing.T) {
 	if store.Address().String() != mnemonic_address {
 		t.Fatalf("Addresses do not match")
 	}
+	testLogger.Infof("[Test] Passed account recovery from mnemonic")
 }
 
 func TestOpen(t *testing.T) {
 	prepareFolder()
+	testLogger.Infof("[Test] Testing wallet opening")
 	w := new(Wallet)
 	fullpath := strings.Join([]string{foldername, filename}, "/")
 
@@ -122,10 +125,12 @@ func TestOpen(t *testing.T) {
 	} else if len(accs) != 2 || accs[0] != accountName1 || accs[1] != accountName2 {
 		t.Fatalf("Error in reading account list")
 	}
+	testLogger.Infof("[Test] Passed wallet opening")
 }
 
 func TestOpenCreate(t *testing.T) {
 	prepareFolder()
+	testLogger.Infof("[Test] Testing wallet opening and creation")
 	w := new(Wallet)
 	fullpath := strings.Join([]string{foldername, filename}, "/")
 
@@ -151,10 +156,12 @@ func TestOpenCreate(t *testing.T) {
 	} else if len(accs) != 2 || accs[0] != accountName1 || accs[1] != accountName2 {
 		t.Fatalf("Error in reading account list")
 	}
+	testLogger.Infof("[Test] Passed wallet opening and creation")
 }
 
 func TestColdOpen(t *testing.T) {
 	prepareFolder()
+	testLogger.Infof("[Test] Testing cold wallet opening")
 	w := new(Wallet)
 	fullpath := strings.Join([]string{foldername, filename}, "/")
 
@@ -181,10 +188,12 @@ func TestColdOpen(t *testing.T) {
 	} else if len(accs) != 2 || accs[0] != accountName1 || accs[1] != accountName2 {
 		t.Fatalf("Error in reading account list")
 	}
+	testLogger.Infof("[Test] Passed cold wallet opening")
 }
 
 func TestRPC(t *testing.T) {
 	prepareFolder()
+	testLogger.Infof("[Test] Testing RPC connection")
 
 	w := new(Wallet)
 	fullpath := strings.Join([]string{foldername, filename}, "/")
@@ -202,10 +211,12 @@ func TestRPC(t *testing.T) {
 	} else if info.Status != "OK" {
 		t.Fatal(info)
 	}
+	testLogger.Infof("[Test] Passed RPC connection")
 }
 
 func TestGetHistory(t *testing.T) {
 	prepareFolder()
+	testLogger.Infof("[Test] Testing history retrieval")
 
 	w := new(Wallet)
 	fullpath := strings.Join([]string{foldername, filename}, "/")
@@ -250,10 +261,12 @@ func TestGetHistory(t *testing.T) {
 	if his[0].TxHash != tx1.TxHash {
 		t.Fatalf("Error in recovering txhash")
 	}
+	testLogger.Infof("[Test] Passed history retrieval")
 }
 
 func TestGetTransaction(t *testing.T) {
 	prepareFolder()
+	testLogger.Infof("[Test] Testing transaction retrieval")
 
 	w := new(Wallet)
 	fullpath := strings.Join([]string{foldername, filename}, "/")
@@ -283,10 +296,12 @@ func TestGetTransaction(t *testing.T) {
 	if tx.TxHash != tx1.TxHash {
 		t.Fatalf("Error in recovering txhash")
 	}
+	testLogger.Infof("[Test] Passed trasaction retrieval")
 }
 
 func TestGetTransactionByBlock(t *testing.T) {
 	prepareFolder()
+	testLogger.Infof("[Test] Testing transaction retrieval by block")
 
 	w := new(Wallet)
 	fullpath := strings.Join([]string{foldername, filename}, "/")
@@ -331,11 +346,13 @@ func TestGetTransactionByBlock(t *testing.T) {
 	if his[3].TxHash != tx1.TxHash {
 		t.Fatalf("Error in recovering txhash")
 	}
+	testLogger.Infof("[Test] Passed transaction retrieval by block")
 }
 
 //this test for now fails to check balance
 func TestUpdateBalance(t *testing.T) {
 	prepareFolder()
+	testLogger.Infof("[Test] Testing balance update")
 
 	w := new(Wallet)
 	fullpath := strings.Join([]string{foldername, filename}, "/")
@@ -381,4 +398,5 @@ func TestUpdateBalance(t *testing.T) {
 	} else {
 		t.Fatalf("Locked Cash:%v\nUnlocked Cash:%v\nLocked Tokens:%v\nUnlocked Tokens:%v", float64(b.CashLocked)/10e9, float64(b.CashUnlocked)/10e9, float64(b.TokenLocked)/10e9, float64(b.TokenUnlocked)/10e9)
 	}
+	testLogger.Infof("[Test] Passed balance update")
 }

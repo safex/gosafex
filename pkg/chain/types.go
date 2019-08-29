@@ -8,6 +8,7 @@ import (
 	"github.com/safex/gosafex/pkg/key"
 	"github.com/safex/gosafex/pkg/safex"
 	"github.com/safex/gosafex/pkg/safexdrpc"
+	log "github.com/sirupsen/logrus"
 )
 
 // Digest is the alias to crypto.Digest.
@@ -37,6 +38,7 @@ type TxOut = safex.Txout
 const blockInterval = 100
 
 type Wallet struct {
+	logger         *log.Logger
 	balance        balance.Balance
 	account        Account
 	client         *Client

@@ -1,7 +1,6 @@
 package chain
 
 import (
-	"errors"
 	"fmt"
 	"time"
 
@@ -81,8 +80,8 @@ func (w *Wallet) processBlockRange(blocks safex.Blocks) bool {
 		return false
 	}
 
-	fmt.Println("Len of minerTxs: ", len(minerTxs))
-	fmt.Println("Len of mloadedTxs: ", len(mloadedTxs.Tx))
+	w.logger.Infof("[Chain] Number of minerTxs: %d", len(minerTxs))
+	w.logger.Infof("[Chain] Number of mloadedTxs: %d", len(mloadedTxs.Tx))
 
 	for _, tx := range mloadedTxs.Tx {
 		w.ProcessTransaction(tx, txblck[tx.GetTxHash()], true)
@@ -103,6 +102,7 @@ func (w *Wallet) seenOutput(outID string) bool {
 func (w *Wallet) LoadBalance() error {
 	w.resetBalance()
 	height := w.wallet.GetLatestBlockHeight()
+	w.logger.Infof("Loading balance up to: %d", height)
 
 	for _, el := range w.wallet.GetUnspentOutputs() {
 		if w.seenOutput(el) {
@@ -194,10 +194,11 @@ func (w *Wallet) UpdateBalance() (b balance.Balance, err error) {
 	info, err := w.client.GetDaemonInfo()
 
 	if err != nil {
-		return b, errors.New("Cant get daemon info!")
+		return b, ErrDaemonInfo
 	}
 
 	bcHeight := info.Height
+	w.logger.Infof("[Chain] Updating balance up to: %d", bcHeight)
 
 	var curr uint64
 	curr = 0

@@ -25,6 +25,7 @@ func outputGetData(w *http.ResponseWriter, r *http.Request, rqData *OutputRq) bo
 
 //GetTransactionInfo .
 func (w *WalletRPC) GetOutputInfo(rw http.ResponseWriter, r *http.Request) {
+	w.logger.Infof("[RPC] Get output info request")
 	var rqData OutputRq
 	if !outputGetData(&rw, r, &rqData) {
 		// Error response already handled
@@ -52,6 +53,7 @@ func (w *WalletRPC) GetOutputInfo(rw http.ResponseWriter, r *http.Request) {
 
 //GetOutputInfoFromTransaction .
 func (w *WalletRPC) GetOutputInfoFromTransaction(rw http.ResponseWriter, r *http.Request) {
+	w.logger.Infof("[RPC] Get output info from transaction request")
 	var rqData OutputRq
 	if !outputGetData(&rw, r, &rqData) {
 		// Error response already handled
@@ -79,6 +81,7 @@ func (w *WalletRPC) GetOutputInfoFromTransaction(rw http.ResponseWriter, r *http
 
 //GetOutputInfoFromType .
 func (w *WalletRPC) GetOutputInfoFromType(rw http.ResponseWriter, r *http.Request) {
+	w.logger.Infof("[RPC] Get output info from type request")
 	var rqData OutputRq
 	if !outputGetData(&rw, r, &rqData) {
 		// Error response already handled
@@ -106,6 +109,7 @@ func (w *WalletRPC) GetOutputInfoFromType(rw http.ResponseWriter, r *http.Reques
 
 //GetUnspentOutputs .
 func (w *WalletRPC) GetUnspentOutputs(rw http.ResponseWriter, r *http.Request) {
+	w.logger.Infof("[RPC] Get unspent outputs request")
 
 	if w.wallet == nil || !w.wallet.IsOpen() {
 		FormJSONResponse(nil, WalletIsNotOpened, &rw)
