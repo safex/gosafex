@@ -662,3 +662,14 @@ func cachedGroupElementCMove(t, u *CachedGroupElement, b int32) {
 	FeCMove(&t.Z, &u.Z, b)
 	FeCMove(&t.T2d, &u.T2d, b)
 }
+
+
+func (p *ExtendedGroupElement) ToBytes(s *Key) {
+	var recip, x, y FieldElement
+
+	FeInvert(&recip, &p.Z)
+	FeMul(&x, &p.X, &recip)
+	FeMul(&y, &p.Y, &recip)
+	FeToBytes(s, &y)
+	s[31] ^= FeIsNegative(&x) << 7
+}

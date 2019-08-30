@@ -2,7 +2,6 @@ package chain
 
 import (
 	"github.com/safex/gosafex/internal/crypto"
-	"github.com/safex/gosafex/internal/crypto/derivation"
 	"github.com/safex/gosafex/pkg/account"
 	"github.com/safex/gosafex/pkg/balance"
 	"github.com/safex/gosafex/pkg/filewallet"
@@ -43,16 +42,16 @@ const blockInterval = 100
 var generalLogger *log.Logger
 
 type Wallet struct {
-	logger         *log.Logger
-	balance        balance.Balance
-	account        Account
-	address        Address
-	client         *Client
-	outputs        map[crypto.Key]Transfer
-	lockUpdate     chan bool
-	countedOutputs []string
-	wallet         *filewallet.FileWallet
-	testnet        bool
+	logger          *log.Logger
+	balance         balance.Balance
+	account         Account
+	client          *Client
+	outputs         map[crypto.Key]Transfer
+	lockUpdate      chan bool
+	countedOutputs  []string
+	wallet          *filewallet.FileWallet
+	testnet         bool
+	watchOnlyWallet bool
 
 	updating bool
 	syncing  bool
@@ -148,8 +147,8 @@ type TxOutputEntry struct {
 }
 
 type InContext struct {
-	Pub derivation.Key
-	Sec derivation.Key
+	Pub crypto.Key
+	Sec crypto.Key
 }
 
 type TxSourceEntry struct {

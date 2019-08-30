@@ -5,9 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/safex/gosafex/internal/crypto/derivation"
 	"github.com/safex/gosafex/pkg/safex"
-	"github.com/safex/gosafex/pkg/safexdrpc"
+	"github.com/safex/gosafex/pkg/safexdrpc" 
 )
 
 func (t Transfer) getRelatedness(input *Transfer) float32 {

@@ -62,7 +62,7 @@ func DeriveKey(pub, priv *Key) (result *Key, err error) {
 	copy(keyBuf[:], priv[:])
 	GeScalarMult(point2, keyBuf, point)
 	GeMul8(point3, point2)
-	point3.toProjective(point2) 
+	point3.toProjective(point2)
 
 	point2.toBytes(keyBuf)
 	return keyBuf, nil
@@ -111,4 +111,13 @@ func KeyImage(pub, priv *Key) (result *Key) {
 	GeScalarMult(proj, priv, ext)
 	proj.toBytes(result)
 	return
+}
+
+func ScalarmultBase(a Key) (aG Key) {
+	reduce32copy := a
+	ScReduce32(&reduce32copy)
+	point := new(ExtendedGroupElement)
+	GeScalarMultBase(point, &a)
+	point.ToBytes(&aG)
+	return aG
 }

@@ -4,8 +4,7 @@ import (
 	"bytes"
 
 	"github.com/golang/glog"
-	"github.com/safex/gosafex/internal/crypto"
-	"github.com/safex/gosafex/internal/crypto/derivation"
+	"github.com/safex/gosafex/internal/crypto" 
 	"github.com/safex/gosafex/pkg/account"
 	"github.com/safex/gosafex/pkg/safex"
 	"github.com/safex/gosafex/pkg/serialization"

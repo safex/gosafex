@@ -1,7 +1,6 @@
 package balance
 
 import (
-	"github.com/safex/gosafex/internal/crypto/derivation"
 	"github.com/safex/gosafex/pkg/safex"
 )
 
