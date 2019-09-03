@@ -3,13 +3,36 @@ package chain
 import (
 	"github.com/safex/gosafex/internal/crypto"
 	"github.com/safex/gosafex/pkg/account"
-	"github.com/safex/gosafex/pkg/balance"
 	"github.com/safex/gosafex/pkg/filewallet"
 	"github.com/safex/gosafex/pkg/key"
 	"github.com/safex/gosafex/pkg/safex"
 	"github.com/safex/gosafex/pkg/safexdrpc"
 	log "github.com/sirupsen/logrus"
 )
+
+const APPROXIMATE_INPUT_BYTES int = 80
+
+var decomposedValues = []uint64{
+	uint64(1), uint64(2), uint64(3), uint64(4), uint64(5), uint64(6), uint64(7), uint64(8), uint64(9), // 1 piconero
+	uint64(10), uint64(20), uint64(30), uint64(40), uint64(50), uint64(60), uint64(70), uint64(80), uint64(90),
+	uint64(100), uint64(200), uint64(300), uint64(400), uint64(500), uint64(600), uint64(700), uint64(800), uint64(900),
+	uint64(1000), uint64(2000), uint64(3000), uint64(4000), uint64(5000), uint64(6000), uint64(7000), uint64(8000), uint64(9000),
+	uint64(10000), uint64(20000), uint64(30000), uint64(40000), uint64(50000), uint64(60000), uint64(70000), uint64(80000), uint64(90000),
+	uint64(100000), uint64(200000), uint64(300000), uint64(400000), uint64(500000), uint64(600000), uint64(700000), uint64(800000), uint64(900000),
+	uint64(1000000), uint64(2000000), uint64(3000000), uint64(4000000), uint64(5000000), uint64(6000000), uint64(7000000), uint64(8000000), uint64(9000000), // 1 micronero
+	uint64(10000000), uint64(20000000), uint64(30000000), uint64(40000000), uint64(50000000), uint64(60000000), uint64(70000000), uint64(80000000), uint64(90000000),
+	uint64(100000000), uint64(200000000), uint64(300000000), uint64(400000000), uint64(500000000), uint64(600000000), uint64(700000000), uint64(800000000), uint64(900000000),
+	uint64(1000000000), uint64(2000000000), uint64(3000000000), uint64(4000000000), uint64(5000000000), uint64(6000000000), uint64(7000000000), uint64(8000000000), uint64(9000000000),
+	uint64(10000000000), uint64(20000000000), uint64(30000000000), uint64(40000000000), uint64(50000000000), uint64(60000000000), uint64(70000000000), uint64(80000000000), uint64(90000000000),
+	uint64(100000000000), uint64(200000000000), uint64(300000000000), uint64(400000000000), uint64(500000000000), uint64(600000000000), uint64(700000000000), uint64(800000000000), uint64(900000000000),
+	uint64(1000000000000), uint64(2000000000000), uint64(3000000000000), uint64(4000000000000), uint64(5000000000000), uint64(6000000000000), uint64(7000000000000), uint64(8000000000000), uint64(9000000000000),
+	uint64(10000000000000), uint64(20000000000000), uint64(30000000000000), uint64(40000000000000), uint64(50000000000000), uint64(60000000000000), uint64(70000000000000), uint64(80000000000000), uint64(90000000000000),
+	uint64(100000000000000), uint64(200000000000000), uint64(300000000000000), uint64(400000000000000), uint64(500000000000000), uint64(600000000000000), uint64(700000000000000), uint64(800000000000000), uint64(900000000000000),
+	uint64(1000000000000000), uint64(2000000000000000), uint64(3000000000000000), uint64(4000000000000000), uint64(5000000000000000), uint64(6000000000000000), uint64(7000000000000000), uint64(8000000000000000), uint64(9000000000000000),
+	uint64(10000000000000000), uint64(20000000000000000), uint64(30000000000000000), uint64(40000000000000000), uint64(50000000000000000), uint64(60000000000000000), uint64(70000000000000000), uint64(80000000000000000), uint64(90000000000000000),
+	uint64(100000000000000000), uint64(200000000000000000), uint64(300000000000000000), uint64(400000000000000000), uint64(500000000000000000), uint64(600000000000000000), uint64(700000000000000000), uint64(800000000000000000), uint64(900000000000000000),
+	uint64(1000000000000000000), uint64(2000000000000000000), uint64(3000000000000000000), uint64(4000000000000000000), uint64(5000000000000000000), uint64(6000000000000000000), uint64(7000000000000000000), uint64(8000000000000000000), uint64(9000000000000000000), // 1 meganero
+	uint64(10000000000000000000)}
 
 // Digest is the alias to crypto.Digest.
 type Digest = crypto.Digest
@@ -43,7 +66,7 @@ var generalLogger *log.Logger
 
 type Wallet struct {
 	logger          *log.Logger
-	balance         balance.Balance
+	balance         Balance
 	account         Account
 	client          *Client
 	outputs         map[crypto.Key]Transfer
@@ -67,11 +90,16 @@ type Balance struct {
 	TokenLocked   uint64
 }
 type Transfer struct {
-	Output  *safex.Txout
-	Spent   bool
-	MinerTx bool
-	Height  uint64
-	KImage  crypto.Key
+	Output      *safex.Txout
+	Extra       []byte
+	LocalIndex  int
+	GlobalIndex uint64
+	Spent       bool
+	MinerTx     bool
+	Height      uint64
+	KImage      derivation.Key
+	EphPub      derivation.Key
+	EphPriv     derivation.Key
 }
 
 //OutputInfo is a syntesis of useful information to be stored concerning an output

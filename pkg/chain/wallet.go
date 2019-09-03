@@ -2,7 +2,6 @@ package chain
 
 import (
 	"github.com/safex/gosafex/pkg/account"
-	"github.com/safex/gosafex/pkg/balance"
 	"github.com/safex/gosafex/pkg/filewallet"
 	"github.com/safex/gosafex/pkg/safex"
 	"github.com/safex/gosafex/pkg/safexdrpc"

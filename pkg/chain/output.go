@@ -1,18 +1,60 @@
-package balance
+package chain 
 
 import (
-	"bytes"
-	"fmt"
-	"math"
-	"math/rand"
-	"sort"
 	"time"
-
+	"sort"
+	"fmt"
+	"bytes"
 	"github.com/golang/glog"
-
+	"math/rand"
+	"math"
+	"github.com/safex/gosafex/internal/crypto"
+	"github.com/safex/gosafex/internal/crypto/curve"
 	"github.com/safex/gosafex/internal/consensus"
+	"github.com/safex/gosafex/pkg/filewallet"
 	"github.com/safex/gosafex/pkg/safex"
 )
+func (w *Wallet) addOutput(output *safex.Txout, accountName string, index uint64, minertx bool, blckHash string, txHash string, height uint64, keyimage *crypto.Key) error {
+	var typ string
+	var txtyp string
+	w.logger.Infof("[Chain] Adding new output to user: %s out: %s", accountName, output.GetTarget().String())
+	if output.GetAmount() != 0 {
+		typ = "Cash"
+	} else {
+		typ = "Token"
+	}
+	if minertx {
+		txtyp = "miner"
+	} else {
+		txtyp = "normal"
+	}
+	prevAcc := w.wallet.GetAccount()
+	if err := w.wallet.OpenAccount(&filewallet.WalletInfo{accountName, nil}, false, w.testnet); err != nil {
+		return err
+	}
+	defer w.wallet.OpenAccount(&filewallet.WalletInfo{prevAcc, nil}, false, w.testnet)
+
+	w.wallet.AddOutput(output, uint64(index), &filewallet.OutputInfo{OutputType: typ, BlockHash: blckHash, TransactionID: txHash, TxLocked: filewallet.LockedStatus, TxType: txtyp}, "")
+	w.outputs[*keyimage] = Transfer{output, false, minertx, height, *keyimage}
+	return nil
+}
+
+func (w *Wallet) matchOutput(txOut *safex.Txout, index uint64, der [crypto.KeyLength]byte, outputKey *[crypto.KeyLength]byte) bool {
+	tempKeyA := crypto.Key(der)
+	tempKeyB := curve.Key(w.account.Address().SpendKey.ToBytes())
+	derivatedPubKey, err := curve.DerivationToPublicKey(index, &tempKeyA, &tempKeyB)
+	if err != nil {
+		return false
+	}
+	if txOut.Target.TxoutToKey != nil {
+		copy(outputKey[:], txOut.Target.TxoutToKey.Key[0:crypto.KeyLength])
+	} else {
+		copy(outputKey[:], txOut.Target.TxoutTokenToKey.Key[0:crypto.KeyLength])
+	}
+
+	// Return also outputkey
+	return *outputKey == [crypto.KeyLength]byte(*derivatedPubKey)
+}
 
 func (w *Wallet) getOutputHistogram(selectedTransfer *[]Transfer, outType safex.TxOutType) (histograms []*safex.Histogram) {
 	// @todo can be optimized

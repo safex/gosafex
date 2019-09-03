@@ -12,7 +12,7 @@ var daemonHost string
 var daemonPort uint
 
 // safexdRPCCmd represents the RPC daemon api test command
-var safexdRPCCmd = &cobra.Command{
+var safexdRPCCmd = &cobra.Command{ 
 	Use:   "safexdrpc",
 	Short: "Test cmd rpc client for safex daemon",
 	Long:  `Cmd that talks to safexd rpc daemon and prints basic info about daemon`,

@@ -1,11 +1,10 @@
 package chain
-
+ 
 import (
 	"fmt"
 	"time"
 
 	"github.com/safex/gosafex/internal/crypto"
-	"github.com/safex/gosafex/pkg/balance"
 	"github.com/safex/gosafex/pkg/safex"
 )
 
@@ -186,7 +185,7 @@ func (w *Wallet) UnlockBalance(height uint64) error {
 	return nil
 }
 
-func (w *Wallet) UpdateBalance() (b balance.Balance, err error) {
+func (w *Wallet) UpdateBalance() (b Balance, err error) {
 	w.outputs = make(map[crypto.Key]Transfer)
 	// Connect to node.
 	//w.client = safexdrpc.InitClient("127.0.0.1", 38001)
