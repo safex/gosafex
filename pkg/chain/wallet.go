@@ -205,7 +205,7 @@ func (w *Wallet) GetKeys() (*account.Store, error) {
 }
 
 //GetBalance returns the balance of the opened account
-func (w *Wallet) GetBalance() balance.Balance {
+func (w *Wallet) GetBalance() Balance {
 	return w.balance
 }
 

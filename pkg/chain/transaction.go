@@ -1,11 +1,20 @@
 package chain
 
 import (
+	"fmt"
+	"log"
+	"sort"
+	"math/rand"
+	"time" 
+
+	
+	"github.com/jinzhu/copier"
+	"github.com/safex/gosafex/internal/consensus"
 	"github.com/safex/gosafex/internal/crypto"
-
 	"github.com/safex/gosafex/internal/crypto/curve"
-
+	"github.com/safex/gosafex/pkg/serialization"
 	"github.com/safex/gosafex/pkg/filewallet"
+	"github.com/safex/gosafex/pkg/account"
 	"github.com/safex/gosafex/pkg/safex"
 )
 
@@ -15,8 +24,8 @@ for more than one address. This is omitted in current implementation, to be adde
 HINT: additional tx pub keys in extra and derivations.
 -
 
-*/
-
+*/ 
+ 
 // Must be implemented at some point.
 const TX_EXTRA_PADDING_MAX_COUNT = 255
 const TX_EXTRA_NONCE_MAX_COUNT = 255

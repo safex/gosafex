@@ -97,9 +97,9 @@ type Transfer struct {
 	Spent       bool
 	MinerTx     bool
 	Height      uint64
-	KImage      derivation.Key
-	EphPub      derivation.Key
-	EphPriv     derivation.Key
+	KImage      crypto.Key
+	EphPub      crypto.Key
+	EphPriv     crypto.Key
 }
 
 //OutputInfo is a syntesis of useful information to be stored concerning an output

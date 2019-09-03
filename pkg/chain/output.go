@@ -7,7 +7,7 @@ import (
 	"bytes"
 	"github.com/golang/glog"
 	"math/rand"
-	"math"
+	"math"	
 	"github.com/safex/gosafex/internal/crypto"
 	"github.com/safex/gosafex/internal/crypto/curve"
 	"github.com/safex/gosafex/internal/consensus"
