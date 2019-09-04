@@ -207,7 +207,7 @@ func (w *Wallet) GetKeys() (*account.Store, error) {
 //GetBalance returns the balance of the opened account
 func (w *Wallet) GetBalance() Balance {
 	return w.balance
-}
+} 
 
 //GetHistory returns all transaction infos for the active user
 func (w *Wallet) GetHistory() ([]*filewallet.TransactionInfo, error) {
