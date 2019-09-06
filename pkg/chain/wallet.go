@@ -141,6 +141,10 @@ func (w *Wallet) OpenAccount(accountName string, isTestnet bool) error {
 	if err := w.LoadBalance(); err != nil {
 		return err
 	}
+
+	if err := w.LoadOutputs(); err != nil{
+		return err
+	}
 	return nil
 }
 

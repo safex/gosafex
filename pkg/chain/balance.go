@@ -1,5 +1,5 @@
 package chain
- 
+
 import (
 	"fmt"
 	"time"
@@ -125,7 +125,7 @@ func (w *Wallet) LoadBalance() error {
 					w.balance.TokenLocked += out.GetTokenAmount()
 				}
 			}
-			w.countedOutputs = append(w.countedOutputs)
+			w.countedOutputs = append(w.countedOutputs, el)
 		} else if height-age > 10 {
 			if typ == "Cash" {
 				w.balance.CashUnlocked += out.GetAmount()
@@ -140,7 +140,7 @@ func (w *Wallet) LoadBalance() error {
 			}
 		}
 
-		w.countedOutputs = append(w.countedOutputs)
+		w.countedOutputs = append(w.countedOutputs, el)
 	}
 	return nil
 }

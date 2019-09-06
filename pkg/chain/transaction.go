@@ -98,9 +98,10 @@ func (w *Wallet) ProcessTransaction(tx *safex.Transaction, blckHash string, mine
 				ephemeralSecret := curve.DerivationToPrivateKey(uint64(index), &tempPrivateSpendKey, &temptxPubKeyDerivation)
 				ephemeralPublic, _ := curve.DerivationToPublicKey(uint64(index), &temptxPubKeyDerivation, &tempPublicSpendKey) //TODO: Manage error
 				keyimage := curve.KeyImage(ephemeralPublic, ephemeralSecret)
-
+				globalIndex := tx.OutputIndices[index]
+				
 				if _, ok := w.outputs[*keyimage]; !ok {
-					w.addOutput(output, acc, uint64(index), minerTx, blckHash, tx.GetTxHash(), tx.BlockHeight, keyimage, nil) 
+					w.addOutput(output, acc, uint64(index), globalIndex, minerTx, blckHash, tx.GetTxHash(), tx.BlockHeight, keyimage, tx.Extra, *ephemeralPublic, *ephemeralSecret) 
 				}
 
 			}
@@ -275,7 +276,7 @@ func (w *Wallet) transferSelected(dsts *[]DestinationEntry, selectedTransfers *[
 		tempPub := ExtractTxPubKey(val.Extra)
 		copy(tempPub[:], src.RealOutTxKey[:])
 		src.RealOutput = uint64(realIndex)
-		src.RealOutputInTxIndex = val.LocalIndex
+		src.RealOutputInTxIndex = int(val.LocalIndex)
 		src.TransferPtr = &(*selectedTransfers)[index]
 		copy(src.KeyImage[:], val.KImage[:])
 		sources = append(sources, src)

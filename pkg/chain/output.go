@@ -1,20 +1,27 @@
-package chain 
+package chain
 
 import (
-	"time"
-	"sort"
-	"fmt"
 	"bytes"
-	"github.com/golang/glog"
+	"fmt"
+	"math"
 	"math/rand"
-	"math"	
+	"sort"
+	"time"
+
+	"github.com/golang/glog"
+	"github.com/safex/gosafex/internal/consensus"
 	"github.com/safex/gosafex/internal/crypto"
 	"github.com/safex/gosafex/internal/crypto/curve"
-	"github.com/safex/gosafex/internal/consensus"
 	"github.com/safex/gosafex/pkg/filewallet"
 	"github.com/safex/gosafex/pkg/safex"
 )
-func (w *Wallet) addOutput(output *safex.Txout, accountName string, index uint64, minertx bool, blckHash string, txHash string, height uint64, keyimage *crypto.Key, extra []byte) error {
+
+func (w *Wallet) LoadOutputs() error {
+
+	return nil
+}
+
+func (w *Wallet) addOutput(output *safex.Txout, accountName string, index uint64, globalindex uint64, minertx bool, blckHash string, txHash string, height uint64, keyimage *crypto.Key, extra []byte, ephemeralPublic crypto.Key, ephemeralSecret crypto.Key) error {
 	var typ string
 	var txtyp string
 	w.logger.Infof("[Chain] Adding new output to user: %s out: %s", accountName, output.GetTarget().String())
@@ -35,9 +42,8 @@ func (w *Wallet) addOutput(output *safex.Txout, accountName string, index uint64
 	defer w.wallet.OpenAccount(&filewallet.WalletInfo{prevAcc, nil}, false, w.testnet)
 
 	w.wallet.AddOutput(output, uint64(index), &filewallet.OutputInfo{OutputType: typ, BlockHash: blckHash, TransactionID: txHash, TxLocked: filewallet.LockedStatus, TxType: txtyp}, "")
-	w.outputs[*keyimage] = Transfer{output, false, minertx, height, *keyimage}
-	w.outputs[*keyimage] = Transfer{output, extra, index, tx.OutputIndices[index], false, minertx, height, *keyimage, ephermal_public, ephermal_secret}
-	
+	w.outputs[*keyimage] = Transfer{output, extra, index, globalindex, false, minertx, height, *keyimage, ephemeralPublic, ephemeralSecret}
+
 	return nil
 }
 
