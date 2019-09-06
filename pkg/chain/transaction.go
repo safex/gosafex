@@ -2,8 +2,8 @@ package chain
 
 import (
 	"fmt"
-	"log"
 	"sort"
+	"log"
 	"math/rand"
 	"time" 
 
@@ -100,7 +100,7 @@ func (w *Wallet) ProcessTransaction(tx *safex.Transaction, blckHash string, mine
 				keyimage := curve.KeyImage(ephemeralPublic, ephemeralSecret)
 
 				if _, ok := w.outputs[*keyimage]; !ok {
-					w.addOutput(output, acc, uint64(index), minerTx, blckHash, tx.GetTxHash(), tx.BlockHeight, keyimage)
+					w.addOutput(output, acc, uint64(index), minerTx, blckHash, tx.GetTxHash(), tx.BlockHeight, keyimage, nil) 
 				}
 
 			}
@@ -166,13 +166,6 @@ func (w *Wallet) ProcessTransaction(tx *safex.Transaction, blckHash string, mine
 	return nil
 }
 
-func convertAddress(input Address) *account.Address {
-	acc, err := account.FromBase58(input.Address)
-	if err != nil {
-		return nil
-	}
-	return acc
-}
 
 func checkInputs(inputs []*safex.TxinV) bool {
 	for _, input := range inputs {
@@ -294,15 +287,13 @@ func (w *Wallet) transferSelected(dsts *[]DestinationEntry, selectedTransfers *[
 	var changeDts DestinationEntry
 	var changeTokenDts DestinationEntry
 
-	if neededMoney < foundMoney {
-		tempAddr := convertAddress(w.Address)
-		changeDts.Address = *tempAddr
+	if neededMoney < foundMoney { 
+		changeDts.Address = *w.account.Address()
 		changeDts.Amount = foundMoney - neededMoney
 	}
 
-	if neededToken < foundTokens {
-		tempAddr := convertAddress(w.Address)
-		changeTokenDts.Address = *tempAddr
+	if neededToken < foundTokens { 
+		changeTokenDts.Address = *w.account.Address()
 		changeTokenDts.TokenAmount = foundTokens - neededToken
 	}
 
@@ -695,7 +686,7 @@ func IsDecomposedOutputValue(value uint64) bool {
 	if i < len(decomposedValues) && decomposedValues[i] == value {
 		return true
 	} else {
-		return false
+		return false 
 	}
 }
 

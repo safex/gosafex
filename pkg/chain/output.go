@@ -14,7 +14,7 @@ import (
 	"github.com/safex/gosafex/pkg/filewallet"
 	"github.com/safex/gosafex/pkg/safex"
 )
-func (w *Wallet) addOutput(output *safex.Txout, accountName string, index uint64, minertx bool, blckHash string, txHash string, height uint64, keyimage *crypto.Key) error {
+func (w *Wallet) addOutput(output *safex.Txout, accountName string, index uint64, minertx bool, blckHash string, txHash string, height uint64, keyimage *crypto.Key, extra []byte) error {
 	var typ string
 	var txtyp string
 	w.logger.Infof("[Chain] Adding new output to user: %s out: %s", accountName, output.GetTarget().String())
@@ -36,6 +36,8 @@ func (w *Wallet) addOutput(output *safex.Txout, accountName string, index uint64
 
 	w.wallet.AddOutput(output, uint64(index), &filewallet.OutputInfo{OutputType: typ, BlockHash: blckHash, TransactionID: txHash, TxLocked: filewallet.LockedStatus, TxType: txtyp}, "")
 	w.outputs[*keyimage] = Transfer{output, false, minertx, height, *keyimage}
+	w.outputs[*keyimage] = Transfer{output, extra, index, tx.OutputIndices[index], false, minerTx, height, keyimage, ephermal_public, ephermal_secret}
+	
 	return nil
 }
 

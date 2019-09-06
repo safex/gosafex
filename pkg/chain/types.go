@@ -92,7 +92,7 @@ type Balance struct {
 type Transfer struct {
 	Output      *safex.Txout
 	Extra       []byte
-	LocalIndex  int
+	LocalIndex  uint64
 	GlobalIndex uint64
 	Spent       bool
 	MinerTx     bool
