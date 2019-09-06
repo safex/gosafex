@@ -36,7 +36,7 @@ func (w *Wallet) addOutput(output *safex.Txout, accountName string, index uint64
 
 	w.wallet.AddOutput(output, uint64(index), &filewallet.OutputInfo{OutputType: typ, BlockHash: blckHash, TransactionID: txHash, TxLocked: filewallet.LockedStatus, TxType: txtyp}, "")
 	w.outputs[*keyimage] = Transfer{output, false, minertx, height, *keyimage}
-	w.outputs[*keyimage] = Transfer{output, extra, index, tx.OutputIndices[index], false, minerTx, height, keyimage, ephermal_public, ephermal_secret}
+	w.outputs[*keyimage] = Transfer{output, extra, index, tx.OutputIndices[index], false, minertx, height, *keyimage, ephermal_public, ephermal_secret}
 	
 	return nil
 }
