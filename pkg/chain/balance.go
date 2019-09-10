@@ -101,7 +101,7 @@ func (w *Wallet) seenOutput(outID string) bool {
 func (w *Wallet) LoadBalance() error {
 	w.resetBalance()
 	height := w.wallet.GetLatestBlockHeight()
-	w.logger.Infof("Loading balance up to: %d", height)
+	w.logger.Infof("[Wallet] Loading balance up to: %d", height)
 
 	for _, el := range w.wallet.GetUnspentOutputs() {
 		if w.seenOutput(el) {
@@ -187,8 +187,6 @@ func (w *Wallet) UnlockBalance(height uint64) error {
 
 func (w *Wallet) UpdateBalance() (b Balance, err error) {
 	w.outputs = make(map[crypto.Key]Transfer)
-	// Connect to node.
-	//w.client = safexdrpc.InitClient("127.0.0.1", 38001)
 
 	info, err := w.client.GetDaemonInfo()
 

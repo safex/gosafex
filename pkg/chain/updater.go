@@ -10,18 +10,31 @@ const DaemonErrorTime = 2000
 const BlocksPerCycle = 500
 
 func (w *Wallet) StartUpdating() {
-	w.update <- true
+	select {
+	case w.update <- true:
+		w.logger.Infof("[Wallet] Start updating")
+	default:
+		w.logger.Infof("[Wallet] Can't start updating")
+	}
 }
 
 func (w *Wallet) StopUpdating() {
-	w.update <- false
+	select {
+	case w.update <- false:
+		w.logger.Infof("[Wallet] Stop updating")
+	default:
+		w.logger.Infof("[Wallet] Can't stop updating")
+	}
 }
 
 func (w *Wallet) BeginUpdating() {
+	w.logger.Infof("[Wallet] Starting the updater service")
+	w.StartUpdating()
 	go w.runUpdater()
 }
 
 func (w *Wallet) KillUpdating() {
+	w.logger.Infof("[Wallet] Killing the updater service")
 	w.quit <- true
 }
 
@@ -30,7 +43,7 @@ func (w *Wallet) UpdaterStatus() string {
 		return "Syncing"
 	}
 	if w.updating {
-		return "Up to date"
+		return "Up-to-date"
 	}
 	return "Not updating"
 

@@ -36,7 +36,6 @@ func (w *Wallet) UpdateBlock(nblocks uint64) error {
 	var targetBlock uint64
 
 	for knownHeight != bcHeight-1 {
-		//do the needed update
 		if knownHeight+blockInterval >= bcHeight-1 {
 			targetBlock = bcHeight - 1
 		} else {
@@ -362,6 +361,14 @@ func (w *Wallet) GetUnspentOutputs() (map[string]interface{}, error){
 
 func (w *Wallet) SetLogger(prevLog *log.Logger){
 	w.logger = prevLog
+}
+
+func New(prevLog *log.Logger) *Wallet{
+	w := new(Wallet)
+	w.SetLogger(prevLog)
+	w.update = make(chan bool)
+	w.quit = make(chan bool)
+	return w
 }
 
 //Close closes the wallet

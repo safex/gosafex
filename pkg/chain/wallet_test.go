@@ -5,6 +5,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/safex/gosafex/internal/crypto/curve"
 	"github.com/safex/gosafex/internal/mnemonic"
@@ -22,7 +23,7 @@ const masterPass = "masterpass"
 const foldername = "test"
 
 //change this address and port
-const clientAddress = "192.168.119.129"
+const clientAddress = "ec2-18-234-150-208.compute-1.amazonaws.com"
 const clientPort = 37001
 
 const wallet1pubview = "278ae1e6b5e7a272dcdca311e0362a222fa5ce98c975ccfff67e40751c1daf2c"
@@ -352,15 +353,17 @@ func TestGetTransactionByBlock(t *testing.T) {
 //this test for now fails to check balance
 func TestUpdateBalance(t *testing.T) {
 	prepareFolder()
+	testLogger.SetLevel(log.InfoLevel)
 	testLogger.Infof("[Test] Testing balance update")
 
-	w := new(Wallet)
+	w := New(testLogger)
 	fullpath := strings.Join([]string{foldername, filename}, "/")
 
 	if err := w.OpenAndCreate("wallet1", fullpath, masterPass, true, testLogger); err != nil {
 		t.Fatalf("%s", err)
 	}
 	defer CleanAfterTests(w, fullpath)
+	defer w.KillUpdating()
 	if err := w.InitClient(clientAddress, clientPort); err != nil {
 		t.Fatalf("%s", err)
 	}
@@ -391,6 +394,11 @@ func TestUpdateBalance(t *testing.T) {
 	if err := w.OpenAccount(accountName1, true); err != nil {
 		t.Fatalf("%s", err)
 	}
+	w.BeginUpdating()
+	for w.syncing{
+		testLogger.Infof("[Test] Waiting for sync")
+		time.Sleep(100 * time.Millisecond)
+	}
 	if b, err := w.UpdateBalance(); err != nil {
 		t.Fatalf("%s", err)
 	} else if b.CashUnlocked == 0 && b.CashLocked == 0 && b.TokenUnlocked == 0 && b.TokenLocked == 0 {
@@ -398,5 +406,7 @@ func TestUpdateBalance(t *testing.T) {
 	} else {
 		t.Fatalf("Locked Cash:%v\nUnlocked Cash:%v\nLocked Tokens:%v\nUnlocked Tokens:%v", float64(b.CashLocked)/10e9, float64(b.CashUnlocked)/10e9, float64(b.TokenLocked)/10e9, float64(b.TokenUnlocked)/10e9)
 	}
+	w.KillUpdating()
+
 	testLogger.Infof("[Test] Passed balance update")
 }
