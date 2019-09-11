@@ -53,7 +53,6 @@ func (w *Wallet) processBlockRange(blocks safex.Blocks) bool {
 	txblck := make(map[string]string)
 	for _, blck := range blocks.Block {
 		if err := w.wallet.PutBlockHeader(blck.GetHeader()); err != nil {
-			fmt.Print(err)
 			continue
 		}
 		for _, el := range blck.Txs {

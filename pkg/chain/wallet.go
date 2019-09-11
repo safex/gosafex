@@ -1,6 +1,7 @@
 package chain
 
 import (
+	"github.com/safex/gosafex/internal/crypto"
 	"github.com/safex/gosafex/pkg/account"
 	"github.com/safex/gosafex/pkg/filewallet"
 	"github.com/safex/gosafex/pkg/safex"
@@ -27,27 +28,27 @@ func (w *Wallet) UpdateBlock(nblocks uint64) error {
 
 	var bcHeight uint64
 
-	knownHeight := w.wallet.GetLatestBlockHeight()
-	if nblocks == 0{
-		bcHeight = info.Height
-	}else{
-		bcHeight = info.Height + nblocks
-	}
+	knownHeight := w.wallet.GetLatestBlockHeight() 
+
+	bcHeight = info.Height
+
 	var targetBlock uint64
 
-	for knownHeight != bcHeight-1 {
-		if knownHeight+blockInterval >= bcHeight-1 {
-			targetBlock = bcHeight - 1
-		} else {
-			targetBlock = knownHeight + blockInterval
-		}
-		blocks, err := w.client.GetBlocks(bcHeight, targetBlock)
-		if err != nil {
-			return err
-		}
-		w.processBlockRange(blocks)
-		knownHeight = w.wallet.GetLatestBlockHeight()
+	if knownHeight + nblocks > bcHeight{
+		targetBlock = bcHeight
+	} else{
+		targetBlock = knownHeight + nblocks
 	}
+	targetBlock -= 1
+
+	w.logger.Infof("[Wallet] Fetching blocks: %d to %d", knownHeight, targetBlock)
+	blocks, err := w.client.GetBlocks(knownHeight, targetBlock)
+	if err != nil {
+		return err
+	}
+	w.processBlockRange(blocks)
+	knownHeight = w.wallet.GetLatestBlockHeight()
+	
 
 	return w.UnlockBalance(knownHeight)
 }
@@ -366,6 +367,7 @@ func (w *Wallet) SetLogger(prevLog *log.Logger){
 func New(prevLog *log.Logger) *Wallet{
 	w := new(Wallet)
 	w.SetLogger(prevLog)
+	w.outputs = make(map[crypto.Key]Transfer)
 	w.update = make(chan bool)
 	w.quit = make(chan bool)
 	return w

@@ -93,7 +93,7 @@ func (w *FileWallet) RewindBlockHeader(targetHash string) error {
 	for actHash != targetHash {
 		i := w.CheckIfBlockExists(actHash)
 		if i == -1 {
-			w.logger.Errorf("[FileWallet] %s", ErrMistmatchedBlock)
+			w.logger.Errorf("[FileWallet] %s at %s", ErrMistmatchedBlock, actHash)
 			return ErrMistmatchedBlock
 		}
 		data, err := w.readKey(blockKeyPrefix + actHash)
@@ -178,7 +178,7 @@ func (w *FileWallet) PutBlockHeader(blck *safex.BlockHeader) error {
 	blockHash := blck.GetHash()
 	a := blck.GetPrevHash()
 	if a != w.latestBlockHash && w.latestBlockHash != "" {
-		w.logger.Errorf("[FileWallet] %s", ErrMistmatchedBlock)
+		w.logger.Errorf("[FileWallet] %s at %s", ErrMistmatchedBlock, a)
 		return ErrMistmatchedBlock
 	}
 

@@ -353,7 +353,6 @@ func TestGetTransactionByBlock(t *testing.T) {
 //this test for now fails to check balance
 func TestUpdateBalance(t *testing.T) {
 	prepareFolder()
-	testLogger.SetLevel(log.InfoLevel)
 	testLogger.Infof("[Test] Testing balance update")
 
 	w := New(testLogger)
@@ -395,10 +394,10 @@ func TestUpdateBalance(t *testing.T) {
 		t.Fatalf("%s", err)
 	}
 	w.BeginUpdating()
-	for w.syncing{
-		testLogger.Infof("[Test] Waiting for sync")
-		time.Sleep(100 * time.Millisecond)
-	}
+	testLogger.Infof("[Test] Waiting for sync")
+	time.Sleep(10 * time.Second)
+	w.KillUpdating()
+	
 	if b, err := w.UpdateBalance(); err != nil {
 		t.Fatalf("%s", err)
 	} else if b.CashUnlocked == 0 && b.CashLocked == 0 && b.TokenUnlocked == 0 && b.TokenLocked == 0 {
@@ -406,7 +405,6 @@ func TestUpdateBalance(t *testing.T) {
 	} else {
 		t.Fatalf("Locked Cash:%v\nUnlocked Cash:%v\nLocked Tokens:%v\nUnlocked Tokens:%v", float64(b.CashLocked)/10e9, float64(b.CashUnlocked)/10e9, float64(b.TokenLocked)/10e9, float64(b.TokenUnlocked)/10e9)
 	}
-	w.KillUpdating()
 
 	testLogger.Infof("[Test] Passed balance update")
 }

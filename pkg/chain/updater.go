@@ -9,33 +9,27 @@ const CheckCycleTime = 500
 const DaemonErrorTime = 2000
 const BlocksPerCycle = 500
 
-func (w *Wallet) StartUpdating() {
-	select {
-	case w.update <- true:
-		w.logger.Infof("[Wallet] Start updating")
-	default:
-		w.logger.Infof("[Wallet] Can't start updating")
-	}
-}
-
 func (w *Wallet) StopUpdating() {
 	select {
 	case w.update <- false:
-		w.logger.Infof("[Wallet] Stop updating")
+		w.logger.Infof("[Updater] Stop updating")
 	default:
-		w.logger.Infof("[Wallet] Can't stop updating")
+		w.logger.Infof("[Updater] Can't stop updating")
 	}
 }
 
 func (w *Wallet) BeginUpdating() {
-	w.logger.Infof("[Wallet] Starting the updater service")
-	w.StartUpdating()
+	w.logger.Infof("[Updater] Starting the updater service")
 	go w.runUpdater()
+	time.Sleep(1 * time.Second)
 }
 
 func (w *Wallet) KillUpdating() {
-	w.logger.Infof("[Wallet] Killing the updater service")
-	w.quit <- true
+	w.logger.Infof("[Updater] Killing the updater service")
+	select {
+	case w.quit <- true:
+	default:
+	}
 }
 
 func (w *Wallet) UpdaterStatus() string {
@@ -53,36 +47,34 @@ func (w *Wallet) runUpdater() {
 	var bcHeight uint64
 	for true {
 		select {
-		case w.updating = <-w.update:
-		case w.quitting = <-w.quit:
+		case <-w.quit:
+			w.syncing = false
+			w.logger.Infof("[Updater] Updater Service Down")
+			return
 		default:
 		}
-		if w.quitting {
-			break
-		}
-		if w.updating {
-			if !w.syncing {
-				loadedHeight := w.GetLatestLoadedBlockHeight()
-				info, err := w.client.GetDaemonInfo()
-				if err != nil {
-					time.Sleep(DaemonErrorTime * time.Millisecond)
-					continue
-				}
-				bcHeight = info.Height
-				if loadedHeight != bcHeight {
-					w.syncing = true
-				}
-				time.Sleep(CheckCycleTime * time.Millisecond)
-
-			} else {
-				if w.GetLatestLoadedBlockHeight() <= bcHeight-1 {
-					w.UpdateBlock(BlocksPerCycle)
-				} else {
-					w.syncing = false
-				}
-				time.Sleep(UpdateCycleTime * time.Millisecond)
-
+		if !w.syncing {
+			loadedHeight := w.GetLatestLoadedBlockHeight()
+			info, err := w.client.GetDaemonInfo()
+			if err != nil {
+				time.Sleep(DaemonErrorTime * time.Millisecond)
+				continue
 			}
+			bcHeight = info.Height
+			if loadedHeight != bcHeight {
+				w.syncing = true
+			}
+			w.logger.Debugf("[Updater] Known block: %d", loadedHeight)
+			time.Sleep(CheckCycleTime * time.Millisecond)
+
+		} else {
+			if w.GetLatestLoadedBlockHeight() < bcHeight-1 {
+				w.logger.Debugf("[Updater] Known block: %d , bcHeight: %d", w.GetLatestLoadedBlockHeight(), bcHeight)
+				w.UpdateBlock(BlocksPerCycle)
+			} else {
+				w.syncing = false
+			}
+			time.Sleep(UpdateCycleTime * time.Millisecond)
 		}
 	}
 }
