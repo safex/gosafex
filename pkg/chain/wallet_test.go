@@ -398,7 +398,7 @@ func TestUpdateBalance(t *testing.T) {
 	testLogger.Infof("[Test] Waiting for sync")
 	time.Sleep(30 * time.Second)
 	}
-	if b, err := w.UpdateBalance(); err != nil {
+	if b, err := w.GetBalance(); err != nil {
 		t.Fatalf("%s", err)
 	} else if b.CashUnlocked == 0 && b.CashLocked == 0 && b.TokenUnlocked == 0 && b.TokenLocked == 0 {
 		t.Fatalf("Got null balance\n")

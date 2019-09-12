@@ -1,9 +1,6 @@
 package chain
 
 import (
-	"fmt"
-	"time"
-
 	"github.com/safex/gosafex/pkg/safex"
 )
 
@@ -182,47 +179,4 @@ func (w *Wallet) UnlockBalance(height uint64) error {
 		}
 	}
 	return nil
-}
-
-func (w *Wallet) UpdateBalance() (b Balance, err error) {
-	info, err := w.client.GetDaemonInfo()
-
-	if err != nil {
-		return b, ErrDaemonInfo
-	}
-
-	bcHeight := info.Height
-	w.logger.Infof("[Chain] Updating balance up to: %d", bcHeight)
-
-	var curr uint64
-	curr = 0
-
-	var blocks safex.Blocks
-	var end uint64
-
-	// @todo Here exists some error during overlaping block ranges. Deal with it later.
-	for curr < (bcHeight - 1) {
-		// Calculate end of interval for loading
-		if curr+blockInterval > bcHeight {
-			end = bcHeight - 1
-		} else {
-			end = curr + blockInterval
-		}
-		start := time.Now()
-		blocks, err = w.client.GetBlocks(curr, end) // Load blocks from daemon
-		fmt.Println(time.Since(start))
-
-		// If there was error during loading of blocks return err.
-		if err != nil {
-			return b, err
-		}
-
-		// Process block
-		w.processBlockRange(blocks)
-
-		curr = end
-		w.UnlockBalance(curr)
-	}
-
-	return w.balance, nil
 }

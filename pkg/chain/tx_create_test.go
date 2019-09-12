@@ -29,8 +29,8 @@ func TestTxCreate(t *testing.T) {
 		*key.NewPrivateKeyFromBytes(HexToKey("9fde8d863a3040ff67ccc07c49b55ee4746d4db410fb18bdde7dbd7ccba4180e")),
 		*key.NewPrivateKeyFromBytes(HexToKey("e6887bea1e8126e8160ceef01ec35c81dd3e86e9d0e7e3c47087c113731ae508")))
 
-	_ = wallet.GetBalance()
-
+	_, _ = wallet.GetBalance()
+ 
 	addr, _ := account.FromBase58("SFXtzV7tt2KZqvpCWVWauC5Qf16o3dAwLKNd9hCNzoB21ELLNfFjAMjXRhsR3ohT1AeW8j3jL4gfRahR86x6aoiU5hm5ZJj7BSc")
 
 	var extra []byte

@@ -262,7 +262,7 @@ func (w *WalletRPC) GetAccountBalance(rw http.ResponseWriter, r *http.Request) {
 	var data JSONElement
 	data = make(JSONElement)
 
-	data["balance"] = w.wallet.GetBalance()
+	data["balance"], _ = w.wallet.GetBalance()
 
 	FormJSONResponse(data, EverythingOK, &rw)
 }
@@ -420,7 +420,7 @@ func (w *WalletRPC) SyncAccount(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	b, err := w.wallet.UpdateBalance()
+	b, err := w.wallet.GetBalance()
 	if FormErrorRes(err, SyncFailed, &rw) {
 		return
 	}

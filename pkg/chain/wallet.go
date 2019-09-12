@@ -1,6 +1,7 @@
 package chain
 
 import (
+	"errors"
 	"github.com/safex/gosafex/internal/crypto"
 	"github.com/safex/gosafex/pkg/account"
 	"github.com/safex/gosafex/pkg/filewallet"
@@ -209,9 +210,13 @@ func (w *Wallet) GetKeys() (*account.Store, error) {
 }
 
 //GetBalance returns the balance of the opened account
-func (w *Wallet) GetBalance() Balance {
-	return w.balance
+func (w *Wallet) GetBalance() (b *Balance, err error) {
+	if w.syncing{
+		return nil, errors.New("Wallet is syncing")
+	}
+	return &w.balance, nil
 } 
+
 
 //GetHistory returns all transaction infos for the active user
 func (w *Wallet) GetHistory() ([]*filewallet.TransactionInfo, error) {
