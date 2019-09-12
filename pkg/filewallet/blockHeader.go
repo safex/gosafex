@@ -135,6 +135,7 @@ func (w *FileWallet) RewindBlockHeader(targetHash string) error {
 	}
 	w.latestBlockNumber = header.GetDepth()
 	w.latestBlockHash = header.GetHash()
+	w.logger.Infof("[Filewallet] Adding block number: %d Hash: %s", w.latestBlockNumber, w.latestBlockHash)
 	return nil
 }
 

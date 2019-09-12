@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/safex/gosafex/internal/crypto"
 	"github.com/safex/gosafex/pkg/safex"
 )
 
@@ -100,12 +99,13 @@ func (w *Wallet) seenOutput(outID string) bool {
 func (w *Wallet) LoadBalance() error {
 	w.resetBalance()
 	height := w.wallet.GetLatestBlockHeight()
-	w.logger.Infof("[Wallet] Loading balance up to: %d", height)
+	w.logger.Debugf("[Wallet] Loading balance up to: %d", height)
 
 	for _, el := range w.wallet.GetUnspentOutputs() {
 		if w.seenOutput(el) {
 			continue
 		}
+		w.logger.Debugf("[Wallet] Adding new balance to count")
 		age, _ := w.wallet.GetOutputAge(el)
 		txtyp, _ := w.wallet.GetOutputTransactionType(el)
 		typ, _ := w.wallet.GetOutputType(el)
@@ -185,8 +185,6 @@ func (w *Wallet) UnlockBalance(height uint64) error {
 }
 
 func (w *Wallet) UpdateBalance() (b Balance, err error) {
-	w.outputs = make(map[crypto.Key]Transfer)
-
 	info, err := w.client.GetDaemonInfo()
 
 	if err != nil {

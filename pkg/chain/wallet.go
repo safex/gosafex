@@ -49,7 +49,7 @@ func (w *Wallet) UpdateBlock(nblocks uint64) error {
 	w.processBlockRange(blocks)
 	knownHeight = w.wallet.GetLatestBlockHeight()
 	
-
+	w.logger.Debugf("[Wallet] Updating balance")
 	return w.UnlockBalance(knownHeight)
 }
 

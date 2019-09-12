@@ -232,7 +232,11 @@ func (w *FileWallet) CreateAccount(accountInfo *WalletInfo, isTestnet bool) erro
 
 //OpenAccount Opens an account and all the connected data
 func (w *FileWallet) OpenAccount(accountInfo *WalletInfo, createOnFail bool, isTestnet bool) error {
-	w.logger.Infof("[filewallet] Opening account: %s", accountInfo.Name)
+	w.logger.Debugf("[filewallet] Opening account: %s", accountInfo.Name)
+	if w.GetAccount() == accountInfo.Name{
+		w.logger.Debugf("[Filewallet] Account already open")
+		return nil
+	}
 	err := w.db.SetBucket(accountInfo.Name)
 	if err == filestore.ErrBucketNotInit && createOnFail {
 		w.CreateAccount(accountInfo, isTestnet)
@@ -262,12 +266,11 @@ func (w *FileWallet) OpenAccount(accountInfo *WalletInfo, createOnFail bool, isT
 	if err = w.loadUnspentOutputs(createOnFail); err != nil {
 		return err
 	}
-
 	return nil
 }
 
 func (w *FileWallet) GetAccounts() ([]string, error) {
-	w.logger.Infof("[filewallet] Listing all accounts")
+	w.logger.Debugf("[filewallet] Listing all accounts")
 	if w.info != nil && w.db.BucketExists(w.info.Name) {
 		defer w.db.SetBucket(w.info.Name)
 	}
