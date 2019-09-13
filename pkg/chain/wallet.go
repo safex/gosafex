@@ -380,6 +380,7 @@ func New(prevLog *log.Logger) *Wallet {
 
 //Close closes the wallet
 func (w *Wallet) Close() {
+	w.KillUpdating()
 	w.wallet.Close()
 }
 

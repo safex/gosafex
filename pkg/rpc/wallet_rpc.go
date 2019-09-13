@@ -50,7 +50,6 @@ func (w *WalletRPC) Close(rw http.ResponseWriter, r *http.Request) {
 	w.wallet = nil
 	data := make(JSONElement)
 	data["msg"] = "Its closed!"
-
 	FormJSONResponse(data, EverythingOK, &rw)
 
 }
