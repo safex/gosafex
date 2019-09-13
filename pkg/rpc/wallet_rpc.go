@@ -24,12 +24,20 @@ func (w *WalletRPC) OpenCheck(rw *http.ResponseWriter) bool {
 	return true
 }
 
+func (w *WalletRPC) StartUpdating() {
+
+}
+
+func (w *WalletRPC) StopUpdating() {
+
+}
+
 // Getting status of current wallet. If its open, syncing etc.
 func (w *WalletRPC) GetStatus(rw http.ResponseWriter, r *http.Request) {
 	var data JSONElement
 	w.logger.Infof("[RPC] Getting wallet status")
 	data = make(JSONElement)
-	data["msg"] = "Hello Load"
+	data["msg"] = w.wallet.UpdaterStatus()
 
 	FormJSONResponse(data, EverythingOK, &rw)
 

@@ -4,8 +4,8 @@ import (
 	"time"
 )
 
-const UpdateCycleTime = 10
-const CheckCycleTime = 500
+const UpdateCycleTime = 50
+const CheckCycleTime = 5000
 const DaemonErrorTime = 2000
 const BlocksPerCycle = 500
 
@@ -20,6 +20,7 @@ func (w *Wallet) StopUpdating() {
 
 func (w *Wallet) BeginUpdating() {
 	w.logger.Infof("[Updater] Starting the updater service")
+	w.updating = true
 	go w.runUpdater()
 	time.Sleep(1 * time.Second)
 }
@@ -36,45 +37,52 @@ func (w *Wallet) UpdaterStatus() string {
 	if w.syncing {
 		return "Syncing"
 	}
-	if w.updating {
-		return "Up-to-date"
-	}
-	return "Not updating"
-
+	return "Up-to-date"
 }
 
 func (w *Wallet) runUpdater() {
 	var bcHeight uint64
 	for true {
 		select {
+		case temp := <-w.update:
+			if temp == true {
+				w.updating = true
+			}
+			if temp == false {
+				w.updating = false
+			}
 		case <-w.quit:
 			w.syncing = false
 			w.logger.Infof("[Updater] Updater Service Down")
 			return
 		default:
 		}
-		if !w.syncing {
-			loadedHeight := w.GetLatestLoadedBlockHeight()
-			info, err := w.client.GetDaemonInfo()
-			if err != nil {
-				time.Sleep(DaemonErrorTime * time.Millisecond)
-				continue
-			}
-			bcHeight = info.Height
-			if loadedHeight < bcHeight-1 {
-				w.syncing = true
-			}
-			w.logger.Debugf("[Updater] Known block: %d", loadedHeight)
-			time.Sleep(CheckCycleTime * time.Millisecond)
+		if w.updating {
+			if !w.syncing {
+				loadedHeight := w.GetLatestLoadedBlockHeight()
+				info, err := w.client.GetDaemonInfo()
+				if err != nil {
+					time.Sleep(DaemonErrorTime * time.Millisecond)
+					continue
+				}
+				bcHeight = info.Height
+				if loadedHeight < bcHeight-1 {
+					w.syncing = true
+				}
+				w.logger.Debugf("[Updater] Known block: %d", loadedHeight)
+				time.Sleep(CheckCycleTime * time.Millisecond)
 
-		} else {
-			if w.GetLatestLoadedBlockHeight() < bcHeight-1 {
-				w.logger.Debugf("[Updater] Known block: %d , bcHeight: %d", w.GetLatestLoadedBlockHeight(), bcHeight)
-				w.UpdateBlock(BlocksPerCycle)
 			} else {
-				w.syncing = false
+				if w.GetLatestLoadedBlockHeight() < bcHeight-1 {
+					w.logger.Debugf("[Updater] Known block: %d , bcHeight: %d", w.GetLatestLoadedBlockHeight(), bcHeight)
+					w.UpdateBlock(BlocksPerCycle)
+				} else {
+					w.syncing = false
+				}
+				time.Sleep(UpdateCycleTime * time.Millisecond)
 			}
-			time.Sleep(UpdateCycleTime * time.Millisecond)
+		} else {
+			time.Sleep(CheckCycleTime * time.Millisecond)
 		}
 	}
 }

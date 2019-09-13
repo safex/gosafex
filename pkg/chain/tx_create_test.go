@@ -2,8 +2,6 @@ package chain
 
 import (
 	"fmt"
-	"log"
-	"os"
 	"testing"
 
 	"github.com/safex/gosafex/internal/consensus"
@@ -12,13 +10,6 @@ import (
 )
 
 func TestTxCreate(t *testing.T) {
-	f, err := os.OpenFile("testlogfile", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
-	if err != nil {
-		log.Fatalf("error opening file: %v", err)
-	}
-	defer f.Close()
-
-	log.SetOutput(f)
 	upperTxSizeLimit := consensus.GetUpperTransactionSizeLimit(2, 10)
 	test := txSizeTarget(upperTxSizeLimit)
 	fmt.Println("UpperTxSizeLImit: ", upperTxSizeLimit)
@@ -30,7 +21,7 @@ func TestTxCreate(t *testing.T) {
 		*key.NewPrivateKeyFromBytes(HexToKey("e6887bea1e8126e8160ceef01ec35c81dd3e86e9d0e7e3c47087c113731ae508")))
 
 	_, _ = wallet.GetBalance()
- 
+
 	addr, _ := account.FromBase58("SFXtzV7tt2KZqvpCWVWauC5Qf16o3dAwLKNd9hCNzoB21ELLNfFjAMjXRhsR3ohT1AeW8j3jL4gfRahR86x6aoiU5hm5ZJj7BSc")
 
 	var extra []byte
