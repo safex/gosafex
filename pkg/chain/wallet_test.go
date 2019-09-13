@@ -34,6 +34,7 @@ const wallet1privspend = "c55a2fa96b04b8f019afeaca883fdfd1e7ee775486eec32648579e
 const mnemonic_seed = "shrugged january avatar fungal pawnshop thwart grunt yoga stunning honked befit already ungainly fancy camp liquid revamp evaluate height evolved bowling knife gasp gotten honked"
 const mnemonic_key = "ace8f0a434437935b01ca3d2aa7438f1ec27d7dc02a33b8d7a62dfda1fe13907"
 const mnemonic_address = "Safex5zgYGP2tyGNaqkrAoirRqrEw8Py79KPLRhwqEHbDcnPVvSwvCx2iTUbTR6PVMHR9qapyAq6Fj5TF9ATn5iq27YPrxCkJyD11"
+
 var testLogger = log.StandardLogger()
 var testLogFile = "test.log"
 
@@ -44,14 +45,13 @@ func prepareFolder() {
 	if _, err := os.Stat(fullpath); os.IsExist(err) {
 		os.Remove(fullpath)
 	}
-	logFile, _ := os.OpenFile(testLogFile, os.O_APPEND | os.O_CREATE, 0755)
+	logFile, _ := os.OpenFile(testLogFile, os.O_APPEND|os.O_CREATE, 0755)
 
 	testLogger.SetOutput(logFile)
 	testLogger.SetLevel(log.DebugLevel)
 
 	os.Mkdir(foldername, os.FileMode(int(0700)))
 }
-
 
 func CleanAfterTests(w *Wallet, fullpath string) {
 
@@ -176,14 +176,14 @@ func TestColdOpen(t *testing.T) {
 		t.Fatalf("%s", err)
 	}
 	w.Close()
-	if err := w.OpenFile(fullpath, "asdasdasd", false, testLogger);err == nil{
+	if err := w.OpenFile(fullpath, "asdasdasd", false, testLogger); err == nil {
 		t.Fatalf("No password error")
 	}
 	w.Close()
-	if err := w.OpenFile(fullpath,masterPass,false, testLogger); err != nil{
-		t.Fatalf("%s",err)
+	if err := w.OpenFile(fullpath, masterPass, false, testLogger); err != nil {
+		t.Fatalf("%s", err)
 	}
-	defer CleanAfterTests(w,fullpath)
+	defer CleanAfterTests(w, fullpath)
 	if accs, err := w.GetAccounts(); err != nil {
 		t.Fatalf("%s", err)
 	} else if len(accs) != 2 || accs[0] != accountName1 || accs[1] != accountName2 {
@@ -354,7 +354,7 @@ func TestGetTransactionByBlock(t *testing.T) {
 func TestUpdateBalance(t *testing.T) {
 	prepareFolder()
 	testLogger.Infof("[Test] Testing balance update")
-	testLogger.SetLevel(log.InfoLevel)
+	testLogger.SetLevel(log.DebugLevel)
 	w := New(testLogger)
 	fullpath := strings.Join([]string{foldername, filename}, "/")
 
@@ -394,16 +394,14 @@ func TestUpdateBalance(t *testing.T) {
 		t.Fatalf("%s", err)
 	}
 	w.BeginUpdating()
-	for w.syncing{
-	testLogger.Infof("[Test] Waiting for sync")
-	time.Sleep(30 * time.Second)
+	for w.syncing {
+		testLogger.Infof("[Test] Waiting for sync")
+		time.Sleep(30 * time.Second)
 	}
 	if b, err := w.GetBalance(); err != nil {
 		t.Fatalf("%s", err)
 	} else if b.CashUnlocked == 0 && b.CashLocked == 0 && b.TokenUnlocked == 0 && b.TokenLocked == 0 {
 		t.Fatalf("Got null balance\n")
-	} else {
-		t.Fatalf("Locked Cash:%v\nUnlocked Cash:%v\nLocked Tokens:%v\nUnlocked Tokens:%v", float64(b.CashLocked)/10e9, float64(b.CashUnlocked)/10e9, float64(b.TokenLocked)/10e9, float64(b.TokenUnlocked)/10e9)
 	}
 
 	testLogger.Infof("[Test] Passed balance update")
