@@ -52,7 +52,7 @@ func (w *Wallet) UpdateBlock(nblocks uint64) error {
 	knownHeight = w.wallet.GetLatestBlockHeight()
 
 	w.logger.Debugf("[Wallet] Updating balance")
-	return w.UnlockBalance(knownHeight)
+	return w.unlockBalance(knownHeight)
 }
 
 func (w *Wallet) IsOpen() bool {
@@ -72,7 +72,7 @@ func (w *Wallet) Recover(mnemonic *account.Mnemonic, password string, accountNam
 		return err
 	}
 	w.countedOutputs = []string{}
-	if err := w.LoadBalance(); err != nil {
+	if err := w.loadBalance(); err != nil {
 		return err
 	}
 	return nil
@@ -140,7 +140,7 @@ func (w *Wallet) OpenAccount(accountName string, isTestnet bool) error {
 		w.account = account.NewStore(keystore.Address(), keystore.PrivateViewKey(), keystore.PrivateSpendKey())
 	}
 	w.countedOutputs = []string{}
-	if err := w.LoadBalance(); err != nil {
+	if err := w.loadBalance(); err != nil {
 		return err
 	}
 
@@ -168,9 +168,16 @@ func (w *Wallet) GetAccounts() ([]string, error) {
 func (w *Wallet) Status() string {
 	//TODO: Correct this once we get multithreading for golang
 	if !w.IsOpen() {
-		return "not open"
+		return "Not Open"
 	}
-	return "ready"
+	if w.syncing{
+		return "Syncing"
+	}
+	return "Ready"
+}
+
+func (w *Wallet) DaemonInfo() *safex.DaemonInfo{
+	return w.latestInfo
 }
 
 //InitClient inits the rpc client and checks for connection

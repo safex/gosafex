@@ -2,37 +2,69 @@ package chain
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
-	"github.com/safex/gosafex/internal/consensus"
+	"github.com/safex/gosafex/internal/crypto/curve"
 	"github.com/safex/gosafex/pkg/account"
 	"github.com/safex/gosafex/pkg/key"
+	log "github.com/sirupsen/logrus"
 )
 
 func TestTxCreate(t *testing.T) {
-	upperTxSizeLimit := consensus.GetUpperTransactionSizeLimit(2, 10)
-	test := txSizeTarget(upperTxSizeLimit)
-	fmt.Println("UpperTxSizeLImit: ", upperTxSizeLimit)
-	fmt.Println("test: ", test)
-	var wallet Wallet
-	wallet.account = account.NewStore(&account.Address{ViewKey: *key.NewPublicKeyFromBytes(HexToKey("77837b91924a710adc525deb941670432de30b52fb3f19e0bef8bc7ff67641c5")),
-		SpendKey: *key.NewPublicKeyFromBytes(HexToKey("09917953e467c5cd62201ea63a93fcd123c754b249cb8e89d4251d67c907b169"))},
-		*key.NewPrivateKeyFromBytes(HexToKey("9fde8d863a3040ff67ccc07c49b55ee4746d4db410fb18bdde7dbd7ccba4180e")),
-		*key.NewPrivateKeyFromBytes(HexToKey("e6887bea1e8126e8160ceef01ec35c81dd3e86e9d0e7e3c47087c113731ae508")))
+	prepareFolder()
+	testLogger.Infof("[Test] Testing balance update")
+	testLogger.SetLevel(log.DebugLevel)
+	w := New(testLogger)
+	fullpath := strings.Join([]string{foldername, filename}, "/")
 
-	_, _ = wallet.GetBalance()
+	if err := w.OpenAndCreate("wallet1", fullpath, masterPass, true, testLogger); err != nil {
+		t.Fatalf("%s", err)
+	}
+	defer CleanAfterTests(w, fullpath)
+	defer w.KillUpdating()
+	if err := w.InitClient(clientAddress, clientPort); err != nil {
+		t.Fatalf("%s", err)
+	}
+	pubViewKey, err := curve.NewFromString(wallet1pubview)
+	if err != nil {
+		t.Fatalf("%s", err)
+	}
+	pubSpendKey, err := curve.NewFromString(wallet1pubspend)
+	if err != nil {
+		t.Fatalf("%s", err)
+	}
+	privViewKey, err := curve.NewFromString(wallet1privview)
+	if err != nil {
+		t.Fatalf("%s", err)
+	}
+	privSpendKey, err := curve.NewFromString(wallet1privspend)
+	if err != nil {
+		t.Fatalf("%s", err)
+	}
 
-	addr, _ := account.FromBase58("SFXtzV7tt2KZqvpCWVWauC5Qf16o3dAwLKNd9hCNzoB21ELLNfFjAMjXRhsR3ohT1AeW8j3jL4gfRahR86x6aoiU5hm5ZJj7BSc")
+	a := account.NewStore(account.NewRegularTestnetAddress(*key.NewPublicKey(pubSpendKey), *key.NewPublicKey(pubViewKey)), *key.NewPrivateKey(privViewKey), *key.NewPrivateKey(privSpendKey))
 
+	//pubspendbytes := a.PublicSpendKey().ToBytes()
+	//pubviewbytes := a.PublicViewKey().ToBytes()
+	if err := w.CreateAccount(accountName1, a, true); err != nil {
+		t.Fatalf("%s", err)
+	}
+	if err := w.OpenAccount(accountName1, true); err != nil {
+		t.Fatalf("%s", err)
+	}
 	var extra []byte
-	ptxs := wallet.TxCreateCash([]DestinationEntry{DestinationEntry{3000000000000, 0, *addr, false, false}}, 2, 0, 1, extra, true)
-	// ptxs := wallet.TxCreateToken([]DestinationEntry{DestinationEntry{0, 20000000000, *addr, false, true}}, 0, 0, 1, extra, true)
+	ptxs, err := w.TxCreateCash([]DestinationEntry{DestinationEntry{1000, 0, *a.Address(), false, false}}, 2, 0, 1, extra, true)
+	if err != nil {
+		t.Fatalf("%s", err)
+	}
+	
 	fmt.Println("Length of ptxs: ", len(ptxs))
 
 	totalFee := uint64(0)
 	for _, ptx := range ptxs {
 		totalFee += ptx.Fee
-		res, err := wallet.CommitPtx(&ptx)
+		res, err := w.CommitPtx(&ptx)
 		fmt.Println("Res: ", res, " err: ", err)
 	}
 	fmt.Println("TotalFee was: ", totalFee, ", MoneyPaid: ", 300000000000000)

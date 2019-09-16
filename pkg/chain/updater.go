@@ -62,9 +62,11 @@ func (w *Wallet) runUpdater() {
 				loadedHeight := w.GetLatestLoadedBlockHeight()
 				info, err := w.client.GetDaemonInfo()
 				if err != nil {
+					w.logger.Errorf("[Updater] Can't connect to daemon")
 					time.Sleep(DaemonErrorTime * time.Millisecond)
 					continue
 				}
+				w.latestInfo = &info
 				bcHeight = info.Height
 				if loadedHeight < bcHeight-1 {
 					w.syncing = true
@@ -79,6 +81,14 @@ func (w *Wallet) runUpdater() {
 				} else {
 					w.syncing = false
 				}
+				info, err := w.client.GetDaemonInfo()
+				if err != nil {
+					w.logger.Debugf("[Updater] Unexpected error in client syncing")
+					time.Sleep(UpdateCycleTime * time.Millisecond)
+					continue
+				}
+				w.latestInfo = &info
+
 				time.Sleep(UpdateCycleTime * time.Millisecond)
 			}
 		} else {

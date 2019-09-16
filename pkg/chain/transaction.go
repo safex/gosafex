@@ -6,10 +6,10 @@ import (
 	"log"
 	"math/rand"
 	"time" 
+	"errors"
 
 	
 	"github.com/jinzhu/copier"
-	"github.com/safex/gosafex/internal/consensus"
 	"github.com/safex/gosafex/internal/crypto"
 	"github.com/safex/gosafex/internal/crypto/curve"
 	"github.com/safex/gosafex/pkg/serialization"
@@ -317,9 +317,9 @@ func (w *Wallet) transferSelected(dsts *[]DestinationEntry, selectedTransfers *[
 	// @todo Investigate how TxSize is controlled and calculated in advance
 	//		 in order to control and predict fee.
 	blobSize := serialization.GetTxBlobSize(tx)
-	if blobSize > uint64(consensus.GetUpperTransactionSizeLimit(1, 10)) {
+	if blobSize > uint64(GetUpperTransactionSizeLimit(1, 10)) {
 		fmt.Println("Blobsize: ", blobSize)
-		fmt.Println("Limitblobsize: ", uint64(consensus.GetUpperTransactionSizeLimit(1, 10)))
+		fmt.Println("Limitblobsize: ", uint64(GetUpperTransactionSizeLimit(1, 10)))
 		panic("Transaction too big!!")
 	}
 
@@ -368,9 +368,9 @@ func (w *Wallet) TxCreateToken(
 
 	var neededToken uint64 = 0
 
-	upperTxSizeLimit := consensus.GetUpperTransactionSizeLimit(2, 10)
-	feePerKb := consensus.GetPerKBFee()
-	feeMultiplier := consensus.GetFeeMultiplier(priority, consensus.GetFeeAlgorithm())
+	upperTxSizeLimit := GetUpperTransactionSizeLimit(2, 10)
+	feePerKb := w.GetPerKBFee()
+	feeMultiplier := GetFeeMultiplier(priority, GetFeeAlgorithm())
 
 	if len(dsts) == 0 {
 		panic("Zero destinations!")
@@ -413,7 +413,7 @@ func (w *Wallet) TxCreateToken(
 
 	// Find unused outputs
 	for _, val := range w.outputs {
-		if !val.Spent && val.IsUnlocked(height) {
+		if !val.Spent && val.isUnlocked(height) {
 			if MatchOutputWithType(val.Output, safex.OutToken) {
 				if IsDecomposedOutputValue(val.Output.TokenAmount) {
 					unusedTokenOutputs = append(unusedTokenOutputs, val)
@@ -536,7 +536,7 @@ func (w *Wallet) TxCreateToken(
 			var testTx safex.Transaction
 			var testPtx PendingTx
 			estimatedTxSize := estimateTxSize(len(tx.SelectedTransfers), fakeOutsCount, len(tx.Dsts), len(extra))
-			neededFee = consensus.CalculateFee(feePerKb, estimatedTxSize, feeMultiplier)
+			neededFee = CalculateFee(feePerKb, estimatedTxSize, feeMultiplier)
 
 			var inputs uint64 = 0
 			var outputs uint64 = neededFee
@@ -563,7 +563,7 @@ func (w *Wallet) TxCreateToken(
 				w.transferSelected(&tx.Dsts, &tx.SelectedTransfers, fakeOutsCount, &outs, &outsFee, unlockTime, neededFee, &extra, &testTx, &testPtx, safex.OutToken)
 
 				txBlob := serialization.SerializeTransaction(testPtx.Tx, true)
-				neededFee = consensus.CalculateFee(feePerKb, len(txBlob), feeMultiplier)
+				neededFee = CalculateFee(feePerKb, len(txBlob), feeMultiplier)
 				availableForFee := testPtx.Fee + testPtx.ChangeDts.Amount
 
 				if neededFee > availableForFee && len(dsts) > 0 && dsts[0].Amount > 0 {
@@ -597,7 +597,7 @@ func (w *Wallet) TxCreateToken(
 						fmt.Println("NeededFee: ", neededFee, ", testPtx.Fee ", testPtx.Fee)
 						w.transferSelected(&tx.Dsts, &tx.SelectedTransfers, fakeOutsCount, &outs, &outsFee, unlockTime, neededFee, &extra, &testTx, &testPtx, safex.OutToken)
 						txBlob = serialization.SerializeTransaction(testPtx.Tx, true)
-						neededFee = consensus.CalculateFee(feePerKb, len(txBlob), feeMultiplier)
+						neededFee = CalculateFee(feePerKb, len(txBlob), feeMultiplier)
 						log.Println("Made an attempt at a final tx, with " + string(testPtx.Fee) + " fee and " + string(testPtx.ChangeDts.Amount) + " change")
 					}
 
@@ -799,21 +799,27 @@ func (w *Wallet) TxCreateCash(
 	unlockTime uint64,
 	priority uint32,
 	extra []byte,
-	trustedDaemon bool) []PendingTx {
+	trustedDaemon bool) ([]PendingTx, error) {
 
 	// @todo error handling
+	if w.client == nil{
+		return nil, errors.New("Client not initialized")
+	}
+	if w.syncing{
+		return nil, errors.New("Updating")
+	}
 	info, _ := w.client.GetDaemonInfo()
 	height := info.Height
 
 	var neededMoney uint64 = 0
 
-	upperTxSizeLimit := consensus.GetUpperTransactionSizeLimit(1, 10)
-	feePerKb := consensus.GetPerKBFee()
-	feeMultiplier := consensus.GetFeeMultiplier(priority, consensus.GetFeeAlgorithm())
+	upperTxSizeLimit := GetUpperTransactionSizeLimit(1, 10)
+	feePerKb := w.GetPerKBFee()
+	feeMultiplier := GetFeeMultiplier(priority, GetFeeAlgorithm())
 
 	if len(dsts) == 0 {
 
-		panic("Zero destinations!")
+		return nil, errors.New("Zero destinations!")
 	}
 
 	for _, dst := range dsts {
@@ -821,34 +827,34 @@ func (w *Wallet) TxCreateCash(
 			neededMoney += dst.Amount
 			// @todo: log stuff
 			if neededMoney < dst.Amount {
-				panic("Reached uint64 overflow!")
+				return nil, errors.New("Reached uint64 overflow!")
 			}
 		}
 	}
 
 	if neededMoney == 0 {
-		panic("Can't send zero amount!")
+		return nil, errors.New("Can't send zero amount!")
 	}
 
 	// TODO: This can be expanded to support subaddresses
 	// @todo: make sure that balance is calculated here!
 
 	if neededMoney > w.balance.CashLocked {
-		panic("Not enough cash!")
+		return nil, errors.New("Not enough cash!")
 	}
 
 	// @todo: For debugging purposes, remove when unlocked cash is ready
 	if false && neededMoney > w.balance.CashUnlocked {
-		panic("Not enough unlocked cash!")
+		return nil, errors.New("Not enough unlocked cash!")
 	}
 
 	var unusedOutputs []Transfer
 	var dustOutputs []Transfer
 
-	// Find unused outputs
+	// Find unused outputs 
 	for _, val := range w.outputs {
-		if !val.Spent && !isTokenOutput(val.Output) && val.IsUnlocked(height) {
-			if IsDecomposedOutputValue(val.Output.Amount) {
+		if !val.Spent && !isTokenOutput(val.Output) && val.isUnlocked(height) { 
+			if IsDecomposedOutputValue(val.Output.Amount) {  
 				unusedOutputs = append(unusedOutputs, val)
 			} else {
 				dustOutputs = append(dustOutputs, val)
@@ -858,7 +864,7 @@ func (w *Wallet) TxCreateCash(
 
 	// If there is no usable outputs return empty array
 	if len(unusedOutputs) == 0 && len(dustOutputs) == 0 {
-		return []PendingTx{}
+		return []PendingTx{}, nil
 	}
 
 	// @todo Check mismatch in dust output numbers.
@@ -936,7 +942,7 @@ func (w *Wallet) TxCreateCash(
 			var testTx safex.Transaction
 			var testPtx PendingTx
 			estimatedTxSize := estimateTxSize(len(tx.SelectedTransfers), fakeOutsCount, len(tx.Dsts), len(extra))
-			neededFee = consensus.CalculateFee(feePerKb, estimatedTxSize, feeMultiplier)
+			neededFee = CalculateFee(feePerKb, estimatedTxSize, feeMultiplier)
 
 			var inputs uint64 = 0
 			var outputs uint64 = neededFee
@@ -959,11 +965,11 @@ func (w *Wallet) TxCreateCash(
 			} else {
 
 				// Transfer selected
-				fmt.Println(">>>>>>>>>>>>> FIRST TRANSFER SELECTED <<<<<<<<<<<<<<<<<<")
+				//fmt.Println(">>>>>>>>>>>>> FIRST TRANSFER SELECTED <<<<<<<<<<<<<<<<<<")
 				w.transferSelected(&tx.Dsts, &tx.SelectedTransfers, fakeOutsCount, &outs, nil, unlockTime, neededFee, &extra, &testTx, &testPtx, safex.OutCash)
 
 				txBlob := serialization.SerializeTransaction(testPtx.Tx, true)
-				neededFee = consensus.CalculateFee(feePerKb, len(txBlob), feeMultiplier)
+				neededFee = CalculateFee(feePerKb, len(txBlob), feeMultiplier)
 				availableForFee := testPtx.Fee + testPtx.ChangeDts.Amount
 
 				if neededFee > availableForFee && len(dsts) > 0 && dsts[0].Amount > 0 {
@@ -987,7 +993,7 @@ func (w *Wallet) TxCreateCash(
 						availableForFee = neededFee
 					}
 				}
-
+ 
 				if neededFee > availableForFee {
 					log.Println("We couldnt make a tx, switching to fee accumulation")
 					addingFee = true
@@ -996,7 +1002,7 @@ func (w *Wallet) TxCreateCash(
 					for neededFee > testPtx.Fee {
 						w.transferSelected(&tx.Dsts, &tx.SelectedTransfers, fakeOutsCount, &outs, nil, unlockTime, neededFee, &extra, &testTx, &testPtx, safex.OutCash)
 						txBlob = serialization.SerializeTransaction(testPtx.Tx, true)
-						neededFee = consensus.CalculateFee(feePerKb, len(txBlob), feeMultiplier)
+						neededFee = CalculateFee(feePerKb, len(txBlob), feeMultiplier)
 						log.Println("Made an attempt at a final tx, with " + string(testPtx.Fee) + " fee and " + string(testPtx.ChangeDts.Amount) + " change")
 					}
 
@@ -1065,6 +1071,5 @@ func (w *Wallet) TxCreateCash(
 		// }
 		ret = append(ret, tx.PendingTx)
 	}
-	fmt.Println("This is spartaaaaaa")
-	return ret
+	return ret, nil
 }

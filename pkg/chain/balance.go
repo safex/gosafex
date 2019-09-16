@@ -1,6 +1,8 @@
 package chain
 
 import (
+	"errors"
+
 	"github.com/safex/gosafex/pkg/safex"
 )
 
@@ -31,7 +33,7 @@ func (t *Transfer) getRelatedness(input *Transfer) float32 {
 	return float32(0.0)
 }
 
-func (t Transfer) IsUnlocked(height uint64) bool {
+func (t Transfer) isUnlocked(height uint64) bool {
 	if t.MinerTx {
 		return height-t.Height > 60
 	} else {
@@ -93,11 +95,14 @@ func (w *Wallet) seenOutput(outID string) bool {
 	return false
 }
 
-func (w *Wallet) LoadBalance() error {
+func (w *Wallet) loadBalance() error {
 	w.resetBalance()
 	height := w.wallet.GetLatestBlockHeight()
 	w.logger.Debugf("[Wallet] Loading balance up to: %d", height)
-
+	if w.syncing {
+		w.logger.Debugf("[Wallet] Wallet is syncing")
+		return errors.New("Wallet is syncing")
+	}
 	for _, el := range w.wallet.GetUnspentOutputs() {
 		if w.seenOutput(el) {
 			continue
@@ -148,7 +153,7 @@ func (w *Wallet) resetBalance() {
 	w.balance.TokenLocked = 0
 }
 
-func (w *Wallet) UnlockBalance(height uint64) error {
+func (w *Wallet) unlockBalance(height uint64) error {
 	for _, el := range w.wallet.GetLockedOutputs() {
 		age, _ := w.wallet.GetOutputAge(el)
 		txtyp, _ := w.wallet.GetOutputTransactionType(el)

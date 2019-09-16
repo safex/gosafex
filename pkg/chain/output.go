@@ -8,8 +8,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/golang/glog"
-	"github.com/safex/gosafex/internal/consensus"
+	"github.com/golang/glog" 
 	"github.com/safex/gosafex/internal/crypto"
 	"github.com/safex/gosafex/internal/crypto/curve"
 	"github.com/safex/gosafex/pkg/filewallet"
@@ -79,7 +78,7 @@ func (w *Wallet) getOutputHistogram(selectedTransfer *[]Transfer, outType safex.
 	}
 
 	t := time.Now()
-	recentCutoff := uint64(t.Unix()) - consensus.RecentOutputZone
+	recentCutoff := uint64(t.Unix()) - RecentOutputZone
 
 	sort.Slice(amounts, func(i, j int) bool { return amounts[i] < amounts[j] })
 	histogramRes, _ := w.client.GetOutputHistogram(&amounts, 0, 0, true, recentCutoff, outType)
@@ -103,7 +102,7 @@ func getOutputDistribution(type_ string, numOuts uint64, numRecentOutputs uint64
 
 }
 
-func TxAddFakeOutput(entry *[]OutsEntry, globalIndex uint64, outputKey [32]byte, localIndex uint64, unlocked bool) bool {
+func txAddFakeOutput(entry *[]OutsEntry, globalIndex uint64, outputKey [32]byte, localIndex uint64, unlocked bool) bool {
 	if !unlocked {
 		glog.Error("Failed to add fake output")
 		return false
@@ -129,9 +128,9 @@ func (w *Wallet) getOuts(outs *[][]OutsEntry, selectedTransfers *[]Transfer, fak
 	*outs = [][]OutsEntry{}
 	fmt.Println("getOuts")
 	if fakeOutsCount > 0 {
-		info, err := w.client.GetDaemonInfo()
+		info := w.latestInfo
 
-		if err != nil {
+		if info == nil {
 			panic("Failed to get node info")
 		}
 
@@ -163,11 +162,11 @@ func (w *Wallet) getOuts(outs *[][]OutsEntry, selectedTransfers *[]Transfer, fak
 				if he.Amount == valueAmount {
 					numOuts = he.UnlockedInstances
 					numRecentOutputs = he.RecentInstances
-					break
+					break 
 				}
 			}
 
-			var recentOutputsCount uint64 = uint64(consensus.RecentOutputRatio * float64(baseRequestedOutputsCount))
+			var recentOutputsCount uint64 = uint64(RecentOutputRatio * float64(baseRequestedOutputsCount))
 
 			if recentOutputsCount == 0 {
 				recentOutputsCount = 1
@@ -283,9 +282,8 @@ func (w *Wallet) getOuts(outs *[][]OutsEntry, selectedTransfers *[]Transfer, fak
 
 			for o := uint64(0); o < baseRequestedOutputsCount && len(entry) < (fakeOutsCount+1); o++ {
 				i := base + order[o]
-				// @todo Refactor!!
 				copy(outputKeyTemp[:], outs1.Outs[i].Key)
-				TxAddFakeOutput(&entry, outsRq[i].Index, outputKeyTemp, val.GlobalIndex, outs1.Outs[i].Unlocked)
+				txAddFakeOutput(&entry, outsRq[i].Index, outputKeyTemp, val.GlobalIndex, outs1.Outs[i].Unlocked)
 			}
 
 			if len(entry) < fakeOutsCount+1 {

@@ -1,16 +1,18 @@
-package consensus
+package chain
 
-import "github.com/safex/gosafex/pkg/safexdrpc"
-
-func UseForkRules(version uint32, earlyBlocks uint64) bool {
+func (w *Wallet) UseForkRules(version uint32, earlyBlocks uint64) bool {
 	// @TODO Consider using singleton pattern for client communication
-	client := safexdrpc.InitClient("127.0.0.1", 38001)
+	if w.client != nil {
 
-	info, _ := client.GetDaemonInfo()
-	hfInfo, _ := client.GetHardForkInfo(version)
+		if w.latestInfo == nil{
+			return false
+		}
+		hfInfo, _ := w.client.GetHardForkInfo(version)
 
-	// @TODO Log stuff
-	return info.Height >= hfInfo.EarliestHeight-earlyBlocks
+		// @TODO Log stuff
+		return w.latestInfo.Height >= hfInfo.EarliestHeight-earlyBlocks
+	}
+	return false
 }
 
 func GetUpperTransactionSizeLimit(forkVersion uint32, earlyBlocks uint64) int {
@@ -28,16 +30,18 @@ func GetFeeAlgorithm() uint32 {
 	return 0
 }
 
-func GetPerKBFee() uint64 {
+func (w *Wallet) GetPerKBFee() uint64 {
 	// @TODO Consider using singleton pattern for client communication
-	client := safexdrpc.InitClient("127.0.0.1", 38001)
-	fee, err := client.GetDynamicFeeEstimate()
+	if w.client != nil {
+	fee, err := w.client.GetDynamicFeeEstimate()
 
 	if err == nil {
 		return FeePerKB
 	} else {
 		return fee
 	}
+	}
+return 0
 }
 
 // wallet::get_fee_multiplier
