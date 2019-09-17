@@ -3,14 +3,13 @@ package chain
 func (w *Wallet) UseForkRules(version uint32, earlyBlocks uint64) bool {
 	// @TODO Consider using singleton pattern for client communication
 	if w.client != nil {
-
 		if w.latestInfo == nil{
 			return false
 		}
 		hfInfo, _ := w.client.GetHardForkInfo(version)
 
 		// @TODO Log stuff
-		return w.latestInfo.Height >= hfInfo.EarliestHeight-earlyBlocks
+		return w.latestInfo.Height >= hfInfo.EarliestHeight-earlyBlocks 
 	}
 	return false
 }

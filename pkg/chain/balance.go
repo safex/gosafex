@@ -1,7 +1,6 @@
 package chain
 
 import (
-	"errors"
 
 	"github.com/safex/gosafex/pkg/safex"
 )
@@ -68,7 +67,7 @@ func (w *Wallet) processBlockRange(blocks safex.Blocks) bool {
 	}
 
 	for _, tx := range loadedTxs.Tx {
-		w.ProcessTransaction(tx, txblck[tx.GetTxHash()], false)
+		w.processTransaction(tx, txblck[tx.GetTxHash()], false)
 	}
 
 	mloadedTxs, err := w.client.GetTransactions(minerTxs)
@@ -80,7 +79,7 @@ func (w *Wallet) processBlockRange(blocks safex.Blocks) bool {
 	w.logger.Infof("[Chain] Number of mloadedTxs: %d", len(mloadedTxs.Tx))
 
 	for _, tx := range mloadedTxs.Tx {
-		w.ProcessTransaction(tx, txblck[tx.GetTxHash()], true)
+		w.processTransaction(tx, txblck[tx.GetTxHash()], true)
 	}
 
 	return true
@@ -101,7 +100,7 @@ func (w *Wallet) loadBalance() error {
 	w.logger.Debugf("[Wallet] Loading balance up to: %d", height)
 	if w.syncing {
 		w.logger.Debugf("[Wallet] Wallet is syncing")
-		return errors.New("Wallet is syncing")
+		return ErrSyncing
 	}
 	for _, el := range w.wallet.GetUnspentOutputs() {
 		if w.seenOutput(el) {

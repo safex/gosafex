@@ -49,7 +49,7 @@ func extractTxPubKey(extra []byte) (pubTxKey [crypto.KeyLength]byte) {
 }
 
 
-func (w *Wallet) ProcessTransaction(tx *safex.Transaction, blckHash string, minerTx bool) error {
+func (w *Wallet) processTransaction(tx *safex.Transaction, blckHash string, minerTx bool) error {
 	// @todo Process Unconfirmed.
 	// Process outputs
 	if len(tx.Vout) != 0 {
@@ -360,11 +360,19 @@ func (w *Wallet) TxCreateToken(
 	unlockTime uint64,
 	priority uint32,
 	extra []byte,
-	trustedDaemon bool) []PendingTx {
+	trustedDaemon bool) ([]PendingTx, error) { 
 
 	// @todo error handling
-	info, _ := w.client.GetDaemonInfo()
-	height := info.Height
+	if w.client == nil{
+		return nil, ErrClientNotInit
+	}
+	if w.syncing{
+		return nil, ErrSyncing
+	}
+	if w.latestInfo == nil{
+		return nil, ErrDaemonInfo
+	}
+	height := w.latestInfo.Height 
 
 	var neededToken uint64 = 0
 
@@ -433,12 +441,12 @@ func (w *Wallet) TxCreateToken(
 
 	// If there is no usable outputs return empty array
 	if len(unusedOutputs) == 0 && len(dustOutputs) == 0 {
-		return []PendingTx{}
+		return []PendingTx{}, nil
 	}
 
 	// If there is no usable outputs return empty array
 	if len(unusedTokenOutputs) == 0 && len(dustTokenOutputs) == 0 {
-		return []PendingTx{}
+		return []PendingTx{}, nil
 	}
 
 	// @todo Check mismatch in dust output numbers.
@@ -674,8 +682,7 @@ func (w *Wallet) TxCreateToken(
 		// }
 		ret = append(ret, tx.PendingTx)
 	}
-	fmt.Println("This is spartaaaaaa")
-	return ret
+	return ret, nil
 }
 
 func isTokenOutput(txout *safex.Txout) bool {
@@ -803,13 +810,15 @@ func (w *Wallet) TxCreateCash(
 
 	// @todo error handling
 	if w.client == nil{
-		return nil, errors.New("Client not initialized")
+		return nil, ErrClientNotInit 
 	}
 	if w.syncing{
-		return nil, errors.New("Updating")
+		return nil, ErrSyncing
 	}
-	info, _ := w.client.GetDaemonInfo()
-	height := info.Height
+	if w.latestInfo == nil{
+		return nil, ErrDaemonInfo
+	}
+	height := w.latestInfo.Height 
 
 	var neededMoney uint64 = 0
 

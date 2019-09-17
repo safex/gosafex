@@ -8,7 +8,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/golang/glog" 
+	"github.com/golang/glog"
 	"github.com/safex/gosafex/internal/crypto"
 	"github.com/safex/gosafex/internal/crypto/curve"
 	"github.com/safex/gosafex/pkg/filewallet"
@@ -16,7 +16,7 @@ import (
 )
 
 func (w *Wallet) LoadOutputs() error {
-		
+
 	return nil
 }
 
@@ -63,8 +63,11 @@ func (w *Wallet) matchOutput(txOut *safex.Txout, index uint64, der [crypto.KeyLe
 	return *outputKey == [crypto.KeyLength]byte(*derivatedPubKey)
 }
 
-func (w *Wallet) getOutputHistogram(selectedTransfer *[]Transfer, outType safex.TxOutType) (histograms []*safex.Histogram) {
+func (w *Wallet) getOutputHistogram(selectedTransfer *[]Transfer, outType safex.TxOutType) (histograms []*safex.Histogram, err error) {
 	// @todo can be optimized
+	if w.syncing {
+		return nil, ErrSyncing
+	}
 	var amounts []uint64
 	encountered := map[uint64]bool{}
 	for _, val := range *selectedTransfer {
@@ -82,7 +85,7 @@ func (w *Wallet) getOutputHistogram(selectedTransfer *[]Transfer, outType safex.
 
 	sort.Slice(amounts, func(i, j int) bool { return amounts[i] < amounts[j] })
 	histogramRes, _ := w.client.GetOutputHistogram(&amounts, 0, 0, true, recentCutoff, outType)
-	return histogramRes.Histograms
+	return histogramRes.Histograms, nil
 }
 
 func getOutputDistribution(type_ string, numOuts uint64, numRecentOutputs uint64) (i uint64) {
@@ -96,8 +99,6 @@ func getOutputDistribution(type_ string, numOuts uint64, numRecentOutputs uint64
 	if i == numOuts {
 		i--
 	}
-	fmt.Println("numOuts: ", numOuts, ", numRecentOutputs: ", numRecentOutputs, ", i: ", i)
-
 	return i
 
 }
@@ -136,8 +137,8 @@ func (w *Wallet) getOuts(outs *[][]OutsEntry, selectedTransfers *[]Transfer, fak
 
 		var height uint64 = info.Height
 		fmt.Println(height)
-
-		histograms := w.getOutputHistogram(selectedTransfers, outType)
+		//@todo error handling
+		histograms, _ := w.getOutputHistogram(selectedTransfers, outType)
 		baseRequestedOutputsCount := uint64(float64(fakeOutsCount+1)*1.5 + 1)
 
 		var outsRq []safex.GetOutputRq
@@ -162,7 +163,7 @@ func (w *Wallet) getOuts(outs *[][]OutsEntry, selectedTransfers *[]Transfer, fak
 				if he.Amount == valueAmount {
 					numOuts = he.UnlockedInstances
 					numRecentOutputs = he.RecentInstances
-					break 
+					break
 				}
 			}
 
