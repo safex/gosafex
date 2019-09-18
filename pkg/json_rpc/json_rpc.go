@@ -10,7 +10,7 @@ import (
 	"github.com/gorilla/mux"
 	SafexRPC "github.com/safex/gosafex/pkg/rpc"
 	log "github.com/sirupsen/logrus"
-) 
+)
 
 var logLevel = log.DebugLevel
 var logOutput io.Writer
@@ -39,9 +39,8 @@ func main() {
 
 	router := mux.NewRouter().StrictSlash(true)
 
-	var walletRPC SafexRPC.WalletRPC
-	walletRPC.SetLogger(logger)
-	loadRoutes(&walletRPC, router)
+	var walletRPC = SafexRPC.New(logger)
+	loadRoutes(walletRPC, router)
 
 	logger.Infof("Starting server on %s", *portPtr)
 	logger.Infof("With password " + *passPtr)

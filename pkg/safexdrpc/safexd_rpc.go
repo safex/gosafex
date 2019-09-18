@@ -4,11 +4,9 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"io"
 	"io/ioutil"
-	"log"
+	log "github.com/sirupsen/logrus"
 	"net/http"
-	"os"
 	"strconv"
 	"time"
 
@@ -22,6 +20,7 @@ type JSONElement = map[string]interface{}
 type JSONArray = []interface{}
 
 type Client struct {
+	logger     *log.Logger
 	Port       uint
 	Host       string
 	ID         uint
@@ -39,20 +38,13 @@ func must(err error) {
 
 //InitClient creates and initializes RPC client and returns client object
 //takes host and port as arguments
-func InitClient(host string, port uint) (client *Client) {
-
-	file, e := os.OpenFile("rpc_dump_log.txt", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
-	if e != nil {
-		log.Fatalln("Failed to open rpc_dump_log.txt file")
-	}
-
-	wrtr := io.MultiWriter(file)
-	log.SetOutput(wrtr)
+func InitClient(host string, port uint, prevLogger *log.Logger) (client *Client) {
 
 	client = &Client{
 		Port: port,
 		Host: host,
 		ID:   0,
+		logger: prevLogger,
 	}
 
 	// Create config

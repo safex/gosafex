@@ -24,12 +24,22 @@ func (w *WalletRPC) OpenCheck(rw *http.ResponseWriter) bool {
 	return true
 }
 
-func (w *WalletRPC) StartUpdating() {
+func (w *WalletRPC) BeginUpdating(rw http.ResponseWriter, r *http.Request) {
+	var data JSONElement
+	w.logger.Infof("[RPC] Getting start update request")
+	w.wallet.BeginUpdating()
+	data["msg"] = w.wallet.UpdaterStatus()
 
+	FormJSONResponse(data, EverythingOK, &rw)
 }
 
-func (w *WalletRPC) StopUpdating() {
+func (w *WalletRPC) StopUpdating(rw http.ResponseWriter, r *http.Request) {
+	var data JSONElement
+	w.logger.Infof("[RPC] Getting stop update request")
+	w.wallet.StopUpdating()
+	data["msg"] = w.wallet.UpdaterStatus()
 
+	FormJSONResponse(data, EverythingOK, &rw)
 }
 
 // Getting status of current wallet. If its open, syncing etc.
@@ -56,4 +66,13 @@ func (w *WalletRPC) Close(rw http.ResponseWriter, r *http.Request) {
 
 func (w *WalletRPC) SetLogger(prevLog *log.Logger) {
 	w.logger = prevLog
+}
+
+func New(prevLog *log.Logger) *WalletRPC {
+	var walletRPC *WalletRPC
+	walletRPC.SetLogger(prevLog)
+
+	walletRPC.wallet = chain.New(prevLog)
+
+	return walletRPC
 }

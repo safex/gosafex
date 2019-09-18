@@ -62,12 +62,12 @@ func CleanAfterTests(w *Wallet, fullpath string) {
 		fmt.Println(err)
 	}
 }
-
+ 
 func TestRecoverFromMnemonic(t *testing.T) {
 	prepareFolder()
 	testLogger.Infof("[Test] Testing account recovery from mnemonic")
 
-	w := new(Wallet)
+	w := New(testLogger)
 	fullpath := strings.Join([]string{foldername, filename}, "/")
 
 	if err := w.OpenFile(fullpath, masterPass, false, testLogger); err != nil {

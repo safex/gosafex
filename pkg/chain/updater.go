@@ -4,7 +4,7 @@ import (
 	"time"
 )
 
-const UpdateCycleTime = 50
+const UpdateCycleTime = 20
 const CheckCycleTime = 5000
 const DaemonErrorTime = 2000
 const BlocksPerCycle = 500
@@ -75,11 +75,16 @@ func (w *Wallet) runUpdater() {
 				time.Sleep(CheckCycleTime * time.Millisecond)
 
 			} else {
-				if w.GetLatestLoadedBlockHeight() < bcHeight-1 {
-					w.logger.Debugf("[Updater] Known block: %d , bcHeight: %d", w.GetLatestLoadedBlockHeight(), bcHeight)
-					w.updateBlock(BlocksPerCycle)
+				if !w.working {
+					if w.GetLatestLoadedBlockHeight() < bcHeight-1 {
+						w.logger.Debugf("[Updater] Known block: %d , bcHeight: %d", w.GetLatestLoadedBlockHeight(), bcHeight)
+
+						w.updateBlock(BlocksPerCycle)
+					} else {
+						w.syncing = false
+					}
 				} else {
-					w.syncing = false
+					w.logger.Debugf("[Updater] Local DB busy")
 				}
 				info, err := w.client.GetDaemonInfo()
 				if err != nil {

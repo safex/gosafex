@@ -340,6 +340,13 @@ func (w *FileWallet) GetLockedOutputs() []string{
 	return w.lockedOutputs
 }
 
+func (w *FileWallet) IsOpen() bool{
+	if w.db != nil{
+		return true
+	}
+	return false
+}
+
 //Close close the wallet
 func (w *FileWallet) Close() {
 	w.db.Close()

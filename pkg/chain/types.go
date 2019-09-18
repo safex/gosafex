@@ -78,6 +78,7 @@ type Wallet struct {
 
 	latestInfo *safex.DaemonInfo
 
+	working  bool
 	updating bool
 	syncing  bool
 	quitting bool

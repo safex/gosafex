@@ -40,7 +40,7 @@ func (w *WalletRPC) accountInfoFromStore(store *account.Store, rw *http.Response
 	viewkey := make(JSONElement)
 	spendkey := make(JSONElement)
 
-	data["account_name"] = w.wallet.GetOpenAccount()
+	data["account_name"], _ = w.wallet.GetOpenAccount()
 	data["address"] = store.Address().String()
 
 	viewkey["public"] = getKeyString(store.Address().ViewKey)
@@ -83,7 +83,7 @@ func (w *WalletRPC) currentAccInfo(rw *http.ResponseWriter) JSONElement {
 }
 
 func (w *WalletRPC) accInfo(name string, rw *http.ResponseWriter) JSONElement {
-	currAcc := w.wallet.GetOpenAccount()
+	currAcc, _ := w.wallet.GetOpenAccount()
 
 	err := w.wallet.OpenAccount(name, !w.mainnet)
 	if err != nil {
@@ -182,9 +182,9 @@ func (w *WalletRPC) GetAllAccountsInfo(rw http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	currAcc := w.wallet.GetOpenAccount()
+	currAcc, _ := w.wallet.GetOpenAccount()
 
-	for _, acc := range accounts {
+	for _, acc := range accounts { 
 		err := w.wallet.OpenAccount(acc, !w.mainnet)
 		if err != nil {
 			data := make(JSONElement)
@@ -432,7 +432,7 @@ func (w *WalletRPC) SyncAccount(rw http.ResponseWriter, r *http.Request) {
 	balance["token-unlocked"] = b.TokenUnlocked
 
 	data["balance"] = balance
-	data["name"] = w.wallet.GetOpenAccount()
+	data["name"], _ = w.wallet.GetOpenAccount()
 
 	FormJSONResponse(data, EverythingOK, &rw)
 }
@@ -453,8 +453,8 @@ func (w *WalletRPC) RemoveAccount(rw http.ResponseWriter, r *http.Request) {
 		FormJSONResponse(nil, WalletIsNotOpened, &rw)
 		return
 	}
-
-	if rqData.Name == w.wallet.GetOpenAccount() {
+	openAcc, _ := w.wallet.GetOpenAccount()
+	if rqData.Name == openAcc { 
 		FormJSONResponse(nil, RemovingCurrentAccount, &rw)
 		return
 	}
