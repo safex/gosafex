@@ -4,6 +4,11 @@ vendor
 
 #Logs
 *.log
+*.test
+*.txt
+
+#Compiled
+*.exe
 
 # Configuration
 config*.json

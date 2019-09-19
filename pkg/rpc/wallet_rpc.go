@@ -69,7 +69,7 @@ func (w *WalletRPC) SetLogger(prevLog *log.Logger) {
 }
 
 func New(prevLog *log.Logger) *WalletRPC {
-	var walletRPC *WalletRPC
+	walletRPC := &WalletRPC{}
 	walletRPC.SetLogger(prevLog)
 
 	walletRPC.wallet = chain.New(prevLog)

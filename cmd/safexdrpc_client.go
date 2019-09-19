@@ -3,24 +3,27 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/safex/gosafex/pkg/safexdrpc"
 	"github.com/safex/gosafex/pkg/safex"
+	"github.com/safex/gosafex/pkg/safexdrpc"
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
+
+var logger = log.StandardLogger()
+var logFile = "SafexSDK.log"
 
 var daemonHost string
 var daemonPort uint
 
 // safexdRPCCmd represents the RPC daemon api test command
-var safexdRPCCmd = &cobra.Command{ 
+var safexdRPCCmd = &cobra.Command{
 	Use:   "safexdrpc",
 	Short: "Test cmd rpc client for safex daemon",
 	Long:  `Cmd that talks to safexd rpc daemon and prints basic info about daemon`,
 	Args:  cobra.MinimumNArgs(0),
 	Run: func(cmd *cobra.Command, args []string) {
 
-		fmt.Println("Connecting to host ", daemonHost, " port ", daemonPort)
-		safexdClient := safexdrpc.InitClient("127.0.0.1", 29393)
+		safexdClient := safexdrpc.InitClient("127.0.0.1", 29393, nil)
 
 		count, _ := safexdClient.GetBlockCount()
 		fmt.Println("Retrieved block count is:", count)
@@ -43,7 +46,7 @@ var safexdRPCCmd = &cobra.Command{
 		fmt.Println(txs)
 
 		var blocks safex.Blocks
-		blocks, _ = safexdClient.GetBlocks(1,4)
+		blocks, _ = safexdClient.GetBlocks(1, 4)
 		fmt.Println(blocks)
 
 		safexdClient.Close()
