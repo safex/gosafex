@@ -12,6 +12,7 @@ const BlocksPerCycle = 500
 func (w *Wallet) Rescan(accountName string) {
 	select {
 	case w.rescan <- accountName:
+		w.logger.Debugf("[Updater] Rescanning for: %s", accountName)
 	default:
 		w.logger.Infof("[Updater] Error communicating with updater for rescan")
 	}

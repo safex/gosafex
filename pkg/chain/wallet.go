@@ -542,8 +542,10 @@ func New(prevLog *log.Logger) *Wallet {
 	w := new(Wallet)
 	w.SetLogger(prevLog)
 	w.outputs = make(map[crypto.Key]Transfer)
-	w.update = make(chan bool)
+	//Some of these values are hardcoded, might not be wise
+	w.update = make(chan bool, 8)
 	w.quit = make(chan bool)
+	w.rescan = make(chan string, 512)
 	return w
 }
 

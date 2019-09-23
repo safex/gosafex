@@ -467,12 +467,13 @@ func (w *WalletRPC) RemoveAccount(rw http.ResponseWriter, r *http.Request) {
 
 //Rescans the loaded blocks looking for transactions for the newly added user
 func (w *WalletRPC) Rescan(rw http.ResponseWriter, r *http.Request) {
-	w.logger.Infof("[RPC] Getting rescan request")
+
 	var rqData AccountRq
 	if !accountGetData(&rw, r, &rqData) {
 		// Error response already handled
 		return
 	}
+	w.logger.Infof("[RPC] Getting rescan request for account: %s", rqData.Name)
 	w.wallet.Rescan(rqData.Name)
 
 	data := make(JSONElement)
