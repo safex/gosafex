@@ -1,7 +1,6 @@
 package chain
 
 import (
-
 	"github.com/safex/gosafex/pkg/safex"
 )
 
@@ -38,6 +37,43 @@ func (t Transfer) isUnlocked(height uint64) bool {
 	} else {
 		return height-t.Height > 10
 	}
+}
+
+func (w *Wallet) rescanBlockRange(blocks safex.Blocks, acc string) error {
+	var txs []string
+	var minerTxs []string
+	txblck := make(map[string]string)
+	for _, blck := range blocks.Block {
+		for _, el := range blck.Txs {
+			txblck[el] = blck.GetHeader().GetHash()
+			txs = append(txs, el)
+		}
+		minerTxs = append(minerTxs, blck.MinerTx)
+		txblck[blck.MinerTx] = blck.GetHeader().GetHash()
+	}
+
+	// Get transaction data and process.
+	loadedTxs, err := w.client.GetTransactions(txs)
+	if err != nil {
+		return err
+	}
+
+	for _, tx := range loadedTxs.Tx {
+		w.processTransactionPerAccount(tx, txblck[tx.GetTxHash()], false, acc)
+	}
+
+	mloadedTxs, err := w.client.GetTransactions(minerTxs)
+	if err != nil {
+		return err
+	}
+
+	w.logger.Infof("[Chain] Number of minerTxs: %d", len(minerTxs))
+	w.logger.Infof("[Chain] Number of mloadedTxs: %d", len(mloadedTxs.Tx))
+
+	for _, tx := range mloadedTxs.Tx {
+		w.processTransactionPerAccount(tx, txblck[tx.GetTxHash()], true, acc)
+	}
+	return nil
 }
 
 func (w *Wallet) processBlockRange(blocks safex.Blocks) bool {
@@ -81,7 +117,6 @@ func (w *Wallet) processBlockRange(blocks safex.Blocks) bool {
 	for _, tx := range mloadedTxs.Tx {
 		w.processTransaction(tx, txblck[tx.GetTxHash()], true)
 	}
-
 	return true
 }
 

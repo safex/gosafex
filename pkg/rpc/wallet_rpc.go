@@ -25,8 +25,8 @@ func (w *WalletRPC) OpenCheck(rw *http.ResponseWriter) bool {
 }
 
 func (w *WalletRPC) BeginUpdating(rw http.ResponseWriter, r *http.Request) {
-	var data JSONElement
 	w.logger.Infof("[RPC] Getting start update request")
+	data := make(JSONElement)
 	w.wallet.BeginUpdating()
 	data["msg"] = w.wallet.UpdaterStatus()
 
@@ -34,8 +34,8 @@ func (w *WalletRPC) BeginUpdating(rw http.ResponseWriter, r *http.Request) {
 }
 
 func (w *WalletRPC) StopUpdating(rw http.ResponseWriter, r *http.Request) {
-	var data JSONElement
 	w.logger.Infof("[RPC] Getting stop update request")
+	data := make(JSONElement)
 	w.wallet.StopUpdating()
 	data["msg"] = w.wallet.UpdaterStatus()
 
@@ -47,7 +47,17 @@ func (w *WalletRPC) GetStatus(rw http.ResponseWriter, r *http.Request) {
 	var data JSONElement
 	w.logger.Infof("[RPC] Getting wallet status")
 	data = make(JSONElement)
-	data["msg"] = w.wallet.UpdaterStatus()
+	data["msg"] = w.wallet.Status()
+
+	FormJSONResponse(data, EverythingOK, &rw)
+
+}
+
+func (w *WalletRPC) GetLatestBlockNumber(rw http.ResponseWriter, r *http.Request) {
+	var data JSONElement
+	w.logger.Infof("[RPC] Getting latest loaded block number")
+	data = make(JSONElement)
+	data["msg"] = w.wallet.GetLatestLoadedBlockHeight()
 
 	FormJSONResponse(data, EverythingOK, &rw)
 

@@ -9,7 +9,6 @@ import (
 	keysFile "github.com/safex/gosafex/pkg/keys_file"
 
 	"fmt"
-	"log"
 	"net/http"
 )
 
@@ -108,7 +107,6 @@ func (w *WalletRPC) accInfo(name string, rw *http.ResponseWriter) JSONElement {
 
 func accountGetData(w *http.ResponseWriter, r *http.Request, rqData *AccountRq) bool {
 	statusErr := UnmarshalRequest(r, rqData)
-	log.Println(*rqData)
 	// Check for error.
 	if statusErr != EverythingOK {
 		FormJSONResponse(nil, statusErr, w)
@@ -184,7 +182,7 @@ func (w *WalletRPC) GetAllAccountsInfo(rw http.ResponseWriter, r *http.Request) 
 
 	currAcc, _ := w.wallet.GetOpenAccount()
 
-	for _, acc := range accounts { 
+	for _, acc := range accounts {
 		err := w.wallet.OpenAccount(acc, !w.mainnet)
 		if err != nil {
 			data := make(JSONElement)
@@ -454,7 +452,7 @@ func (w *WalletRPC) RemoveAccount(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 	openAcc, _ := w.wallet.GetOpenAccount()
-	if rqData.Name == openAcc { 
+	if rqData.Name == openAcc {
 		FormJSONResponse(nil, RemovingCurrentAccount, &rw)
 		return
 	}
@@ -465,4 +463,20 @@ func (w *WalletRPC) RemoveAccount(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	FormJSONResponse(nil, EverythingOK, &rw)
+}
+
+//Rescans the loaded blocks looking for transactions for the newly added user
+func (w *WalletRPC) Rescan(rw http.ResponseWriter, r *http.Request) {
+	w.logger.Infof("[RPC] Getting rescan request")
+	var rqData AccountRq
+	if !accountGetData(&rw, r, &rqData) {
+		// Error response already handled
+		return
+	}
+	w.wallet.Rescan(rqData.Name)
+
+	data := make(JSONElement)
+	data["msg"] = w.wallet.UpdaterStatus()
+
+	FormJSONResponse(data, EverythingOK, &rw)
 }

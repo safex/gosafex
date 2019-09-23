@@ -1,21 +1,20 @@
 package chain
 
 import (
+	"errors"
 	"fmt"
-	"sort"
 	"log"
 	"math/rand"
-	"time" 
-	"errors"
+	"sort"
+	"time"
 
-	
 	"github.com/jinzhu/copier"
 	"github.com/safex/gosafex/internal/crypto"
 	"github.com/safex/gosafex/internal/crypto/curve"
-	"github.com/safex/gosafex/pkg/serialization"
-	"github.com/safex/gosafex/pkg/filewallet"
 	"github.com/safex/gosafex/pkg/account"
+	"github.com/safex/gosafex/pkg/filewallet"
 	"github.com/safex/gosafex/pkg/safex"
+	"github.com/safex/gosafex/pkg/serialization"
 )
 
 /* NOTES:
@@ -24,8 +23,8 @@ for more than one address. This is omitted in current implementation, to be adde
 HINT: additional tx pub keys in extra and derivations.
 -
 
-*/ 
- 
+*/
+
 // Must be implemented at some point.
 const TX_EXTRA_PADDING_MAX_COUNT = 255
 const TX_EXTRA_NONCE_MAX_COUNT = 255
@@ -48,6 +47,108 @@ func extractTxPubKey(extra []byte) (pubTxKey [crypto.KeyLength]byte) {
 	return pubTxKey
 }
 
+func (w *Wallet) processTransactionPerAccount(tx *safex.Transaction, blckHash string, minerTx bool, acc string) error {
+	if len(tx.Vout) != 0 {
+		err := w.OpenAccount(acc, w.testnet)
+
+		if err != nil {
+			return err
+		}
+		pubTxKey := extractTxPubKey(tx.Extra)
+
+		// @todo uniform key structure.
+
+		tempKey := curve.Key(w.account.PrivateViewKey().ToBytes())
+
+		ret, err := crypto.DeriveKey((*crypto.Key)(&pubTxKey), (*crypto.Key)(&tempKey))
+		if err != nil {
+			return err
+		}
+		txPubKeyDerivation := ([crypto.KeyLength]byte)(*ret)
+		txPresent := false
+
+		for index, output := range tx.Vout {
+			var outputKey [crypto.KeyLength]byte
+			if !w.matchOutput(output, uint64(index), txPubKeyDerivation, &outputKey) {
+				continue
+			}
+			if !txPresent {
+				w.logger.Infof("[Chain] Adding new transaction to user: %s TxHash: %s", acc, tx.GetTxHash())
+				if inf, _ := w.wallet.GetTransactionInfo(tx.GetTxHash()); inf == nil {
+					if err := w.wallet.PutTransactionInfo(&filewallet.TransactionInfo{Version: tx.GetVersion(), UnlockTime: tx.GetUnlockTime(), Extra: tx.GetExtra(), BlockHeight: tx.GetBlockHeight(), BlockTimestamp: tx.GetBlockTimestamp(), DoubleSpendSeen: tx.GetDoubleSpendSeen(), InPool: tx.GetInPool(), TxHash: tx.GetTxHash()}, blckHash); err != nil {
+						return err
+					}
+					txPresent = true
+				}
+			}
+
+			tempPrivateSpendKey := curve.Key(w.account.PrivateSpendKey().ToBytes())
+			tempPublicSpendKey := curve.Key(w.account.PublicSpendKey().ToBytes())
+			temptxPubKeyDerivation := crypto.Key(txPubKeyDerivation)
+			ephemeralSecret := curve.DerivationToPrivateKey(uint64(index), &tempPrivateSpendKey, &temptxPubKeyDerivation)
+			ephemeralPublic, _ := curve.DerivationToPublicKey(uint64(index), &temptxPubKeyDerivation, &tempPublicSpendKey) //TODO: Manage error
+			keyimage := curve.KeyImage(ephemeralPublic, ephemeralSecret)
+			globalIndex := tx.OutputIndices[index]
+
+			if _, ok := w.outputs[*keyimage]; !ok {
+				w.addOutput(output, acc, uint64(index), globalIndex, minerTx, blckHash, tx.GetTxHash(), tx.BlockHeight, keyimage, tx.Extra, *ephemeralPublic, *ephemeralSecret)
+			}
+
+		}
+	}
+
+	if len(tx.Vin) != 0 {
+
+		err := w.OpenAccount(acc, w.testnet)
+		if err != nil {
+			return err
+		}
+		txPresent := false
+		for _, input := range tx.Vin {
+			var kImage [crypto.KeyLength]byte
+			if input.TxinGen != nil {
+				continue
+			}
+			if input.TxinToKey != nil {
+				copy(kImage[:], input.TxinToKey.KImage[0:crypto.KeyLength])
+
+				if val, ok := w.outputs[crypto.Key(kImage)]; ok {
+					if !txPresent {
+						w.logger.Infof("[Chain] Adding new transaction to user: %s TxHash: %s", acc, tx.GetTxHash())
+						if inf, _ := w.wallet.GetTransactionInfo(tx.GetTxHash()); inf == nil {
+							if err := w.wallet.PutTransactionInfo(&filewallet.TransactionInfo{Version: tx.GetVersion(), UnlockTime: tx.GetUnlockTime(), Extra: tx.GetExtra(), BlockHeight: tx.GetBlockHeight(), BlockTimestamp: tx.GetBlockTimestamp(), DoubleSpendSeen: tx.GetDoubleSpendSeen(), InPool: tx.GetInPool(), TxHash: tx.GetTxHash()}, blckHash); err != nil {
+								return err
+							}
+							txPresent = true
+						}
+					}
+					//Put output in spent
+					w.balance.CashUnlocked -= val.Output.Amount
+					val.Spent = true
+				}
+			} else {
+				if input.TxinTokenToKey != nil {
+					copy(kImage[:], input.TxinTokenToKey.KImage[0:crypto.KeyLength])
+					if val, ok := w.outputs[crypto.Key(kImage)]; ok {
+						if !txPresent {
+							w.logger.Infof("[Chain] Adding new transaction to user: %s TxHash: %s", acc, tx.GetTxHash())
+							if inf, _ := w.wallet.GetTransactionInfo(tx.GetTxHash()); inf == nil {
+								if err := w.wallet.PutTransactionInfo(&filewallet.TransactionInfo{Version: tx.GetVersion(), UnlockTime: tx.GetUnlockTime(), Extra: tx.GetExtra(), BlockHeight: tx.GetBlockHeight(), BlockTimestamp: tx.GetBlockTimestamp(), DoubleSpendSeen: tx.GetDoubleSpendSeen(), InPool: tx.GetInPool(), TxHash: tx.GetTxHash()}, blckHash); err != nil {
+									return err
+								}
+								txPresent = true
+							}
+						}
+						w.balance.TokenUnlocked -= val.Output.TokenAmount
+						val.Spent = true
+					}
+				}
+			}
+		}
+	}
+	// Process inputs
+	return nil
+}
 
 func (w *Wallet) processTransaction(tx *safex.Transaction, blckHash string, minerTx bool) error {
 	// @todo Process Unconfirmed.
@@ -99,9 +200,9 @@ func (w *Wallet) processTransaction(tx *safex.Transaction, blckHash string, mine
 				ephemeralPublic, _ := curve.DerivationToPublicKey(uint64(index), &temptxPubKeyDerivation, &tempPublicSpendKey) //TODO: Manage error
 				keyimage := curve.KeyImage(ephemeralPublic, ephemeralSecret)
 				globalIndex := tx.OutputIndices[index]
-				
+
 				if _, ok := w.outputs[*keyimage]; !ok {
-					w.addOutput(output, acc, uint64(index), globalIndex, minerTx, blckHash, tx.GetTxHash(), tx.BlockHeight, keyimage, tx.Extra, *ephemeralPublic, *ephemeralSecret) 
+					w.addOutput(output, acc, uint64(index), globalIndex, minerTx, blckHash, tx.GetTxHash(), tx.BlockHeight, keyimage, tx.Extra, *ephemeralPublic, *ephemeralSecret)
 				}
 
 			}
@@ -166,7 +267,6 @@ func (w *Wallet) processTransaction(tx *safex.Transaction, blckHash string, mine
 	// Process inputs
 	return nil
 }
-
 
 func checkInputs(inputs []*safex.TxinV) bool {
 	for _, input := range inputs {
@@ -288,12 +388,12 @@ func (w *Wallet) transferSelected(dsts *[]DestinationEntry, selectedTransfers *[
 	var changeDts DestinationEntry
 	var changeTokenDts DestinationEntry
 
-	if neededMoney < foundMoney { 
+	if neededMoney < foundMoney {
 		changeDts.Address = *w.account.Address()
 		changeDts.Amount = foundMoney - neededMoney
 	}
 
-	if neededToken < foundTokens { 
+	if neededToken < foundTokens {
 		changeTokenDts.Address = *w.account.Address()
 		changeTokenDts.TokenAmount = foundTokens - neededToken
 	}
@@ -360,19 +460,19 @@ func (w *Wallet) TxCreateToken(
 	unlockTime uint64,
 	priority uint32,
 	extra []byte,
-	trustedDaemon bool) ([]PendingTx, error) { 
+	trustedDaemon bool) ([]PendingTx, error) {
 
 	// @todo error handling
-	if w.client == nil{
+	if w.client == nil {
 		return nil, ErrClientNotInit
 	}
-	if w.syncing{
+	if w.syncing {
 		return nil, ErrSyncing
 	}
-	if w.latestInfo == nil{
+	if w.latestInfo == nil {
 		return nil, ErrDaemonInfo
 	}
-	height := w.latestInfo.Height 
+	height := w.latestInfo.Height
 
 	var neededToken uint64 = 0
 
@@ -694,7 +794,7 @@ func IsDecomposedOutputValue(value uint64) bool {
 	if i < len(decomposedValues) && decomposedValues[i] == value {
 		return true
 	} else {
-		return false 
+		return false
 	}
 }
 
@@ -809,16 +909,16 @@ func (w *Wallet) TxCreateCash(
 	trustedDaemon bool) ([]PendingTx, error) {
 
 	// @todo error handling
-	if w.client == nil{
-		return nil, ErrClientNotInit 
+	if w.client == nil {
+		return nil, ErrClientNotInit
 	}
-	if w.syncing{
+	if w.syncing {
 		return nil, ErrSyncing
 	}
-	if w.latestInfo == nil{
+	if w.latestInfo == nil {
 		return nil, ErrDaemonInfo
 	}
-	height := w.latestInfo.Height 
+	height := w.latestInfo.Height
 
 	var neededMoney uint64 = 0
 
@@ -860,10 +960,10 @@ func (w *Wallet) TxCreateCash(
 	var unusedOutputs []Transfer
 	var dustOutputs []Transfer
 
-	// Find unused outputs 
+	// Find unused outputs
 	for _, val := range w.outputs {
-		if !val.Spent && !isTokenOutput(val.Output) && val.isUnlocked(height) { 
-			if IsDecomposedOutputValue(val.Output.Amount) {  
+		if !val.Spent && !isTokenOutput(val.Output) && val.isUnlocked(height) {
+			if IsDecomposedOutputValue(val.Output.Amount) {
 				unusedOutputs = append(unusedOutputs, val)
 			} else {
 				dustOutputs = append(dustOutputs, val)
@@ -1002,7 +1102,7 @@ func (w *Wallet) TxCreateCash(
 						availableForFee = neededFee
 					}
 				}
- 
+
 				if neededFee > availableForFee {
 					log.Println("We couldnt make a tx, switching to fee accumulation")
 					addingFee = true

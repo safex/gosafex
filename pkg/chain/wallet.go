@@ -17,13 +17,44 @@ import (
 // TODO: Move this to some config, or recalculate based on response time
 const BlockFetchCnt = 100
 
-func (w *Wallet) updateBlock(nblocks uint64) error {
+func (w *Wallet) loadDefaults() error {
+	return nil
+}
+
+func (w *Wallet) rescanBlocks(accountName string, start uint64, step uint64) (error, uint64) {
+	if w.client == nil {
+		w.logger.Errorf("[Wallet] %s", ErrClientNotInit)
+		return ErrClientNotInit, 0
+	}
+	if w.latestInfo == nil {
+		return ErrDaemonInfo, 0
+	}
+	if w.wallet.AccountExists(accountName) == false {
+		return errors.New("Account doesn't exist"), 0
+	}
+	var target uint64
+	max := w.GetLatestLoadedBlockHeight()
+	if start+step < max {
+		target = step + max
+	} else {
+		target = w.GetLatestLoadedBlockHeight() - 1
+	}
+	blocks, err := w.client.GetBlocks(start, target)
+	if err != nil {
+		return err, 0
+	}
+	w.rescanBlockRange(blocks, accountName)
+
+	return nil, target
+}
+
+func (w *Wallet) updateBlocks(nblocks uint64) error {
 	if w.client == nil {
 		w.logger.Errorf("[Wallet] %s", ErrClientNotInit)
 		return ErrClientNotInit
 	}
-	if w.latestInfo == nil{
-		return errors.New("No daemon info")
+	if w.latestInfo == nil {
+		return ErrDaemonInfo
 	}
 	info := w.latestInfo
 	var bcHeight uint64
@@ -64,13 +95,13 @@ func (w *Wallet) IsOpen() bool {
 //Recover recreates a wallet starting from a mnemonic
 func (w *Wallet) Recover(mnemonic *account.Mnemonic, password string, accountName string, isTestnet bool) error {
 	w.working = true
-	defer func() {w.working = false}()
+	defer func() { w.working = false }()
 
 	store, err := account.FromMnemonic(mnemonic, password, isTestnet)
 	if err != nil {
 		return err
 	}
-	
+
 	if err := w.wallet.OpenAccount(&filewallet.WalletInfo{Name: accountName, Keystore: store}, true, isTestnet); err != nil {
 		return err
 	}
@@ -84,7 +115,7 @@ func (w *Wallet) Recover(mnemonic *account.Mnemonic, password string, accountNam
 //OpenAndCreate Opens a filewallet and creates an account
 func (w *Wallet) OpenAndCreate(accountName string, filename string, masterkey string, isTestnet bool, prevLog *log.Logger) error {
 	w.working = true
-	defer func() {w.working = false}()
+	defer func() { w.working = false }()
 
 	var err error
 	if w.IsOpen() {
@@ -103,12 +134,12 @@ func (w *Wallet) CreateAccount(accountName string, keystore *account.Store, isTe
 		w.logger.Errorf("[Wallet] %s", ErrFilewalletNotOpen)
 		return nil
 	}
-	if w.syncing{
+	if w.syncing {
 		w.logger.Errorf("[Wallet] %s", ErrSyncing)
 		return ErrSyncing
 	}
 	w.working = true
-	defer func() {w.working = false}()
+	defer func() { w.working = false }()
 
 	if err := w.wallet.CreateAccount(&filewallet.WalletInfo{Name: accountName, Keystore: keystore}, isTestnet); err != nil {
 		return err
@@ -123,12 +154,12 @@ func (w *Wallet) CreateAccountFromKeyStore(accountName string, store *account.St
 		w.logger.Errorf("[Wallet] %s", ErrFilewalletNotOpen)
 		return nil
 	}
-	if w.syncing{
+	if w.syncing {
 		w.logger.Errorf("[Wallet] %s", ErrSyncing)
 		return ErrSyncing
 	}
 	w.working = true
-	defer func() {w.working = false}()
+	defer func() { w.working = false }()
 
 	if !w.IsOpen() {
 		w.logger.Errorf("[Wallet] %s", ErrFilewalletNotOpen)
@@ -138,14 +169,14 @@ func (w *Wallet) CreateAccountFromKeyStore(accountName string, store *account.St
 }
 
 //OpenFile Opens a filewallet
-func (w *Wallet) OpenFile(filename string, masterkey string, isTestnet bool, prevLog *log.Logger) error {	
+func (w *Wallet) OpenFile(filename string, masterkey string, isTestnet bool, prevLog *log.Logger) error {
 
-	if w.syncing{
+	if w.syncing {
 		w.logger.Errorf("[Wallet] %s", ErrSyncing)
 		return ErrSyncing
 	}
 	w.working = true
-	defer func() {w.working = false}()
+	defer func() { w.working = false }()
 
 	var err error
 	if w.IsOpen() {
@@ -159,17 +190,17 @@ func (w *Wallet) OpenFile(filename string, masterkey string, isTestnet bool, pre
 }
 
 //OpenAccount opens an account if it exists
-func (w *Wallet) OpenAccount(accountName string, isTestnet bool) error {	
+func (w *Wallet) OpenAccount(accountName string, isTestnet bool) error {
 	if !w.IsOpen() {
 		w.logger.Errorf("[Wallet] %s", ErrFilewalletNotOpen)
 		return nil
 	}
-	if w.syncing{
+	if w.syncing {
 		w.logger.Errorf("[Wallet] %s", ErrSyncing)
 		return ErrSyncing
 	}
 	w.working = true
-	defer func() {w.working = false}()
+	defer func() { w.working = false }()
 
 	if err := w.wallet.OpenAccount(&filewallet.WalletInfo{Name: accountName, Keystore: nil}, false, isTestnet); err != nil {
 		return err
@@ -179,6 +210,9 @@ func (w *Wallet) OpenAccount(accountName string, isTestnet bool) error {
 		w.account = account.NewStore(keystore.Address(), keystore.PrivateViewKey(), keystore.PrivateSpendKey())
 	}
 	w.countedOutputs = []string{}
+	if err := w.loadDefaults(); err != nil {
+		return err
+	}
 	if err := w.loadBalance(); err != nil {
 		return err
 	}
@@ -195,12 +229,12 @@ func (w *Wallet) RemoveAccount(accountName string) error {
 		w.logger.Errorf("[Wallet] %s", ErrFilewalletNotOpen)
 		return ErrFilewalletNotOpen
 	}
-	if w.syncing{
+	if w.syncing {
 		w.logger.Errorf("[Wallet] %s", ErrSyncing)
 		return ErrSyncing
 	}
 	w.working = true
-	defer func() {w.working = false}()
+	defer func() { w.working = false }()
 
 	return w.wallet.RemoveAccount(accountName)
 }
@@ -211,41 +245,38 @@ func (w *Wallet) GetAccounts() ([]string, error) {
 		w.logger.Errorf("[Wallet] %s", ErrFilewalletNotOpen)
 		return nil, ErrFilewalletNotOpen
 	}
-	if w.syncing{
+	if w.syncing {
 		w.logger.Errorf("[Wallet] %s", ErrSyncing)
 		return nil, ErrSyncing
 	}
 	w.working = true
-	defer func() {w.working = false}()
+	defer func() { w.working = false }()
 
 	return w.wallet.GetAccounts()
 }
 
 //Status returns a local status for the wallet
 func (w *Wallet) Status() string {
-	//TODO: Correct this once we get multithreading for golang
+	if w == nil {
+		return "Not Initialized"
+	}
 	if !w.IsOpen() {
 		return "Not Open"
 	}
-	if w.syncing{
-		return "Syncing"
-	}
-	return "Ready"
+	return w.UpdaterStatus()
 }
 
-func (w *Wallet) DaemonInfo() (*safex.DaemonInfo,error){
+func (w *Wallet) DaemonInfo() (*safex.DaemonInfo, error) {
 	if !w.IsOpen() {
 		w.logger.Errorf("[Wallet] %s", ErrFilewalletNotOpen)
 		return nil, ErrFilewalletNotOpen
 	}
-	if w.syncing{
+	if w.syncing {
 		w.logger.Errorf("[Wallet] %s", ErrSyncing)
 		return nil, ErrSyncing
 	}
 	w.working = true
-	defer func() {w.working = false}()
-
-	
+	defer func() { w.working = false }()
 
 	return w.latestInfo, nil
 }
@@ -275,12 +306,12 @@ func (w *Wallet) GetOpenAccount() (string, error) {
 		w.logger.Errorf("[Wallet] %s", ErrFilewalletNotOpen)
 		return "", ErrFilewalletNotOpen
 	}
-	if w.syncing{
+	if w.syncing {
 		w.logger.Errorf("[Wallet] %s", ErrSyncing)
 		return "", ErrSyncing
 	}
 	w.working = true
-	defer func() {w.working = false}()
+	defer func() { w.working = false }()
 
 	return w.wallet.GetAccount(), nil
 }
@@ -288,7 +319,7 @@ func (w *Wallet) GetOpenAccount() (string, error) {
 //GetKeys returns the keypair of the opened account
 func (w *Wallet) GetKeys() (*account.Store, error) {
 	w.working = true
-	defer func() {w.working = false}()
+	defer func() { w.working = false }()
 	if !w.IsOpen() {
 		w.logger.Errorf("[Wallet] %s", ErrFilewalletNotOpen)
 		return nil, ErrFilewalletNotOpen
@@ -306,12 +337,12 @@ func (w *Wallet) GetBalance() (b *Balance, err error) {
 		w.logger.Errorf("[Wallet] %s", ErrFilewalletNotOpen)
 		return nil, ErrFilewalletNotOpen
 	}
-	if w.syncing{
+	if w.syncing {
 		w.logger.Errorf("[Wallet] %s", ErrSyncing)
 		return nil, ErrSyncing
 	}
 	w.working = true
-	defer func() {w.working = false}()
+	defer func() { w.working = false }()
 
 	return &w.balance, nil
 }
@@ -322,14 +353,13 @@ func (w *Wallet) GetHistory() ([]*filewallet.TransactionInfo, error) {
 		w.logger.Errorf("[Wallet] %s", ErrFilewalletNotOpen)
 		return nil, ErrFilewalletNotOpen
 	}
-	if w.syncing{
+	if w.syncing {
 		w.logger.Errorf("[Wallet] %s", ErrSyncing)
 		return nil, ErrSyncing
 	}
 	w.working = true
-	defer func() {w.working = false}()
+	defer func() { w.working = false }()
 
-	
 	if w.wallet.GetAccount() == "" {
 		w.logger.Errorf("[Wallet] %s", ErrAccountNotOpen)
 		return nil, ErrAccountNotOpen
@@ -351,14 +381,13 @@ func (w *Wallet) GetTransactionInfo(transactionID string) (*filewallet.Transacti
 		w.logger.Errorf("[Wallet] %s", ErrFilewalletNotOpen)
 		return nil, ErrFilewalletNotOpen
 	}
-	if w.syncing{
+	if w.syncing {
 		w.logger.Errorf("[Wallet] %s", ErrSyncing)
 		return nil, ErrSyncing
 	}
 	w.working = true
-	defer func() {w.working = false}()
+	defer func() { w.working = false }()
 
-	
 	if w.wallet.GetAccount() == "" {
 		w.logger.Errorf("[Wallet] %s", ErrAccountNotOpen)
 		return nil, ErrAccountNotOpen
@@ -372,12 +401,12 @@ func (w *Wallet) GetTransactionUpToBlockHeight(blockHeight uint64) ([]*filewalle
 		w.logger.Errorf("[Wallet] %s", ErrFilewalletNotOpen)
 		return nil, ErrFilewalletNotOpen
 	}
-	if w.syncing{
+	if w.syncing {
 		w.logger.Errorf("[Wallet] %s", ErrSyncing)
 		return nil, ErrSyncing
 	}
 	w.working = true
-	defer func() {w.working = false}()
+	defer func() { w.working = false }()
 
 	if w.wallet.GetAccount() == "" {
 		w.logger.Errorf("[Wallet] %s", ErrAccountNotOpen)
@@ -436,12 +465,12 @@ func (w *Wallet) GetOutput(outID string) (map[string]interface{}, error) {
 		w.logger.Errorf("[Wallet] %s", ErrFilewalletNotOpen)
 		return nil, ErrFilewalletNotOpen
 	}
-	if w.syncing{
+	if w.syncing {
 		w.logger.Errorf("[Wallet] %s", ErrSyncing)
 		return nil, ErrSyncing
 	}
 	w.working = true
-	defer func() {w.working = false}()
+	defer func() { w.working = false }()
 
 	if w.wallet.GetAccount() == "" {
 		w.logger.Errorf("[Wallet] %s", ErrAccountNotOpen)
@@ -464,12 +493,12 @@ func (w *Wallet) GetOutputsFromTransaction(transactionID string) (map[string]int
 		w.logger.Errorf("[Wallet] %s", ErrFilewalletNotOpen)
 		return nil, ErrFilewalletNotOpen
 	}
-	if w.syncing{
+	if w.syncing {
 		w.logger.Errorf("[Wallet] %s", ErrSyncing)
 		return nil, ErrSyncing
 	}
 	w.working = true
-	defer func() {w.working = false}()
+	defer func() { w.working = false }()
 	if w.wallet.GetAccount() == "" {
 		w.logger.Errorf("[Wallet] %s", ErrAccountNotOpen)
 		return nil, ErrAccountNotOpen
@@ -484,7 +513,7 @@ func (w *Wallet) GetOutputsFromTransaction(transactionID string) (map[string]int
 //GetOutputsFromTransaction .
 func (w *Wallet) GetOutputsByType(outputType string) (map[string]interface{}, error) {
 	w.working = true
-	defer func() {w.working = false}()
+	defer func() { w.working = false }()
 	outIDs, err := w.wallet.GetAllTypeOutputs(outputType)
 	if err != nil {
 		return nil, err
@@ -494,14 +523,14 @@ func (w *Wallet) GetOutputsByType(outputType string) (map[string]interface{}, er
 
 func (w *Wallet) GetLatestLoadedBlockHeight() uint64 {
 	w.working = true
-	defer func() {w.working = false}()
+	defer func() { w.working = false }()
 	return w.wallet.GetLatestBlockHeight()
 }
 
 //GetUnspentOutputs .
 func (w *Wallet) GetUnspentOutputs() (map[string]interface{}, error) {
 	w.working = true
-	defer func() {w.working = false}()
+	defer func() { w.working = false }()
 	return w.formatOutputMap(w.wallet.GetUnspentOutputs())
 }
 

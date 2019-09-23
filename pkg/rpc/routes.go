@@ -13,6 +13,7 @@ type Route struct {
 
 func (w *WalletRPC) GetRoutes() (routes []Route) {
 
+	routes = append(routes, Route{"Connect", "POST", "/init/connect", w.Connect})
 	routes = append(routes, Route{"OpenWallet", "POST", "/init/open", w.OpenExisting})
 	routes = append(routes, Route{"CreateWallet", "POST", "/init/create", w.CreateNew})
 	routes = append(routes, Route{"RecoverWithSeed", "POST", "/init/recover-seed", w.RecoverWithSeed})
@@ -22,6 +23,8 @@ func (w *WalletRPC) GetRoutes() (routes []Route) {
 	routes = append(routes, Route{"Status", "POST", "/status", w.GetStatus})
 	routes = append(routes, Route{"BeginUpdating", "POST", "/begin-updating", w.BeginUpdating})
 	routes = append(routes, Route{"StopUpdating", "POST", "/stop-updating", w.StopUpdating})
+	routes = append(routes, Route{"Rescan", "POST", "/account/rescan", w.Rescan})
+	routes = append(routes, Route{"LatestBlock", "GET", "/latest-block-number", w.GetLatestBlockNumber})
 
 	routes = append(routes, Route{"GetAccountInfo", "POST", "/account/info", w.GetAccountInfo})
 	routes = append(routes, Route{"GetBalance", "GET", "/balance/get", w.GetAccountBalance})
@@ -29,7 +32,7 @@ func (w *WalletRPC) GetRoutes() (routes []Route) {
 	routes = append(routes, Route{"SyncAccount", "POST", "/account/sync", w.SyncAccount})
 	routes = append(routes, Route{"RemoveAccount", "POST", "/account/remove", w.RemoveAccount})
 	routes = append(routes, Route{"OpenAccount", "POST", "/account/open", w.OpenAccount})
-	routes = append(routes, Route{"GetAllAccountsInfo", "POST", "/accounts/all-info", w.GetAllAccountsInfo})
+	routes = append(routes, Route{"GetAllAccountsInfo", "Get", "/accounts/all-info", w.GetAllAccountsInfo})
 	routes = append(routes, Route{"CreateAccountFromKeys", "POST", "/accounts/create-keys", w.CreateAccountFromKeys})
 	routes = append(routes, Route{"CreateAccountFromKeysFile", "POST", "/accounts/create-keys-file", w.CreateAccountFromKeysFile})
 	routes = append(routes, Route{"CreateAccountFromSeed", "POST", "/accounts/create-seed", w.CreateAccountFromMnemonic})

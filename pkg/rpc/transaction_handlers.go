@@ -3,7 +3,6 @@ package SafexRPC
 import (
 	"encoding/hex"
 	"fmt"
-	"log"
 	"net/http"
 )
 
@@ -24,7 +23,6 @@ var txSendMock int = 0
 
 func transactionGetData(w *http.ResponseWriter, r *http.Request, rqData *TransactionRq) bool {
 	statusErr := UnmarshalRequest(r, rqData)
-	log.Println(*rqData)
 	// Check for error.
 	if statusErr != EverythingOK {
 		FormJSONResponse(nil, statusErr, w)
@@ -138,7 +136,6 @@ func (w *WalletRPC) TransactionCash(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	if rqData.Mixin == uint32(0) {
-		log.Println("Mixin zero, assuming default value of 6")
 		rqData.Mixin = 6
 	}
 
@@ -200,7 +197,6 @@ func (w *WalletRPC) TransactionToken(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	if rqData.Mixin == uint32(0) {
-		log.Println("Mixin zero, assuming default value of 6")
 		rqData.Mixin = 6
 	}
 

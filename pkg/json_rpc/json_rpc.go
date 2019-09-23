@@ -12,7 +12,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-var logLevel = log.DebugLevel
+var logLevel = log.InfoLevel
 var logOutput io.Writer
 var logFile = "safexsdk.log"
 
@@ -33,7 +33,7 @@ func main() {
 	}
 
 	logger := log.StandardLogger()
-	logger.SetLevel(logLevel)
+	logger.SetLevel(log.DebugLevel)
 	logger.SetOutput(logOutput)
 	flag.Parse()
 
@@ -42,8 +42,8 @@ func main() {
 	var walletRPC = SafexRPC.New(logger)
 	loadRoutes(walletRPC, router)
 
-	logger.Infof("Starting server on %s", *portPtr)
-	logger.Infof("With password " + *passPtr)
+	logger.Infof("[Main] Starting server on %s", *portPtr)
+	logger.Infof("[Main] With password " + *passPtr)
 	logger.Fatal(http.ListenAndServe(":"+strconv.Itoa(*portPtr), router))
 
 }

@@ -1,7 +1,6 @@
 package SafexRPC
 
 import (
-	"log"
 	"net/http"
 )
 
@@ -14,7 +13,6 @@ type OutputRq struct {
 
 func outputGetData(w *http.ResponseWriter, r *http.Request, rqData *OutputRq) bool {
 	statusErr := UnmarshalRequest(r, rqData)
-	log.Println(*rqData)
 	// Check for error.
 	if statusErr != EverythingOK {
 		FormJSONResponse(nil, statusErr, w)

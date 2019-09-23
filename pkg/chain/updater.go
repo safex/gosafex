@@ -4,10 +4,18 @@ import (
 	"time"
 )
 
-const UpdateCycleTime = 20
-const CheckCycleTime = 5000
+const UpdateCycleTime = 200
+const CheckCycleTime = 30000
 const DaemonErrorTime = 2000
 const BlocksPerCycle = 500
+
+func (w *Wallet) Rescan(accountName string) {
+	select {
+	case w.rescan <- accountName:
+	default:
+		w.logger.Infof("[Updater] Error communicating with updater for rescan")
+	}
+}
 
 func (w *Wallet) StopUpdating() {
 	select {
@@ -34,6 +42,9 @@ func (w *Wallet) KillUpdating() {
 }
 
 func (w *Wallet) UpdaterStatus() string {
+	if w.rescanning != "" {
+		return "Rescanning"
+	}
 	if w.syncing {
 		return "Syncing"
 	}
@@ -44,6 +55,8 @@ func (w *Wallet) runUpdater() {
 	var bcHeight uint64
 	for true {
 		select {
+		case rscan := <-w.rescan:
+			w.rescanning = rscan
 		case temp := <-w.update:
 			if temp == true {
 				w.updating = true
@@ -56,6 +69,19 @@ func (w *Wallet) runUpdater() {
 			w.logger.Infof("[Updater] Updater Service Down")
 			return
 		default:
+		}
+		if !w.updating && w.rescanning != "" {
+			var err error
+			loadedHeight := w.GetLatestLoadedBlockHeight()
+			scannedHeight := uint64(1)
+			for scannedHeight != loadedHeight-1 {
+				err, scannedHeight = w.rescanBlocks(w.rescanning, scannedHeight, BlocksPerCycle)
+				if err != nil {
+					w.logger.Errorf("[Updater] Error while rescanning: %s", err.Error())
+					break
+				}
+			}
+			w.rescanning = ""
 		}
 		if w.updating {
 			if !w.syncing {
@@ -79,7 +105,7 @@ func (w *Wallet) runUpdater() {
 					if w.GetLatestLoadedBlockHeight() < bcHeight-1 {
 						w.logger.Debugf("[Updater] Known block: %d , bcHeight: %d", w.GetLatestLoadedBlockHeight(), bcHeight)
 
-						w.updateBlock(BlocksPerCycle)
+						w.updateBlocks(BlocksPerCycle)
 					} else {
 						w.syncing = false
 					}

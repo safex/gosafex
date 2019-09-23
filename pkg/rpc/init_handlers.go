@@ -30,7 +30,7 @@ type WalletInitRq struct {
 
 func initGetData(w *http.ResponseWriter, r *http.Request, rqData *WalletInitRq) bool {
 	statusErr := UnmarshalRequest(r, rqData)
-	log.Println(*rqData)
+	log.Infof("[RPC] Request Data: %s", *rqData)
 	// Check for error.
 	if statusErr != EverythingOK {
 		FormJSONResponse(nil, statusErr, w)
@@ -47,9 +47,24 @@ func (w *WalletRPC) initializeInnerWallet(rw *http.ResponseWriter) bool {
 	}
 
 	// Creating new Wallet
-	w.wallet = new(chain.Wallet)
-	w.wallet.SetLogger(w.logger)
+	w.wallet = chain.New(w.logger)
 	return true
+}
+
+func (w *WalletRPC) Connect(rw http.ResponseWriter, r *http.Request) {
+	var rqData WalletInitRq
+	if !initGetData(&rw, r, &rqData) {
+		// Error response already handled
+		return
+	}
+
+	w.logger.Debugf("[RPC] Deserialized request: %s, %d", rqData.DaemonHost, rqData.DaemonPort)
+
+	if err := w.wallet.InitClient(rqData.DaemonHost, rqData.DaemonPort); err != nil {
+		FormJSONResponse(map[string]interface{}{"Error:": err}, FailedToConnectToDeamon, &rw)
+		return
+	}
+	FormJSONResponse(nil, EverythingOK, &rw)
 }
 
 func (w *WalletRPC) OpenExisting(rw http.ResponseWriter, r *http.Request) {
@@ -65,19 +80,20 @@ func (w *WalletRPC) OpenExisting(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	var data JSONElement
+	noConn := false
 	data = make(JSONElement)
-
-	err := w.wallet.InitClient(rqData.DaemonHost, rqData.DaemonPort)
-	noConn := err != nil
+	if rqData.DaemonHost != "" {
+		err := w.wallet.InitClient(rqData.DaemonHost, rqData.DaemonPort)
+		noConn = err != nil
+	}
 
 	if _, err := os.Stat(rqData.Path); os.IsNotExist(err) {
 		FormJSONResponse(nil, FileDoesntExists, &rw)
 		return
 	}
 
-	err = w.wallet.OpenFile(rqData.Path, rqData.Password, !w.mainnet, log.StandardLogger())
+	err := w.wallet.OpenFile(rqData.Path, rqData.Password, !w.mainnet, w.logger)
 	if err != nil {
-
 		data["msg"] = err.Error()
 		FormJSONResponse(data, FailedToOpen, &rw)
 		return
@@ -118,7 +134,7 @@ func (w *WalletRPC) CreateNew(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = w.wallet.OpenAndCreate("primary", rqData.Path, rqData.Password, !w.mainnet, log.StandardLogger())
+	err = w.wallet.OpenAndCreate("primary", rqData.Path, rqData.Password, !w.mainnet, w.logger)
 
 	if err != nil {
 		data["msg"] = err.Error()
@@ -156,6 +172,7 @@ func (w *WalletRPC) RecoverWithSeed(rw http.ResponseWriter, r *http.Request) {
 	if rqData.Seed == "" {
 		data["msg"] = "Missing field 'seed'"
 		FormJSONResponse(data, JSONRqMalformed, &rw)
+		return
 	}
 
 	if !w.initializeInnerWallet(&rw) {
@@ -216,11 +233,13 @@ func (w *WalletRPC) RecoverWithKeys(rw http.ResponseWriter, r *http.Request) {
 	if rqData.Address == "" || rqData.SpendKey == "" || rqData.ViewKey == "" {
 		data["msg"] = "Missing field (address, viewkey or spendkey)"
 		FormJSONResponse(data, JSONRqMalformed, &rw)
+		return
 	}
 
 	if len(rqData.SpendKey) != 64 || len(rqData.ViewKey) != 64 {
 		data["msg"] = "Wrong key length (viewkey or spendkey)"
 		FormJSONResponse(data, JSONRqMalformed, &rw)
+		return
 	}
 
 	if !w.initializeInnerWallet(&rw) {
