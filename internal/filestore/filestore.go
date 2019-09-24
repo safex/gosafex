@@ -134,7 +134,7 @@ func (e *EncryptedDB) GetNonce() ([]byte, error) {
 //Write Writes data in the current bucket to the target key
 func (e *EncryptedDB) Write(key string, data []byte) error {
 
-	e.logger.Debugf("[Filestore] Writing key: %s  Data: %s", key,data)
+	e.logger.Debugf("[Filestore] Writing key: %s", key,data)
 	if !e.stream.BucketExists() {
 		e.logger.Debugf("[Filestore] %s",ErrBucketNotInit)
 		return ErrBucketNotInit
