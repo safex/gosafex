@@ -188,6 +188,34 @@ func (w *Wallet) OpenFile(filename string, masterkey string, isTestnet bool, pre
 	w.countedOutputs = []string{}
 	return nil
 }
+func (w *Wallet) openAccount(accountName string, isTestnet bool) error {
+	if !w.IsOpen() {
+		w.logger.Errorf("[Wallet] %s", ErrFilewalletNotOpen)
+		return nil
+	}
+
+	w.working = true
+	defer func() { w.working = false }()
+
+	if err := w.wallet.OpenAccount(&filewallet.WalletInfo{Name: accountName, Keystore: nil}, false, isTestnet); err != nil {
+		return err
+	}
+	keystore := w.wallet.GetInfo().Keystore
+	if keystore != nil {
+		w.account = account.NewStore(keystore.Address(), keystore.PrivateViewKey(), keystore.PrivateSpendKey())
+	}
+	w.countedOutputs = []string{}
+	if err := w.loadDefaults(); err != nil {
+		return err
+	}
+	if err := w.loadBalance(); err != nil {
+		return err
+	}
+	if err := w.LoadOutputs(); err != nil {
+		return err
+	}
+	return nil
+}
 
 //OpenAccount opens an account if it exists
 func (w *Wallet) OpenAccount(accountName string, isTestnet bool) error {
@@ -237,6 +265,17 @@ func (w *Wallet) RemoveAccount(accountName string) error {
 	defer func() { w.working = false }()
 
 	return w.wallet.RemoveAccount(accountName)
+}
+
+func (w *Wallet) getAccounts() ([]string, error) {
+	if !w.IsOpen() {
+		w.logger.Errorf("[Wallet] %s", ErrFilewalletNotOpen)
+		return nil, ErrFilewalletNotOpen
+	}
+	w.working = true
+	defer func() { w.working = false }()
+
+	return w.wallet.GetAccounts()
 }
 
 //GetAccounts returns a list of all known accounts

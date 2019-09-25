@@ -133,10 +133,7 @@ func (w *Wallet) loadBalance() error {
 	w.resetBalance()
 	height := w.wallet.GetLatestBlockHeight()
 	w.logger.Debugf("[Wallet] Loading balance up to: %d", height)
-	if w.syncing {
-		w.logger.Debugf("[Wallet] Wallet is syncing")
-		return ErrSyncing
-	}
+	//We might need a sync check here
 	for _, el := range w.wallet.GetUnspentOutputs() {
 		if w.seenOutput(el) {
 			continue

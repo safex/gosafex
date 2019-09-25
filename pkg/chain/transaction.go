@@ -153,15 +153,17 @@ func (w *Wallet) processTransactionPerAccount(tx *safex.Transaction, blckHash st
 func (w *Wallet) processTransaction(tx *safex.Transaction, blckHash string, minerTx bool) error {
 	// @todo Process Unconfirmed.
 	// Process outputs
+	w.logger.Debugf("[Chain] Processing transaction %s", tx.TxHash)
 	if len(tx.Vout) != 0 {
-		accs, err := w.GetAccounts()
+		accs, err := w.getAccounts()
 		if err != nil {
 			return err
 		}
 		for _, acc := range accs {
-			err := w.OpenAccount(acc, w.testnet)
+			err := w.openAccount(acc, w.testnet)
 
 			if err != nil {
+				w.logger.Debugf("[Chain] Got error %s while looking at account %s", err.Error(), acc)
 				continue
 			}
 
@@ -211,12 +213,12 @@ func (w *Wallet) processTransaction(tx *safex.Transaction, blckHash string, mine
 
 	if len(tx.Vin) != 0 {
 
-		accs, err := w.GetAccounts()
+		accs, err := w.getAccounts()
 		if err != nil {
 			return err
 		}
 		for _, acc := range accs {
-			err := w.OpenAccount(acc, w.testnet)
+			err := w.openAccount(acc, w.testnet)
 			if err != nil {
 				continue
 			}

@@ -16,7 +16,6 @@ import (
 )
 
 func (w *Wallet) LoadOutputs() error {
-
 	return nil
 }
 

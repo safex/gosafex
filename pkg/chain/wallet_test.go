@@ -62,7 +62,7 @@ func CleanAfterTests(w *Wallet, fullpath string) {
 		fmt.Println(err)
 	}
 }
- 
+
 func TestRecoverFromMnemonic(t *testing.T) {
 	prepareFolder()
 	testLogger.Infof("[Test] Testing account recovery from mnemonic")
@@ -350,11 +350,10 @@ func TestGetTransactionByBlock(t *testing.T) {
 	testLogger.Infof("[Test] Passed transaction retrieval by block")
 }
 
-//this test for now fails to check balance
 func TestUpdateBalance(t *testing.T) {
 	prepareFolder()
 	testLogger.Infof("[Test] Testing balance update")
-	testLogger.SetLevel(log.DebugLevel)
+	testLogger.SetLevel(log.InfoLevel)
 	w := New(testLogger)
 	fullpath := strings.Join([]string{foldername, filename}, "/")
 
@@ -398,11 +397,13 @@ func TestUpdateBalance(t *testing.T) {
 		testLogger.Infof("[Test] Waiting for sync")
 		time.Sleep(30 * time.Second)
 	}
-	if b, err := w.GetBalance(); err != nil {
+	var b *Balance
+	b, err = w.GetBalance()
+	if err != nil {
 		t.Fatalf("%s", err)
 	} else if b.CashUnlocked == 0 && b.CashLocked == 0 && b.TokenUnlocked == 0 && b.TokenLocked == 0 {
 		t.Fatalf("Got null balance\n")
 	}
 
-	testLogger.Infof("[Test] Passed balance update")
+	testLogger.Infof("[Test] Passed balance update: %v, %v, %v, %v", b.CashUnlocked, b.CashLocked, b.TokenUnlocked, b.TokenLocked)
 }
