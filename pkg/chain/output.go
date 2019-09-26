@@ -2,7 +2,6 @@ package chain
 
 import (
 	"bytes"
-	"fmt"
 	"math"
 	"math/rand"
 	"sort"
@@ -14,6 +13,17 @@ import (
 	"github.com/safex/gosafex/pkg/filewallet"
 	"github.com/safex/gosafex/pkg/safex"
 )
+
+//This is horrible and needs to be streamlined
+func typeToString(typ safex.TxOutType) string {
+	if typ == safex.OutCash {
+		return "Cash"
+	}
+	if typ == safex.OutToken {
+		return "Token"
+	}
+	return ""
+}
 
 func (w *Wallet) LoadOutputs() error {
 	return nil
@@ -38,12 +48,13 @@ func (w *Wallet) addOutput(output *safex.Txout, accountName string, index uint64
 		return err
 	}
 	defer w.wallet.OpenAccount(&filewallet.WalletInfo{prevAcc, nil}, false, w.testnet)
-
-	outID, err := w.wallet.AddOutput(output, uint64(index), &filewallet.OutputInfo{OutputType: typ, BlockHash: blckHash, TransactionID: txHash, TxLocked: filewallet.LockedStatus, TxType: txtyp}, "")
+	OutTransfer := &TransferInfo{extra, index, globalindex, false, minertx, height, *keyimage, ephemeralPublic, ephemeralSecret}
+	outInfo := &filewallet.OutputInfo{OutputType: typ, BlockHash: blckHash, TransactionID: txHash, TxLocked: filewallet.LockedStatus, TxType: txtyp, OutTransfer: *OutTransfer}
+	outID, err := w.wallet.AddOutput(output, uint64(index), globalindex, &filewallet.OutputInfo{OutputType: typ, BlockHash: blckHash, TransactionID: txHash, TxLocked: filewallet.LockedStatus, TxType: txtyp, OutTransfer: *OutTransfer}, "")
 	if err != nil {
 		return err
 	}
-	w.outputs[outID] = &OutputInfo{TransferInfo{output, extra, index, globalindex, false, minertx, height, *keyimage, ephemeralPublic, ephemeralSecret}}
+	w.outputs[outID] = outInfo
 
 	return nil
 }
@@ -65,16 +76,26 @@ func (w *Wallet) matchOutput(txOut *safex.Txout, index uint64, der [crypto.KeyLe
 	return *outputKey == [crypto.KeyLength]byte(*derivatedPubKey)
 }
 
-func (w *Wallet) getOutputHistogram(selectedTransfer *[]Transfer, outType safex.TxOutType) (histograms []*safex.Histogram, err error) {
+//The correct way to do it
+func (w *Wallet) getOutputHistogram(selectedOutputs []string, outType safex.TxOutType) (histograms []*safex.Histogram, err error) {
 	// @todo can be optimized
 	if w.syncing {
 		return nil, ErrSyncing
 	}
 	var amounts []uint64
 	encountered := map[uint64]bool{}
-	for _, val := range *selectedTransfer {
-		if MatchOutputWithType(val.Output, outType) {
-			outputAmount := GetOutputAmount(val.Output, outType)
+	for _, val := range selectedOutputs {
+		typ, err := w.wallet.GetOutputType(val)
+		if err != nil {
+			return nil, err
+		}
+		if typ == typeToString(outType) {
+			outStruct, err := w.GetOutput(val)
+			if err != nil {
+				continue
+			}
+			out := outStruct["out"].(TxOut)
+			outputAmount := out.GetAmount()
 			if encountered[outputAmount] != true {
 				encountered[outputAmount] = true
 				amounts = append(amounts, outputAmount)
@@ -123,198 +144,4 @@ func txAddFakeOutput(entry *[]OutsEntry, globalIndex uint64, outputKey [32]byte,
 
 	*entry = append(*entry, item)
 	return true
-}
-
-func (w *Wallet) getOuts(outs *[][]OutsEntry, selectedTransfers *[]Transfer, fakeOutsCount int, outType safex.TxOutType) {
-	// Clear outsEntry array
-
-	*outs = [][]OutsEntry{}
-	fmt.Println("getOuts")
-	if fakeOutsCount > 0 {
-		info := w.latestInfo
-
-		if info == nil {
-			panic("Failed to get node info")
-		}
-
-		var height uint64 = info.Height
-		fmt.Println(height)
-		//@todo error handling
-		histograms, _ := w.getOutputHistogram(selectedTransfers, outType)
-		baseRequestedOutputsCount := uint64(float64(fakeOutsCount+1)*1.5 + 1)
-
-		var outsRq []safex.GetOutputRq
-
-		var numSelectedTransfers uint32 = 0
-		var seenIndices map[uint64]bool
-		seenIndices = make(map[uint64]bool)
-
-		fmt.Println("Size of selectedTransfers:", len(*selectedTransfers))
-		for index, val := range *selectedTransfers {
-			if !MatchOutputWithType(val.Output, outType) {
-				continue
-			}
-			fmt.Println(index, " ", val)
-			numSelectedTransfers++
-			valueAmount := GetOutputAmount(val.Output, outType)
-			var numOuts uint64 = 0
-			var numRecentOutputs uint64 = 0
-
-			for _, he := range histograms {
-				fmt.Println("histograms loop")
-				if he.Amount == valueAmount {
-					numOuts = he.UnlockedInstances
-					numRecentOutputs = he.RecentInstances
-					break
-				}
-			}
-
-			var recentOutputsCount uint64 = uint64(RecentOutputRatio * float64(baseRequestedOutputsCount))
-
-			if recentOutputsCount == 0 {
-				recentOutputsCount = 1
-			}
-			if recentOutputsCount > numRecentOutputs {
-				recentOutputsCount = numRecentOutputs
-			}
-
-			if (val.GlobalIndex >= uint64(numOuts-numRecentOutputs)) && recentOutputsCount > 0 {
-				recentOutputsCount--
-			}
-
-			var numFound uint64 = 0
-
-			// @todo In original CLI wallet forked from monero, there is saving used rings in ringdb and reusing them
-			// 		 implement that after
-			// @todo Blackballing outputs.
-
-			if numOuts <= baseRequestedOutputsCount {
-				fmt.Println("This is loop ", numOuts, " ", baseRequestedOutputsCount)
-				var i uint64 = 0
-				for i = 0; i < numOuts; i++ {
-					outsRq = append(outsRq, safex.GetOutputRq{valueAmount, i})
-				}
-
-				for i := numOuts; i < baseRequestedOutputsCount; i++ {
-					outsRq = append(outsRq, safex.GetOutputRq{valueAmount, numOuts - 1})
-				}
-			} else {
-				if numFound == 0 {
-					numFound = 1
-					seenIndices[uint64(val.GlobalIndex)] = true
-					outsRq = append(outsRq, safex.GetOutputRq{valueAmount, uint64(val.GlobalIndex)})
-				}
-
-				var i uint64 = 0
-				// @note There are some other distribution here, but since we dont have "fork segmentation" implemented
-				//		 they are not used here.
-				for numFound < baseRequestedOutputsCount {
-
-					if uint64(len(seenIndices)) == numOuts {
-						break
-					}
-
-					var type_ string = ""
-					if numFound-1 < recentOutputsCount {
-						type_ = "recent"
-
-					} else {
-						type_ = "triangular"
-					}
-					i = getOutputDistribution(type_, numOuts, numRecentOutputs)
-
-					// @todo check this again. There must be better solution
-					if _, ok := seenIndices[i]; ok {
-						continue
-					}
-
-					seenIndices[i] = true
-					outsRq = append(outsRq, safex.GetOutputRq{valueAmount, i})
-					numFound++
-				}
-			}
-			sort.Sort(safex.ByIndex(outsRq))
-		}
-
-		// @todo Error handling.
-		outs1, _ := w.client.GetOutputs(outsRq, outType)
-
-		var scantyOuts map[uint64]int
-		scantyOuts = make(map[uint64]int)
-
-		var base uint64 = 0
-		for _, val := range *selectedTransfers {
-			var entry []OutsEntry
-			outputType := GetOutputType(val.Output)
-			if outputType != outType {
-				continue
-			}
-			// @note pkey is extracted as output key.
-			// @note mask is not used as its zerocommit mask for non-rct (0), as we dont support RCT
-			//		 mask will always be zero for every output, hence there is no sense in checkin
-			//		 always true condition.
-			var realOutFound bool = false
-			var n uint64 = 0
-			for n = uint64(0); n < baseRequestedOutputsCount; n++ {
-				i := base + n
-				if uint64(val.GlobalIndex) == outsRq[i].Index {
-					if bytes.Equal(outs1.Outs[i].Key, GetOutputKey(val.Output, outType)) {
-						realOutFound = true
-					}
-				}
-			}
-
-			if !realOutFound {
-				panic("There is no our output from daemon!!!")
-			}
-
-			// @todo Refactor!!
-			var outputKeyTemp [32]byte
-			copy(outputKeyTemp[:], GetOutputKey(val.Output, outType))
-
-			entry = append(entry, OutsEntry{val.GlobalIndex, outputKeyTemp})
-
-			var order []uint64
-			for n := uint64(0); n < baseRequestedOutputsCount; n++ {
-				order = append(order, n)
-			}
-
-			// shuffle
-			rand.Seed(time.Now().UnixNano())
-			rand.Shuffle(len(order), func(i, j int) { order[i], order[j] = order[j], order[i] })
-
-			for o := uint64(0); o < baseRequestedOutputsCount && len(entry) < (fakeOutsCount+1); o++ {
-				i := base + order[o]
-				copy(outputKeyTemp[:], outs1.Outs[i].Key)
-				txAddFakeOutput(&entry, outsRq[i].Index, outputKeyTemp, val.GlobalIndex, outs1.Outs[i].Unlocked)
-			}
-
-			if len(entry) < fakeOutsCount+1 {
-				scantyOuts[GetOutputAmount(val.Output, outType)] = len(entry)
-			} else {
-				sort.Sort(OutsEntryByIndex(entry))
-			}
-			base += baseRequestedOutputsCount
-			*outs = append(*outs, entry)
-		}
-		if len(scantyOuts) != 0 {
-			panic("Not enough outs to mixin")
-		}
-
-	} else {
-		for _, val := range *selectedTransfers {
-			var entry []OutsEntry
-
-			outputType := GetOutputType(val.Output)
-			if outputType != outType {
-				continue
-			}
-			// @todo Refactor!!
-			var outputKeyTemp [32]byte
-			copy(outputKeyTemp[:], GetOutputKey(val.Output, outType))
-
-			entry = append(entry, OutsEntry{val.GlobalIndex, outputKeyTemp})
-			*outs = append(*outs, entry)
-		}
-	}
 }

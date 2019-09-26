@@ -11,10 +11,12 @@ import (
 	"github.com/safex/gosafex/internal/crypto"
 )
 
-func PackOutputIndex(blockHash string, localIndex uint64) (string, error) {
-	b := make([]byte, 8)
-	binary.LittleEndian.PutUint64(b, localIndex)
-	b = append(b, []byte(blockHash)...)
+func PackOutputIndex(globalIndex uint64, amount uint64) (string, error) {
+	b1 := make([]byte, 8)
+	b2 := make([]byte, 8)
+	binary.LittleEndian.PutUint64(b1, amount)
+	binary.LittleEndian.PutUint64(b2, globalIndex)
+	b := append(b1, b2...)
 	return hex.EncodeToString(b), nil
 }
 
@@ -23,9 +25,9 @@ func UnpackOutputIndex(outID string) (uint64, uint64, error) {
 	if err != nil {
 		return 0, 0, err
 	}
-	globalIndex := binary.LittleEndian.Uint64(s[:8])
-	localIndex := binary.LittleEndian.Uint64(s[8:])
-	return globalIndex, localIndex, nil
+	amount := binary.LittleEndian.Uint64(s[:8])
+	globalIndex := binary.LittleEndian.Uint64(s[8:])
+	return globalIndex, amount, nil
 }
 
 func fileExists(filename string) bool {

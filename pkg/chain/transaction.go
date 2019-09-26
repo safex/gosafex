@@ -1,20 +1,17 @@
 package chain
 
 import (
-	"errors"
-	"fmt"
-	"log"
-	"math/rand"
+	//"math/rand"
 	"sort"
-	"time"
+	//"time"
 
-	"github.com/jinzhu/copier"
+	//"github.com/jinzhu/copier"
 	"github.com/safex/gosafex/internal/crypto"
 	"github.com/safex/gosafex/internal/crypto/curve"
 	"github.com/safex/gosafex/pkg/account"
 	"github.com/safex/gosafex/pkg/filewallet"
 	"github.com/safex/gosafex/pkg/safex"
-	"github.com/safex/gosafex/pkg/serialization"
+	//	"github.com/safex/gosafex/pkg/serialization"
 )
 
 /* NOTES:
@@ -50,7 +47,7 @@ func extractTxPubKey(extra []byte) (pubTxKey [crypto.KeyLength]byte) {
 func (w *Wallet) processTransactionPerAccount(tx *safex.Transaction, blckHash string, minerTx bool, acc string) error {
 	if len(tx.Vout) != 0 {
 		err := w.OpenAccount(acc, w.testnet)
-
+		//Must defer to previous account
 		if err != nil {
 			return err
 		}
@@ -85,12 +82,16 @@ func (w *Wallet) processTransactionPerAccount(tx *safex.Transaction, blckHash st
 			tempPrivateSpendKey := curve.Key(w.account.PrivateSpendKey().ToBytes())
 			tempPublicSpendKey := curve.Key(w.account.PublicSpendKey().ToBytes())
 			temptxPubKeyDerivation := crypto.Key(txPubKeyDerivation)
+
 			ephemeralSecret := curve.DerivationToPrivateKey(uint64(index), &tempPrivateSpendKey, &temptxPubKeyDerivation)
 			ephemeralPublic, _ := curve.DerivationToPublicKey(uint64(index), &temptxPubKeyDerivation, &tempPublicSpendKey) //TODO: Manage error
-			keyimage := curve.KeyImage(ephemeralPublic, ephemeralSecret)
-			globalIndex := tx.OutputIndices[index]
 
-			if _, ok := w.outputs[*keyimage]; !ok {
+			keyimage := curve.KeyImage(ephemeralPublic, ephemeralSecret)
+
+			globalIndex := tx.OutputIndices[index]
+			outID, _ := filewallet.PackOutputIndex(globalIndex, output.GetAmount())
+
+			if _, ok := w.outputs[outID]; !ok {
 				w.addOutput(output, acc, uint64(index), globalIndex, minerTx, blckHash, tx.GetTxHash(), tx.BlockHeight, keyimage, tx.Extra, *ephemeralPublic, *ephemeralSecret)
 			}
 
@@ -100,6 +101,7 @@ func (w *Wallet) processTransactionPerAccount(tx *safex.Transaction, blckHash st
 	if len(tx.Vin) != 0 {
 
 		err := w.OpenAccount(acc, w.testnet)
+		//Must defer to previous account
 		if err != nil {
 			return err
 		}
@@ -202,8 +204,9 @@ func (w *Wallet) processTransaction(tx *safex.Transaction, blckHash string, mine
 				ephemeralPublic, _ := curve.DerivationToPublicKey(uint64(index), &temptxPubKeyDerivation, &tempPublicSpendKey) //TODO: Manage error
 				keyimage := curve.KeyImage(ephemeralPublic, ephemeralSecret)
 				globalIndex := tx.OutputIndices[index]
+				outID, _ := filewallet.PackOutputIndex(globalIndex, uint64(index))
 
-				if _, ok := w.outputs[*keyimage]; !ok {
+				if _, ok := w.outputs[outID]; !ok {
 					w.addOutput(output, acc, uint64(index), globalIndex, minerTx, blckHash, tx.GetTxHash(), tx.BlockHeight, keyimage, tx.Extra, *ephemeralPublic, *ephemeralSecret)
 				}
 
@@ -212,7 +215,6 @@ func (w *Wallet) processTransaction(tx *safex.Transaction, blckHash string, mine
 	}
 
 	if len(tx.Vin) != 0 {
-
 		accs, err := w.getAccounts()
 		if err != nil {
 			return err
@@ -279,6 +281,7 @@ func checkInputs(inputs []*safex.TxinV) bool {
 	return true
 }
 
+/*
 func (w *Wallet) transferSelected(dsts *[]DestinationEntry, selectedTransfers *[]Transfer, fakeOutsCount int, outs *[][]OutsEntry,
 	outsFee *[][]OutsEntry, unlockTime uint64, fee uint64, extra *[]byte, tx *safex.Transaction, ptx *PendingTx, outType safex.TxOutType) { // destination_split_strategy, // dust_policy
 	// Check if dsts are empty
@@ -450,12 +453,13 @@ func (w *Wallet) transferSelected(dsts *[]DestinationEntry, selectedTransfers *[
 	// @todo TransferSelected is supposed finished at this moment.
 	// @todo Test all everything thoroughly and fix known bugs
 
-}
+}*/
 
 func isWholeValue(input uint64) bool {
 	return (input % uint64(10000000000)) == uint64(0)
 }
 
+/*
 func (w *Wallet) TxCreateToken(
 	dsts []DestinationEntry,
 	fakeOutsCount int,
@@ -786,7 +790,7 @@ func (w *Wallet) TxCreateToken(
 	}
 	return ret, nil
 }
-
+*/
 func isTokenOutput(txout *safex.Txout) bool {
 	return txout.Target.TxoutTokenToKey != nil
 }
@@ -838,6 +842,7 @@ func (tx *TX) Add(acc account.Address, amount uint64, originalOutputIndex int, m
 	}
 }
 
+/*
 // @todo add token_transfer support
 func PopBestValueFrom(unusedIndices, selectedTransfers *[]Transfer, smallest bool, outType safex.TxOutType) (ret Transfer) {
 	var candidates []int
@@ -892,7 +897,7 @@ func PopBestValueFrom(unusedIndices, selectedTransfers *[]Transfer, smallest boo
 	*unusedIndices = append((*unusedIndices)[:idx], (*unusedIndices)[idx+1:]...)
 
 	return ret
-}
+}*/
 
 func estimateTxSize(nInputs, mixin, nOutputs, extraSize int) int {
 	return nInputs*(mixin+1)*APPROXIMATE_INPUT_BYTES + extraSize
@@ -902,6 +907,7 @@ func txSizeTarget(input int) int {
 	return input * 2 / 3
 }
 
+/*
 func (w *Wallet) TxCreateCash(
 	dsts []DestinationEntry,
 	fakeOutsCount int,
@@ -1184,3 +1190,4 @@ func (w *Wallet) TxCreateCash(
 	}
 	return ret, nil
 }
+*/

@@ -7,12 +7,12 @@ import (
 )
 
 //Prepares an output, giving back a serialized byte array and an ID
-func prepareOutput(out *safex.Txout, blockHash string, localIndex uint64) ([]byte, string, error) {
+func prepareOutput(out *safex.Txout, blockHash string, globalIndex uint64, localIndex uint64) ([]byte, string, error) {
 	data, err := proto.Marshal(out)
 	if err != nil {
 		return nil, "", err
 	}
-	outID, err := PackOutputIndex(blockHash, localIndex)
+	outID, err := PackOutputIndex(globalIndex, localIndex)
 	if err != nil {
 		return nil, "", err
 	}
@@ -260,9 +260,9 @@ func (w *FileWallet) CheckIfOutputExists(outID string) (int, error) {
 }
 
 //Inserts the given output within the filewallet, returns the outID
-func (w *FileWallet) putOutput(out *safex.Txout, localIndex uint64, blockHash string) (string, error) {
+func (w *FileWallet) putOutput(out *safex.Txout, globalIndex uint64, localIndex uint64, blockHash string) (string, error) {
 
-	data, outID, err := prepareOutput(out, blockHash, localIndex)
+	data, outID, err := prepareOutput(out, blockHash, globalIndex, localIndex)
 	if err != nil {
 		return "", err
 	}
@@ -282,7 +282,7 @@ func (w *FileWallet) putOutput(out *safex.Txout, localIndex uint64, blockHash st
 }
 
 //AddOutput Inserts the given output and it's metadata within the filewallet, returns the outputID
-func (w *FileWallet) AddOutput(out *safex.Txout, localIndex uint64, outInfo *OutputInfo, inputID string) (string, error) {
+func (w *FileWallet) AddOutput(out *safex.Txout, globalIndex uint64, localIndex uint64, outInfo *OutputInfo, inputID string) (string, error) {
 
 	if inputID != "" {
 		if w.IsUnspent(inputID) {
@@ -314,7 +314,7 @@ func (w *FileWallet) AddOutput(out *safex.Txout, localIndex uint64, outInfo *Out
 	}
 
 	//We put the output in it's own key and a reference in the global list
-	outID, err := w.putOutput(out, localIndex, outInfo.BlockHash)
+	outID, err := w.putOutput(out, globalIndex, localIndex, outInfo.BlockHash)
 	if err != nil {
 		return "", err
 	}

@@ -152,7 +152,7 @@ func TestGenericDataRW(t *testing.T) {
 		t.Fatalf("%s", err)
 	}
 	outputInfo := &OutputInfo{"Cash", "aaaac", "tx01", "U", "normal", *transferInfo}
-	outID, err := w.AddOutput(out1, 1, outputInfo, "")
+	outID, err := w.AddOutput(out1, 1, 2, outputInfo, "")
 	if err != nil {
 		t.Fatalf("%s", err)
 	}
@@ -341,11 +341,11 @@ func TestOutputRW(t *testing.T) {
 	}
 
 	outputInfo := &OutputInfo{"Cash", head2.GetHash(), "tx01", "U", "normal", *transferInfo}
-	outID, err := w.AddOutput(out1, 1, outputInfo, "")
+	outID, err := w.AddOutput(out1, 1, 2, outputInfo, "")
 	if err != nil {
 		t.Fatalf("%s", err)
 	}
-	outID, err = w.AddOutput(out1, 2, outputInfo, "")
+	outID, err = w.AddOutput(out1, 2, 2, outputInfo, "")
 	if err != nil {
 		t.Fatalf("%s", err)
 	}
@@ -549,7 +549,7 @@ func TestAccountSwitch(t *testing.T) {
 	}
 
 	outputInfo := &OutputInfo{"Cash", head2.GetHash(), "tx01", "U", "normal", *transferInfo}
-	_, err = w.AddOutput(out1, 1, outputInfo, "")
+	_, err = w.AddOutput(out1, 1, 2, outputInfo, "")
 	if err != nil {
 		t.Fatalf("%s", err)
 	}
