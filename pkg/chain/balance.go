@@ -4,41 +4,6 @@ import (
 	"github.com/safex/gosafex/pkg/safex"
 )
 
-func (t *Transfer) getRelatedness(input *Transfer) float32 {
-
-	// @todo: Implement txid check.
-	// if t.Txid == input.Txid {
-	//	return float32(1.0)
-	//}
-
-	var dh uint64
-	if t.Height > input.Height {
-		dh = t.Height - input.Height
-	} else {
-		dh = input.Height - t.Height
-	}
-
-	if dh == 0 {
-		return float32(0.9)
-	}
-	if dh == 1 {
-		return float32(0.8)
-	}
-	if dh < 10 {
-		return float32(0.2)
-	}
-
-	return float32(0.0)
-}
-
-func (t Transfer) isUnlocked(height uint64) bool {
-	if t.MinerTx {
-		return height-t.Height > 60
-	} else {
-		return height-t.Height > 10
-	}
-}
-
 func (w *Wallet) rescanBlockRange(blocks safex.Blocks, acc string) error {
 	var txs []string
 	var minerTxs []string

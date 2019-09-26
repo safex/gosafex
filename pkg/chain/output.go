@@ -39,8 +39,11 @@ func (w *Wallet) addOutput(output *safex.Txout, accountName string, index uint64
 	}
 	defer w.wallet.OpenAccount(&filewallet.WalletInfo{prevAcc, nil}, false, w.testnet)
 
-	w.wallet.AddOutput(output, uint64(index), &filewallet.OutputInfo{OutputType: typ, BlockHash: blckHash, TransactionID: txHash, TxLocked: filewallet.LockedStatus, TxType: txtyp}, "")
-	w.outputs[*keyimage] = Transfer{output, extra, index, globalindex, false, minertx, height, *keyimage, ephemeralPublic, ephemeralSecret}
+	outID, err := w.wallet.AddOutput(output, uint64(index), &filewallet.OutputInfo{OutputType: typ, BlockHash: blckHash, TransactionID: txHash, TxLocked: filewallet.LockedStatus, TxType: txtyp}, "")
+	if err != nil {
+		return err
+	}
+	w.outputs[outID] = &OutputInfo{TransferInfo{output, extra, index, globalindex, false, minertx, height, *keyimage, ephemeralPublic, ephemeralSecret}}
 
 	return nil
 }

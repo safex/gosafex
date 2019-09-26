@@ -3,7 +3,6 @@ package chain
 import (
 	"errors"
 
-	"github.com/safex/gosafex/internal/crypto"
 	"github.com/safex/gosafex/pkg/account"
 	"github.com/safex/gosafex/pkg/filewallet"
 	"github.com/safex/gosafex/pkg/safex"
@@ -580,7 +579,7 @@ func (w *Wallet) SetLogger(prevLog *log.Logger) {
 func New(prevLog *log.Logger) *Wallet {
 	w := new(Wallet)
 	w.SetLogger(prevLog)
-	w.outputs = make(map[crypto.Key]Transfer)
+	w.outputs = make(map[string]*OutputInfo)
 	//Some of these values are hardcoded, might not be wise
 	w.update = make(chan bool, 8)
 	w.quit = make(chan bool)

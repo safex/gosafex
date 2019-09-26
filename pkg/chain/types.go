@@ -69,7 +69,7 @@ type Wallet struct {
 	balance         Balance
 	account         Account
 	client          *Client
-	outputs         map[crypto.Key]Transfer
+	outputs         map[string]*OutputInfo
 	lockUpdate      chan bool
 	countedOutputs  []string
 	wallet          *filewallet.FileWallet
@@ -94,27 +94,10 @@ type Balance struct {
 	TokenUnlocked uint64
 	TokenLocked   uint64
 }
-type Transfer struct {
-	Output      *safex.Txout
-	Extra       []byte
-	LocalIndex  uint64
-	GlobalIndex uint64
-	Spent       bool
-	MinerTx     bool
-	Height      uint64
-	KImage      crypto.Key
-	EphPub      crypto.Key
-	EphPriv     crypto.Key
-}
 
-//OutputInfo is a syntesis of useful information to be stored concerning an output
-type OutputInfo struct {
-	outputType    string
-	blockHash     string
-	transactionID string
-	txLocked      string
-	txType        string
-}
+type TransferInfo = filewallet.TransferInfo
+
+type OutputInfo = filewallet.OutputInfo
 
 //TransactionInfo is a syntesis of useful information to be stored concerning a transaction
 type TransactionInfo struct {
@@ -153,7 +136,7 @@ type TxConstructionData struct {
 	ChangeDts         DestinationEntry
 	ChangeTokenDts    DestinationEntry
 	SplittedDsts      []DestinationEntry
-	SelectedTransfers *[]Transfer
+	SelectedTransfers *[]TransferInfo
 	Extra             []byte
 	UnlockTime        uint64
 	Dests             []DestinationEntry
@@ -166,7 +149,7 @@ type PendingTx struct {
 	DustAddedToFee    uint64
 	ChangeDts         DestinationEntry
 	ChangeTokenDts    DestinationEntry
-	SelectedTransfers *[]Transfer
+	SelectedTransfers *[]TransferInfo
 	KeyImages         string
 	TxKey             [32]byte
 	AdditionalTxKeys  [][32]byte // Not used
@@ -195,11 +178,11 @@ type TxSourceEntry struct {
 	TokenAmount             uint64
 	TokenTx                 bool
 	Migration               bool
-	TransferPtr             *Transfer
+	TransferPtr             *TransferInfo
 }
 
 type TX struct {
-	SelectedTransfers []Transfer
+	SelectedTransfers []TransferInfo
 	Dsts              []DestinationEntry
 	Tx                safex.Transaction
 	PendingTx         PendingTx

@@ -1,6 +1,7 @@
 package filewallet
 
 import (
+	"github.com/safex/gosafex/internal/crypto"
 	"github.com/safex/gosafex/internal/filestore"
 	"github.com/safex/gosafex/pkg/account"
 	log "github.com/sirupsen/logrus"
@@ -22,6 +23,17 @@ type FileWallet struct {
 	latestBlockNumber uint64
 	latestBlockHash   string
 }
+type TransferInfo struct {
+	Extra       []byte
+	LocalIndex  uint64
+	GlobalIndex uint64
+	Spent       bool
+	MinerTx     bool
+	Height      uint64
+	KImage      crypto.Key
+	EphPub      crypto.Key
+	EphPriv     crypto.Key
+}
 
 //OutputInfo is a syntesis of useful information to be stored concerning an output
 type OutputInfo struct {
@@ -30,6 +42,7 @@ type OutputInfo struct {
 	TransactionID string
 	TxLocked      string
 	TxType        string
+	OutTransfer   TransferInfo
 }
 
 //TransactionInfo is a syntesis of useful information to be stored concerning a transaction

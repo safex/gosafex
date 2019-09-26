@@ -216,6 +216,15 @@ func (w *FileWallet) putOutputInfo(outID string, outInfo *OutputInfo) error {
 		w.deleteKey(outputInfoPrefix + outID)
 		return err
 	}
+	TransferInfoBytes, err := marshallTransferInfo(&outInfo.OutTransfer)
+	if err != nil {
+		w.deleteKey(outputInfoPrefix + outID)
+		return err
+	}
+	if err := w.appendKey(outputInfoPrefix+outID, TransferInfoBytes); err != nil {
+		w.deleteKey(outputInfoPrefix + outID)
+		return err
+	}
 
 	if outInfo.TxLocked == LockedStatus {
 		w.lockedOutputs = append(w.lockedOutputs, outID)
@@ -230,10 +239,14 @@ func (w *FileWallet) GetOutputInfo(outID string) (*OutputInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-	if len(tempData) != 5 {
+	if len(tempData) != 6 {
 		return nil, ErrOutputNotPresent
 	}
-	return &OutputInfo{string(tempData[0]), string(tempData[1]), string(tempData[2]), string(tempData[3]), string(tempData[4])}, nil
+	TransferInfoData, err := unmarshallTransferInfo(tempData[5])
+	if err != nil {
+		return nil, err
+	}
+	return &OutputInfo{string(tempData[0]), string(tempData[1]), string(tempData[2]), string(tempData[3]), string(tempData[4]), *TransferInfoData}, nil
 }
 
 //Removes the outputInfo associated with the given outputID

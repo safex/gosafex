@@ -5,6 +5,8 @@ import (
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/safex/gosafex/internal/crypto"
 	"github.com/safex/gosafex/internal/filestore"
 	"github.com/safex/gosafex/pkg/account"
 	"github.com/safex/gosafex/pkg/safex"
@@ -29,18 +31,17 @@ func prepareFolder() {
 	if _, err := os.Stat(fullpath); os.IsExist(err) {
 		os.Remove(fullpath)
 	}
-	logFile, _ := os.OpenFile(testLogFile, os.O_APPEND | os.O_CREATE | os.O_WRONLY, 0755) 
+	logFile, _ := os.OpenFile(testLogFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0755)
 
 	testLogger.SetOutput(logFile)
-	testLogger.SetLevel(log.DebugLevel) 
+	testLogger.SetLevel(log.DebugLevel)
 
 	os.Mkdir(foldername, os.FileMode(int(0700)))
 }
 
-
 func CleanAfterTests(w *FileWallet, fullpath string) {
 
-	if w != nil{
+	if w != nil {
 		w.Close()
 	}
 	err := os.Remove(fullpath)
@@ -77,7 +78,7 @@ func prepareWallet(w *FileWallet) {
 }
 */
 
-func TestWrongPassword(t *testing.T){
+func TestWrongPassword(t *testing.T) {
 	prepareFolder()
 	testLogger.Infof("[Test] Testing wrong password")
 	fullpath := strings.Join([]string{foldername, filename}, "/")
@@ -85,38 +86,37 @@ func TestWrongPassword(t *testing.T){
 	w, err := New(fullpath, walletName, masterPass, true, false, store, testLogger)
 
 	if err != nil {
-		defer CleanAfterTests(w,fullpath)
+		defer CleanAfterTests(w, fullpath)
 		t.Fatalf("%s", err)
 	}
 
 	w.Close()
-	
-	w, err = New(fullpath,walletName,masterPass,false,false,store, testLogger)
-	if err != nil{
-		t.Fatalf("%s",err)
+
+	w, err = New(fullpath, walletName, masterPass, false, false, store, testLogger)
+	if err != nil {
+		t.Fatalf("%s", err)
 	}
-	
+
 	w.Close()
 
-	w, err = New(fullpath,walletName,"asdasdasd",false,false,store, testLogger)
-	if err != ErrWrongFilewalletPass{
-		if err != nil{
-			t.Fatalf("%s",err)
+	w, err = New(fullpath, walletName, "asdasdasd", false, false, store, testLogger)
+	if err != ErrWrongFilewalletPass {
+		if err != nil {
+			t.Fatalf("%s", err)
 		} else {
-			defer CleanAfterTests(w,fullpath)
+			defer CleanAfterTests(w, fullpath)
 			t.Fatalf("Password seen as good when it shouldn't")
 		}
 	}
 
 	w.Close()
 
-	w, err = New(fullpath,walletName,masterPass,true,false,store, testLogger)
-	defer CleanAfterTests(w,fullpath)
-	if err != nil{
-		t.Fatalf("%s",err)
+	w, err = New(fullpath, walletName, masterPass, true, false, store, testLogger)
+	defer CleanAfterTests(w, fullpath)
+	if err != nil {
+		t.Fatalf("%s", err)
 	}
 
-	
 	testLogger.Infof("[Test] Passed wrong password")
 }
 
@@ -132,10 +132,11 @@ func TestGenericDataRW(t *testing.T) {
 		t.Fatalf("%s", err)
 	}
 
-	head1 := &safex.BlockHeader{Depth: 10, Hash: "aaaab", PrevHash: ""} 
+	head1 := &safex.BlockHeader{Depth: 10, Hash: "aaaab", PrevHash: ""}
 	head2 := &safex.BlockHeader{Depth: 11, Hash: "aaaac", PrevHash: "aaaab"}
 	tx1 := &TransactionInfo{Version: 1, UnlockTime: 10, Extra: []byte("asdasd"), BlockHeight: head2.GetDepth(), BlockTimestamp: 5, DoubleSpendSeen: false, InPool: false, TxHash: "tx01"}
 	out1 := &safex.Txout{Amount: 20}
+	transferInfo := &TransferInfo{[]byte("extra"), 1, 99, false, false, 11, *crypto.GenerateKey(), *crypto.GenerateKey(), *crypto.GenerateKey()}
 
 	err = w.PutBlockHeader(head1)
 	if err != nil {
@@ -150,7 +151,7 @@ func TestGenericDataRW(t *testing.T) {
 	if err != nil {
 		t.Fatalf("%s", err)
 	}
-	outputInfo := &OutputInfo{"Cash", "aaaac", "tx01", "U", "normal"}
+	outputInfo := &OutputInfo{"Cash", "aaaac", "tx01", "U", "normal", *transferInfo}
 	outID, err := w.AddOutput(out1, 1, outputInfo, "")
 	if err != nil {
 		t.Fatalf("%s", err)
@@ -265,7 +266,7 @@ func TestTransactionRW(t *testing.T) {
 	}
 	defer CleanAfterTests(w, fullpath)
 	head1 := &safex.BlockHeader{Depth: 10, Hash: "aaaab", PrevHash: ""}
-	head2 := &safex.BlockHeader{Depth: 11, Hash: "aaaac", PrevHash: "aaaab"} 
+	head2 := &safex.BlockHeader{Depth: 11, Hash: "aaaac", PrevHash: "aaaab"}
 	tx1 := &TransactionInfo{Version: 1, UnlockTime: 10, Extra: []byte("asdasd"), BlockHeight: head2.GetDepth(), BlockTimestamp: 5, DoubleSpendSeen: false, InPool: false, TxHash: "tx01"}
 	tx2 := &TransactionInfo{Version: 1, UnlockTime: 10, Extra: []byte("asdasd"), BlockHeight: head2.GetDepth(), BlockTimestamp: 5, DoubleSpendSeen: false, InPool: false, TxHash: "tx02"}
 	tx3 := &TransactionInfo{Version: 1, UnlockTime: 10, Extra: []byte("asdasd"), BlockHeight: head2.GetDepth(), BlockTimestamp: 5, DoubleSpendSeen: false, InPool: false, TxHash: "tx03"}
@@ -319,6 +320,7 @@ func TestOutputRW(t *testing.T) {
 	head1 := &safex.BlockHeader{Depth: 10, Hash: "aaaab", PrevHash: ""}
 	head2 := &safex.BlockHeader{Depth: 11, Hash: "aaaac", PrevHash: "aaaab"}
 	tx1 := &TransactionInfo{Version: 1, UnlockTime: 10, Extra: []byte("asdasd"), BlockHeight: head2.GetDepth(), BlockTimestamp: 5, DoubleSpendSeen: false, InPool: false, TxHash: "tx01"}
+	transferInfo := &TransferInfo{[]byte("extra"), 1, 99, false, false, 11, *crypto.GenerateKey(), *crypto.GenerateKey(), *crypto.GenerateKey()}
 	out1 := &safex.Txout{Amount: 20}
 
 	err = w.PutBlockHeader(head1)
@@ -338,7 +340,7 @@ func TestOutputRW(t *testing.T) {
 		t.Fatalf("%s", err)
 	}
 
-	outputInfo := &OutputInfo{"Cash", head2.GetHash(), "tx01", "U", "normal"}
+	outputInfo := &OutputInfo{"Cash", head2.GetHash(), "tx01", "U", "normal", *transferInfo}
 	outID, err := w.AddOutput(out1, 1, outputInfo, "")
 	if err != nil {
 		t.Fatalf("%s", err)
@@ -417,96 +419,96 @@ func TestOutputRW(t *testing.T) {
 	testLogger.Infof("[Test] Passed output R/W")
 }
 
-func TestColdAccountCreation(t *testing.T){
+func TestColdAccountCreation(t *testing.T) {
 	prepareFolder()
 	testLogger.Infof("[Test] Testing cold account creation")
 	fullpath := strings.Join([]string{foldername, filename}, "/")
 	store, _ := account.GenerateAccount(false)
 	store2, _ := account.GenerateAccount(false)
-	w, err := NewClean(fullpath, masterPass, false,true, testLogger)
+	w, err := NewClean(fullpath, masterPass, false, true, testLogger)
 	head1 := &safex.BlockHeader{Depth: 10, Hash: "aaaab", PrevHash: ""}
 	head2 := &safex.BlockHeader{Depth: 11, Hash: "aaaac", PrevHash: "aaaab"}
 	defer CleanAfterTests(w, fullpath)
 	if err != nil {
 		t.Fatalf("%s", err)
 	}
-	if err := w.CreateAccount(&WalletInfo{Name: "Wallet1", Keystore: store},true); err != nil{
+	if err := w.CreateAccount(&WalletInfo{Name: "Wallet1", Keystore: store}, true); err != nil {
 		t.Fatalf("%s", err)
 	}
-	if err := w.CreateAccount(&WalletInfo{Name: "Wallet2", Keystore: store2},true); err != nil{
+	if err := w.CreateAccount(&WalletInfo{Name: "Wallet2", Keystore: store2}, true); err != nil {
 		t.Fatalf("%s", err)
 	}
-	if err := w.OpenAccount(&WalletInfo{Name: "Wallet1", Keystore: store},false,false); err != nil{
-		t.Fatalf("%s",err)
+	if err := w.OpenAccount(&WalletInfo{Name: "Wallet1", Keystore: store}, false, false); err != nil {
+		t.Fatalf("%s", err)
 	}
-	if err := w.PutBlockHeader(head1); err != nil{
-		t.Fatalf("%s",err)
+	if err := w.PutBlockHeader(head1); err != nil {
+		t.Fatalf("%s", err)
 	}
-	if err := w.OpenAccount(&WalletInfo{Name: "Wallet2", Keystore: store2},false,false); err != nil{
-		t.Fatalf("%s",err)
+	if err := w.OpenAccount(&WalletInfo{Name: "Wallet2", Keystore: store2}, false, false); err != nil {
+		t.Fatalf("%s", err)
 	}
-	if err := w.PutBlockHeader(head2); err != nil{
-		t.Fatalf("%s",err)
+	if err := w.PutBlockHeader(head2); err != nil {
+		t.Fatalf("%s", err)
 	}
 
 	w.Close()
 
-	w, err = NewClean (fullpath,masterPass, false,true, testLogger)
+	w, err = NewClean(fullpath, masterPass, false, true, testLogger)
 	defer CleanAfterTests(w, fullpath)
-	if err != nil{
-		t.Fatalf("%s",err)
+	if err != nil {
+		t.Fatalf("%s", err)
 	}
-	if data, err := w.GetAccounts(); err != nil{
-		t.Fatalf("%s",err)
-	}else if len(data) != 2{
+	if data, err := w.GetAccounts(); err != nil {
+		t.Fatalf("%s", err)
+	} else if len(data) != 2 {
 		t.Fatalf("Error retrieving account list")
 	}
-	
-	if err := w.OpenAccount(&WalletInfo{Name: "Wallet2", Keystore: store2},false,false); err != nil{
-		t.Fatalf("%s",err)
+
+	if err := w.OpenAccount(&WalletInfo{Name: "Wallet2", Keystore: store2}, false, false); err != nil {
+		t.Fatalf("%s", err)
 	}
-	if data, err := w.GetAllBlocks(); err != nil{
-		t.Fatalf("%s",err)
-	}else if len(data) != 2{
+	if data, err := w.GetAllBlocks(); err != nil {
+		t.Fatalf("%s", err)
+	} else if len(data) != 2 {
 		t.Fatalf("Error while reading blocks from account2")
 	}
-	if err := w.OpenAccount(&WalletInfo{Name: "Wallet1", Keystore: store},false,false); err != nil{
-		t.Fatalf("%s",err)
+	if err := w.OpenAccount(&WalletInfo{Name: "Wallet1", Keystore: store}, false, false); err != nil {
+		t.Fatalf("%s", err)
 	}
-	if data, err := w.GetAllBlocks(); err != nil{
-		t.Fatalf("%s",err)
-	}else if len(data) != 2{
+	if data, err := w.GetAllBlocks(); err != nil {
+		t.Fatalf("%s", err)
+	} else if len(data) != 2 {
 		t.Fatalf("Error while reading blocks from account1")
 	}
 	testLogger.Infof("[Test] Passed cold account creation")
 }
 
-func TestAccountDeletion(t *testing.T){
+func TestAccountDeletion(t *testing.T) {
 	prepareFolder()
 	testLogger.Infof("[Test] Testing account deletion")
 	fullpath := strings.Join([]string{foldername, filename}, "/")
 	store, _ := account.GenerateAccount(false)
 	store2, _ := account.GenerateAccount(false)
-	w, err := NewClean(fullpath, masterPass, false,true, testLogger)
+	w, err := NewClean(fullpath, masterPass, false, true, testLogger)
 	defer CleanAfterTests(w, fullpath)
 	if err != nil {
 		t.Fatalf("%s", err)
 	}
-	if err := w.CreateAccount(&WalletInfo{Name: "Wallet1", Keystore: store},true); err != nil{
+	if err := w.CreateAccount(&WalletInfo{Name: "Wallet1", Keystore: store}, true); err != nil {
 		t.Fatalf("%s", err)
 	}
-	if err := w.CreateAccount(&WalletInfo{Name: "Wallet2", Keystore: store2},true); err != nil{
+	if err := w.CreateAccount(&WalletInfo{Name: "Wallet2", Keystore: store2}, true); err != nil {
 		t.Fatalf("%s", err)
 	}
-	if err := w.RemoveAccount("Wallet1"); err != nil{
-		t.Fatalf("%s",err)
+	if err := w.RemoveAccount("Wallet1"); err != nil {
+		t.Fatalf("%s", err)
 	}
-	if err := w.RemoveAccount("Wallet2"); err != nil{
-		t.Fatalf("%s",err)
+	if err := w.RemoveAccount("Wallet2"); err != nil {
+		t.Fatalf("%s", err)
 	}
-	if data, err := w.GetAccounts(); err != nil && err != filestore.ErrKeyNotFound{
-		t.Fatalf("%s",err)
-	}else if len(data) != 0{
+	if data, err := w.GetAccounts(); err != nil && err != filestore.ErrKeyNotFound {
+		t.Fatalf("%s", err)
+	} else if len(data) != 0 {
 		t.Fatalf("Error retrieving account list")
 	}
 	testLogger.Infof("[Test] Passed account deletion")
@@ -526,6 +528,7 @@ func TestAccountSwitch(t *testing.T) {
 	head1 := &safex.BlockHeader{Depth: 10, Hash: "aaaab", PrevHash: ""}
 	head2 := &safex.BlockHeader{Depth: 11, Hash: "aaaac", PrevHash: "aaaab"}
 	tx1 := &TransactionInfo{Version: 1, UnlockTime: 10, Extra: []byte("asdasd"), BlockHeight: head2.GetDepth(), BlockTimestamp: 5, DoubleSpendSeen: false, InPool: false, TxHash: "tx01"}
+	transferInfo := &TransferInfo{[]byte("extra"), 1, 99, false, false, 11, *crypto.GenerateKey(), *crypto.GenerateKey(), *crypto.GenerateKey()}
 	out1 := &safex.Txout{Amount: 20}
 
 	err = w.PutBlockHeader(head1)
@@ -545,7 +548,7 @@ func TestAccountSwitch(t *testing.T) {
 		t.Fatalf("%s", err)
 	}
 
-	outputInfo := &OutputInfo{"Cash", head2.GetHash(), "tx01", "U", "normal"}
+	outputInfo := &OutputInfo{"Cash", head2.GetHash(), "tx01", "U", "normal", *transferInfo}
 	_, err = w.AddOutput(out1, 1, outputInfo, "")
 	if err != nil {
 		t.Fatalf("%s", err)
@@ -574,8 +577,7 @@ func TestAccountSwitch(t *testing.T) {
 	testLogger.Infof("[Test] Passed account switching")
 }
 
-
-func TestMultipleAccounts(t *testing.T){
+func TestMultipleAccounts(t *testing.T) {
 	prepareFolder()
 	testLogger.Infof("[Test] Testing multiple account creation")
 	fullpath := strings.Join([]string{foldername, filename}, "/")
@@ -584,34 +586,34 @@ func TestMultipleAccounts(t *testing.T){
 	store3, _ := account.GenerateAccount(false)
 	store4, _ := account.GenerateAccount(false)
 	store5, _ := account.GenerateAccount(false)
-	w, err := NewClean(fullpath, masterPass, false,true, testLogger) 
+	w, err := NewClean(fullpath, masterPass, false, true, testLogger)
 	defer CleanAfterTests(w, fullpath)
 	if err != nil {
 		t.Fatalf("%s", err)
 	}
-	if err := w.CreateAccount(&WalletInfo{Name: "Wallet1", Keystore: store1},true); err != nil{
+	if err := w.CreateAccount(&WalletInfo{Name: "Wallet1", Keystore: store1}, true); err != nil {
 		t.Fatalf("%s", err)
 	}
-	if err := w.CreateAccount(&WalletInfo{Name: "Wallet2", Keystore: store2},true); err != nil{
+	if err := w.CreateAccount(&WalletInfo{Name: "Wallet2", Keystore: store2}, true); err != nil {
 		t.Fatalf("%s", err)
 	}
-	if err := w.CreateAccount(&WalletInfo{Name: "Wallet3", Keystore: store3},true); err != nil{
+	if err := w.CreateAccount(&WalletInfo{Name: "Wallet3", Keystore: store3}, true); err != nil {
 		t.Fatalf("%s", err)
 	}
-	if err := w.CreateAccount(&WalletInfo{Name: "Wallet4", Keystore: store4},true); err != nil{
+	if err := w.CreateAccount(&WalletInfo{Name: "Wallet4", Keystore: store4}, true); err != nil {
 		t.Fatalf("%s", err)
 	}
-	if err := w.CreateAccount(&WalletInfo{Name: "Wallet5", Keystore: store5},true); err != nil{
+	if err := w.CreateAccount(&WalletInfo{Name: "Wallet5", Keystore: store5}, true); err != nil {
 		t.Fatalf("%s", err)
 	}
-	if err := w.OpenAccount(&WalletInfo{Name: "Wallet1", Keystore: store1},false,false); err != nil{
-		t.Fatalf("%s",err)
+	if err := w.OpenAccount(&WalletInfo{Name: "Wallet1", Keystore: store1}, false, false); err != nil {
+		t.Fatalf("%s", err)
 	}
 	accs, err := w.GetAccounts()
-	if err != nil{
-		t.Fatalf("%s",err)
+	if err != nil {
+		t.Fatalf("%s", err)
 	}
-	if len(accs) != 5{
+	if len(accs) != 5 {
 		t.Fatalf("Error retrieving accounts")
 	}
 	testLogger.Infof("[Test] Passed multiple account creation")
