@@ -7,12 +7,12 @@ import (
 )
 
 //Prepares an output, giving back a serialized byte array and an ID
-func prepareOutput(out *safex.Txout, blockHash string, globalIndex uint64, localIndex uint64) ([]byte, string, error) {
+func prepareOutput(out *safex.Txout, blockHash string, globalIndex uint64, amount uint64) ([]byte, string, error) {
 	data, err := proto.Marshal(out)
 	if err != nil {
 		return nil, "", err
 	}
-	outID, err := PackOutputIndex(globalIndex, localIndex)
+	outID, err := PackOutputIndex(globalIndex, amount)
 	if err != nil {
 		return nil, "", err
 	}
