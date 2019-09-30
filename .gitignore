@@ -6,6 +6,7 @@ vendor
 *.log
 *.test
 *.txt
+*.db
 
 #Compiled
 *.exe
