@@ -25,7 +25,53 @@ func typeToString(typ safex.TxOutType) string {
 	return ""
 }
 
+//LoadOutputs at the moments it loads only unspent outputs in the current memory, this may be changed
 func (w *Wallet) LoadOutputs() error {
+	w.outputs = make(map[string]*OutputInfo)
+	outputStrings := w.wallet.GetUnspentOutputs()
+	for _, el := range outputStrings {
+		outInfo, err := w.wallet.GetOutputInfo(el)
+		if err != nil {
+			//handle this
+			continue
+		}
+		w.outputs[el] = outInfo
+	}
+	return nil
+}
+
+func (w *Wallet) spendOutput(outID string) error {
+
+	found := true
+	//check local storage for mismatch
+	if _, ok := w.outputs[outID]; !ok {
+		found = false
+		outs, err := w.wallet.GetAllOutputs()
+		if err != nil {
+			return err
+		}
+		for _, el := range outs {
+			if el == outID {
+				found = true
+				//Notify and manage this
+				break
+			}
+		}
+	}
+
+	if !found {
+		return filewallet.ErrOutputNotPresent
+	}
+
+	err := w.wallet.RemoveUnspentOutput(outID)
+	if err != nil {
+		return err
+	}
+
+	if _, ok := w.outputs[outID]; ok {
+		delete(w.outputs, outID)
+	}
+
 	return nil
 }
 
@@ -44,13 +90,17 @@ func (w *Wallet) addOutput(output *safex.Txout, accountName string, index uint64
 		txtyp = "normal"
 	}
 	prevAcc := w.wallet.GetAccount()
-	if err := w.wallet.OpenAccount(&filewallet.WalletInfo{accountName, nil}, false, w.testnet); err != nil {
-		return err
+	if prevAcc != accountName {
+		if err := w.wallet.OpenAccount(&filewallet.WalletInfo{accountName, nil}, false, w.testnet); err != nil {
+			return err
+		}
+		defer w.wallet.OpenAccount(&filewallet.WalletInfo{prevAcc, nil}, false, w.testnet)
 	}
-	defer w.wallet.OpenAccount(&filewallet.WalletInfo{prevAcc, nil}, false, w.testnet)
 	OutTransfer := &TransferInfo{extra, index, globalindex, false, minertx, height, *keyimage, ephemeralPublic, ephemeralSecret}
 	outInfo := &filewallet.OutputInfo{OutputType: typ, BlockHash: blckHash, TransactionID: txHash, TxLocked: filewallet.LockedStatus, TxType: txtyp, OutTransfer: *OutTransfer}
+
 	outID, err := w.wallet.AddOutput(output, uint64(index), globalindex, &filewallet.OutputInfo{OutputType: typ, BlockHash: blckHash, TransactionID: txHash, TxLocked: filewallet.LockedStatus, TxType: txtyp, OutTransfer: *OutTransfer}, "")
+
 	if err != nil {
 		return err
 	}

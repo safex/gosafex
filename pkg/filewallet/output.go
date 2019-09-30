@@ -433,6 +433,24 @@ func (w *FileWallet) GetUnspentOutputs() []string {
 	return w.unspentOutputs
 }
 
+func (w *FileWallet) markSpent(outID string) error {
+	info, err := w.GetOutputInfo(outID)
+	if err != nil {
+		return err
+	}
+	info.OutTransfer.Spent = true
+	return w.putOutputInfo(outID, info)
+}
+
+func (w *FileWallet) markUnspent(outID string) error {
+	info, err := w.GetOutputInfo(outID)
+	if err != nil {
+		return err
+	}
+	info.OutTransfer.Spent = false
+	return w.putOutputInfo(outID, info)
+}
+
 //AddUnspentOutput Adds a given outputID as unspent
 func (w *FileWallet) AddUnspentOutput(outputID string) error {
 	if i, _ := w.findKeyInReference(outputReferenceKey, outputID); i != -1 {
@@ -456,6 +474,9 @@ func (w *FileWallet) RemoveUnspentOutput(outputID string) error {
 		w.deleteAppendedKey(unspentOutputReferenceKey, j)
 		for i, el := range w.unspentOutputs { //TODO Maybe redundant
 			if el == outputID {
+				if err := w.markSpent(outputID); err != nil {
+					return err
+				}
 				w.unspentOutputs = append(w.unspentOutputs[:i], w.unspentOutputs[i+1:]...)
 				return nil
 			}

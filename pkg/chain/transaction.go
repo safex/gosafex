@@ -43,12 +43,26 @@ func extractTxPubKey(extra []byte) (pubTxKey [crypto.KeyLength]byte) {
 	}
 	return pubTxKey
 }
-
+func (w *Wallet) isOurKey(kImage [crypto.KeyLength]byte, keyOffsets []uint64, outType string, amount uint64) (string, bool) {
+	kImgCurve := crypto.Key(kImage)
+	for _, offset := range keyOffsets {
+		outID, err := filewallet.PackOutputIndex(offset, amount)
+		if err != nil {
+			continue
+		}
+		if output, ok := w.outputs[outID]; ok {
+			if output.OutTransfer.KImage == kImgCurve {
+				return outID, true
+			}
+		}
+	}
+	return "", false
+}
 func (w *Wallet) processTransactionPerAccount(tx *safex.Transaction, blckHash string, minerTx bool, acc string) error {
 	if len(tx.Vout) != 0 {
-		err := w.OpenAccount(acc, w.testnet)
+		err := w.openAccount(acc, w.testnet)
 		//Must defer to previous account
-		if err != nil {
+		if err != nil && err != ErrSyncing {
 			return err
 		}
 		pubTxKey := extractTxPubKey(tx.Extra)
@@ -92,7 +106,10 @@ func (w *Wallet) processTransactionPerAccount(tx *safex.Transaction, blckHash st
 			outID, _ := filewallet.PackOutputIndex(globalIndex, output.GetAmount())
 
 			if _, ok := w.outputs[outID]; !ok {
-				w.addOutput(output, acc, uint64(index), globalIndex, minerTx, blckHash, tx.GetTxHash(), tx.BlockHeight, keyimage, tx.Extra, *ephemeralPublic, *ephemeralSecret)
+				if err := w.addOutput(output, acc, uint64(index), globalIndex, minerTx, blckHash, tx.GetTxHash(), tx.BlockHeight, keyimage, tx.Extra, *ephemeralPublic, *ephemeralSecret); err != nil {
+					continue
+				}
+				w.countOutput(outID)
 			}
 
 		}
@@ -100,7 +117,7 @@ func (w *Wallet) processTransactionPerAccount(tx *safex.Transaction, blckHash st
 
 	if len(tx.Vin) != 0 {
 
-		err := w.OpenAccount(acc, w.testnet)
+		err := w.openAccount(acc, w.testnet)
 		//Must defer to previous account
 		if err != nil {
 			return err
@@ -108,43 +125,41 @@ func (w *Wallet) processTransactionPerAccount(tx *safex.Transaction, blckHash st
 		txPresent := false
 		for _, input := range tx.Vin {
 			var kImage [crypto.KeyLength]byte
+			var keyOffsets []uint64
+			var outType string
+			var amount uint64
 			if input.TxinGen != nil {
 				continue
 			}
 			if input.TxinToKey != nil {
 				copy(kImage[:], input.TxinToKey.KImage[0:crypto.KeyLength])
-
-				if val, ok := w.outputs[crypto.Key(kImage)]; ok {
-					if !txPresent {
-						w.logger.Infof("[Chain] Adding new transaction to user: %s TxHash: %s", acc, tx.GetTxHash())
-						if inf, _ := w.wallet.GetTransactionInfo(tx.GetTxHash()); inf == nil {
-							if err := w.wallet.PutTransactionInfo(&filewallet.TransactionInfo{Version: tx.GetVersion(), UnlockTime: tx.GetUnlockTime(), Extra: tx.GetExtra(), BlockHeight: tx.GetBlockHeight(), BlockTimestamp: tx.GetBlockTimestamp(), DoubleSpendSeen: tx.GetDoubleSpendSeen(), InPool: tx.GetInPool(), TxHash: tx.GetTxHash()}, blckHash); err != nil {
-								return err
-							}
-							txPresent = true
-						}
-					}
-					//Put output in spent
-					w.balance.CashUnlocked -= val.Output.Amount
-					val.Spent = true
+				keyOffsets = input.TxinToKey.KeyOffsets
+				if input.TxinToKey.GetAmount() == 0 {
+					outType = "Token" // @todo Check this
+				} else {
+					outType = "Cash"
 				}
-			} else {
-				if input.TxinTokenToKey != nil {
-					copy(kImage[:], input.TxinTokenToKey.KImage[0:crypto.KeyLength])
-					if val, ok := w.outputs[crypto.Key(kImage)]; ok {
-						if !txPresent {
-							w.logger.Infof("[Chain] Adding new transaction to user: %s TxHash: %s", acc, tx.GetTxHash())
-							if inf, _ := w.wallet.GetTransactionInfo(tx.GetTxHash()); inf == nil {
-								if err := w.wallet.PutTransactionInfo(&filewallet.TransactionInfo{Version: tx.GetVersion(), UnlockTime: tx.GetUnlockTime(), Extra: tx.GetExtra(), BlockHeight: tx.GetBlockHeight(), BlockTimestamp: tx.GetBlockTimestamp(), DoubleSpendSeen: tx.GetDoubleSpendSeen(), InPool: tx.GetInPool(), TxHash: tx.GetTxHash()}, blckHash); err != nil {
-									return err
-								}
-								txPresent = true
-							}
+				amount = input.TxinToKey.Amount
+			}
+			outID, isOurs := w.isOurKey(kImage, keyOffsets, outType, amount)
+			if isOurs {
+				if !txPresent {
+					w.logger.Infof("[Chain] Adding new transaction to user: %s TxHash: %s", acc, tx.GetTxHash())
+					if inf, _ := w.wallet.GetTransactionInfo(tx.GetTxHash()); inf == nil {
+						if err := w.wallet.PutTransactionInfo(&filewallet.TransactionInfo{Version: tx.GetVersion(), UnlockTime: tx.GetUnlockTime(), Extra: tx.GetExtra(), BlockHeight: tx.GetBlockHeight(), BlockTimestamp: tx.GetBlockTimestamp(), DoubleSpendSeen: tx.GetDoubleSpendSeen(), InPool: tx.GetInPool(), TxHash: tx.GetTxHash()}, blckHash); err != nil {
+							return err
 						}
-						w.balance.TokenUnlocked -= val.Output.TokenAmount
-						val.Spent = true
+						txPresent = true
 					}
 				}
+			}
+			if err := w.spendOutput(outID); err != nil {
+				return err
+			}
+			if outType == "Token" {
+				w.balance.CashUnlocked -= amount
+			} else if outType == "Cash" {
+				w.balance.TokenUnlocked -= amount
 			}
 		}
 	}
@@ -156,116 +171,13 @@ func (w *Wallet) processTransaction(tx *safex.Transaction, blckHash string, mine
 	// @todo Process Unconfirmed.
 	// Process outputs
 	w.logger.Debugf("[Chain] Processing transaction %s", tx.TxHash)
-	if len(tx.Vout) != 0 {
+	if len(tx.Vout) != 0 || len(tx.Vin) != 0 {
 		accs, err := w.getAccounts()
 		if err != nil {
 			return err
 		}
 		for _, acc := range accs {
-			err := w.openAccount(acc, w.testnet)
-
-			if err != nil {
-				w.logger.Debugf("[Chain] Got error %s while looking at account %s", err.Error(), acc)
-				continue
-			}
-
-			pubTxKey := extractTxPubKey(tx.Extra)
-
-			// @todo uniform key structure.
-
-			tempKey := curve.Key(w.account.PrivateViewKey().ToBytes())
-
-			ret, err := crypto.DeriveKey((*crypto.Key)(&pubTxKey), (*crypto.Key)(&tempKey))
-			if err != nil {
-				return err
-			}
-			txPubKeyDerivation := ([crypto.KeyLength]byte)(*ret)
-			txPresent := false
-
-			for index, output := range tx.Vout {
-				var outputKey [crypto.KeyLength]byte
-				if !w.matchOutput(output, uint64(index), txPubKeyDerivation, &outputKey) {
-					continue
-				}
-				if !txPresent {
-					w.logger.Infof("[Chain] Adding new transaction to user: %s TxHash: %s", acc, tx.GetTxHash())
-					if inf, _ := w.wallet.GetTransactionInfo(tx.GetTxHash()); inf == nil {
-						if err := w.wallet.PutTransactionInfo(&filewallet.TransactionInfo{Version: tx.GetVersion(), UnlockTime: tx.GetUnlockTime(), Extra: tx.GetExtra(), BlockHeight: tx.GetBlockHeight(), BlockTimestamp: tx.GetBlockTimestamp(), DoubleSpendSeen: tx.GetDoubleSpendSeen(), InPool: tx.GetInPool(), TxHash: tx.GetTxHash()}, blckHash); err != nil {
-							return err
-						}
-						txPresent = true
-					}
-				}
-
-				tempPrivateSpendKey := curve.Key(w.account.PrivateSpendKey().ToBytes())
-				tempPublicSpendKey := curve.Key(w.account.PublicSpendKey().ToBytes())
-				temptxPubKeyDerivation := crypto.Key(txPubKeyDerivation)
-				ephemeralSecret := curve.DerivationToPrivateKey(uint64(index), &tempPrivateSpendKey, &temptxPubKeyDerivation)
-				ephemeralPublic, _ := curve.DerivationToPublicKey(uint64(index), &temptxPubKeyDerivation, &tempPublicSpendKey) //TODO: Manage error
-				keyimage := curve.KeyImage(ephemeralPublic, ephemeralSecret)
-				globalIndex := tx.OutputIndices[index]
-				outID, _ := filewallet.PackOutputIndex(globalIndex, uint64(index))
-
-				if _, ok := w.outputs[outID]; !ok {
-					w.addOutput(output, acc, uint64(index), globalIndex, minerTx, blckHash, tx.GetTxHash(), tx.BlockHeight, keyimage, tx.Extra, *ephemeralPublic, *ephemeralSecret)
-				}
-
-			}
-		}
-	}
-
-	if len(tx.Vin) != 0 {
-		accs, err := w.getAccounts()
-		if err != nil {
-			return err
-		}
-		for _, acc := range accs {
-			err := w.openAccount(acc, w.testnet)
-			if err != nil {
-				continue
-			}
-			txPresent := false
-			for _, input := range tx.Vin {
-				var kImage [crypto.KeyLength]byte
-				if input.TxinGen != nil {
-					continue
-				}
-				if input.TxinToKey != nil {
-					copy(kImage[:], input.TxinToKey.KImage[0:crypto.KeyLength])
-
-					if val, ok := w.outputs[crypto.Key(kImage)]; ok {
-						if !txPresent {
-							w.logger.Infof("[Chain] Adding new transaction to user: %s TxHash: %s", acc, tx.GetTxHash())
-							if inf, _ := w.wallet.GetTransactionInfo(tx.GetTxHash()); inf == nil {
-								if err := w.wallet.PutTransactionInfo(&filewallet.TransactionInfo{Version: tx.GetVersion(), UnlockTime: tx.GetUnlockTime(), Extra: tx.GetExtra(), BlockHeight: tx.GetBlockHeight(), BlockTimestamp: tx.GetBlockTimestamp(), DoubleSpendSeen: tx.GetDoubleSpendSeen(), InPool: tx.GetInPool(), TxHash: tx.GetTxHash()}, blckHash); err != nil {
-									return err
-								}
-								txPresent = true
-							}
-						}
-						//Put output in spent
-						w.balance.CashUnlocked -= val.Output.Amount
-						val.Spent = true
-					}
-				} else {
-					if input.TxinTokenToKey != nil {
-						copy(kImage[:], input.TxinTokenToKey.KImage[0:crypto.KeyLength])
-						if val, ok := w.outputs[crypto.Key(kImage)]; ok {
-							if !txPresent {
-								w.logger.Infof("[Chain] Adding new transaction to user: %s TxHash: %s", acc, tx.GetTxHash())
-								if inf, _ := w.wallet.GetTransactionInfo(tx.GetTxHash()); inf == nil {
-									if err := w.wallet.PutTransactionInfo(&filewallet.TransactionInfo{Version: tx.GetVersion(), UnlockTime: tx.GetUnlockTime(), Extra: tx.GetExtra(), BlockHeight: tx.GetBlockHeight(), BlockTimestamp: tx.GetBlockTimestamp(), DoubleSpendSeen: tx.GetDoubleSpendSeen(), InPool: tx.GetInPool(), TxHash: tx.GetTxHash()}, blckHash); err != nil {
-										return err
-									}
-									txPresent = true
-								}
-							}
-							w.balance.TokenUnlocked -= val.Output.TokenAmount
-							val.Spent = true
-						}
-					}
-				}
-			}
+			w.processTransactionPerAccount(tx, blckHash, minerTx, acc)
 		}
 	}
 	// Process inputs

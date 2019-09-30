@@ -108,7 +108,6 @@ func (w *Wallet) runUpdater() {
 				if !w.working {
 					if w.GetLatestLoadedBlockHeight() < bcHeight-1 {
 						w.logger.Debugf("[Updater] Known block: %d , bcHeight: %d", w.GetLatestLoadedBlockHeight(), bcHeight)
-
 						w.updateBlocks(BlocksPerCycle)
 					} else {
 						w.syncing = false

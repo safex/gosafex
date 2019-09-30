@@ -60,6 +60,8 @@ type TxInputV = safex.TxinV
 // TxOut is the alias to safex.Txout.
 type TxOut = safex.Txout
 
+const lockedStatus = filewallet.LockedStatus
+
 const blockInterval = 100
 
 var generalLogger *log.Logger
