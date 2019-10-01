@@ -51,6 +51,7 @@ func (w *WalletRPC) GetRoutes() (routes []Route) {
 	routes = append(routes, Route{"GetOutputInfoFromTransaction", "POST", "/output/get-from-tx", w.GetOutputInfoFromTransaction})
 	routes = append(routes, Route{"GetOutputInfoFromType", "POST", "/output/get-from-type", w.GetOutputInfoFromType})
 	routes = append(routes, Route{"GetUnspentOutputs", "POST", "/output/get-unspent", w.GetUnspentOutputs})
+	routes = append(routes, Route{"GetOutputHistogram", "POST", "/output/get-histogram", w.GetOutputHistogram})
 
 	routes = append(routes, Route{"CloseWallet", "POST", "/close", w.Close})
 

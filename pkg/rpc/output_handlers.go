@@ -10,6 +10,9 @@ type OutputRq struct {
 	TransactionID string `json:"transactionid"`
 	BlockDepth    uint64 `json:"blockdepth"`
 }
+type OutputsRq struct {
+	OutputIDs []string `json:"outputid"`
+}
 
 func outputGetData(w *http.ResponseWriter, r *http.Request, rqData *OutputRq) bool {
 	statusErr := UnmarshalRequest(r, rqData)
@@ -123,6 +126,31 @@ func (w *WalletRPC) GetUnspentOutputs(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 	data["outs"] = outs
+	FormJSONResponse(data, EverythingOK, &rw)
+
+}
+
+func (w *WalletRPC) GetOutputHistogram(rw http.ResponseWriter, r *http.Request) {
+	w.logger.Infof("[RPC] Get output histogram request")
+	var rqData OutputsRq
+	if !outputGetData(&rw, r, &rqData) {
+		// Error response already handled
+		return
+	}
+	if w.wallet == nil || !w.wallet.IsOpen() {
+		FormJSONResponse(nil, WalletIsNotOpened, &rw)
+		return
+	}
+	var data JSONElement
+	data = make(JSONElement)
+
+	his, err := w.wallet.GetOutputHistogram(rqData.OutputIDs)
+	if err != nil {
+		data["msg"] = err.Error()
+		FormJSONResponse(data, FailedGettingOutput, &rw)
+		return
+	}
+	data["his"] = his
 	FormJSONResponse(data, EverythingOK, &rw)
 
 }

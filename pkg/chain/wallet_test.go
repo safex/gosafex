@@ -406,4 +406,15 @@ func TestUpdateBalance(t *testing.T) {
 	}
 
 	testLogger.Infof("[Test] Passed balance update: %v, %v, %v, %v", b.CashUnlocked, b.CashLocked, b.TokenUnlocked, b.TokenLocked)
+	testLogger.Infof("[Test] Latest block loaded: %v", w.GetLatestLoadedBlockHeight())
+
+	unspentOuts := w.GetUnspentOutputs()
+	if err != nil {
+		t.Fatalf("%s", err)
+	}
+	his, err := w.getOutputHistogram(unspentOuts, safex.OutCash)
+	if err != nil {
+		t.Fatalf("%s", err)
+	}
+	t.Fatal(his)
 }

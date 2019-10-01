@@ -135,6 +135,9 @@ func (w *Wallet) getOutputHistogram(selectedOutputs []string, outType safex.TxOu
 	var amounts []uint64
 	encountered := map[uint64]bool{}
 	for _, val := range selectedOutputs {
+		if val == "" {
+			continue
+		}
 		typ, err := w.wallet.GetOutputType(val)
 		if err != nil {
 			return nil, err
@@ -144,7 +147,7 @@ func (w *Wallet) getOutputHistogram(selectedOutputs []string, outType safex.TxOu
 			if err != nil {
 				continue
 			}
-			out := outStruct["out"].(TxOut)
+			out := outStruct["out"].(*TxOut)
 			outputAmount := out.GetAmount()
 			if encountered[outputAmount] != true {
 				encountered[outputAmount] = true

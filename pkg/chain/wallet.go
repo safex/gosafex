@@ -481,6 +481,9 @@ func (w *Wallet) formatOutputMap(outIDs []string) (map[string]interface{}, error
 	infos := []*filewallet.OutputInfo{}
 	outs := []*safex.Txout{}
 	for _, el := range outIDs {
+		if el == "" {
+			continue
+		}
 		info, err := w.wallet.GetOutputInfo(string(el))
 		if err != nil {
 			return ret, err
@@ -566,10 +569,10 @@ func (w *Wallet) GetLatestLoadedBlockHeight() uint64 {
 }
 
 //GetUnspentOutputs .
-func (w *Wallet) GetUnspentOutputs() (map[string]interface{}, error) {
+func (w *Wallet) GetUnspentOutputs() []string {
 	w.working = true
 	defer func() { w.working = false }()
-	return w.formatOutputMap(w.wallet.GetUnspentOutputs())
+	return w.wallet.GetUnspentOutputs()
 }
 
 func (w *Wallet) SetLogger(prevLog *log.Logger) {

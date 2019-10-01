@@ -93,16 +93,20 @@ func (w *Wallet) seenOutput(outID string) bool {
 	return false
 }
 
-func (w *Wallet) countUnlockedOutput(outID string, outType string) error {
+func (w *Wallet) countUnlockedOutput(outID string) error {
 	out, err := w.wallet.GetOutput(outID)
 	if err != nil {
 		return err
 	}
+	outType, err := w.wallet.GetOutputType(outID)
+	if err != nil {
+		return err
+	}
 	if outType == "Cash" {
-		w.balance.CashLocked -= out.GetAmount()
+		//w.balance.CashLocked -= out.GetAmount()
 		w.balance.CashUnlocked += out.GetAmount()
 	} else {
-		w.balance.TokenLocked -= out.GetTokenAmount()
+		//w.balance.TokenLocked -= out.GetTokenAmount()
 		w.balance.TokenUnlocked += out.GetTokenAmount()
 	}
 	return nil
@@ -153,6 +157,7 @@ func (w *Wallet) loadBalance() error {
 	height := w.wallet.GetLatestBlockHeight()
 	w.logger.Debugf("[Wallet] Loading balance up to: %d", height)
 	//We might need a sync check here
+	w.unlockBalance(height)
 	w.countOutputs(w.wallet.GetUnspentOutputs())
 	return nil
 }
@@ -169,11 +174,19 @@ func (w *Wallet) unlockBalance(height uint64) error {
 		age, _ := w.wallet.GetOutputAge(el)
 		txtyp, _ := w.wallet.GetOutputTransactionType(el)
 		if txtyp == "miner" && height-age > 60 {
+			w.logger.Infof("[Chain] Unlocking coinbase output %s aged %v", el, age)
 			if err := w.wallet.UnlockOutput(el); err != nil {
 				return err
 			}
-		} else if height-age > 10 {
+			if err := w.countUnlockedOutput(el); err != nil {
+				return err
+			}
+		} else if txtyp == "normal" && height-age > 10 {
+			w.logger.Infof("[Chain] Unlocking cash output %s aged %v", el, age)
 			if err := w.wallet.UnlockOutput(el); err != nil {
+				return err
+			}
+			if err := w.countUnlockedOutput(el); err != nil {
 				return err
 			}
 		}

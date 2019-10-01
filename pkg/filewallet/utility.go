@@ -120,7 +120,7 @@ func unmarshallTransferInfo(input []byte) (*TransferInfo, error) {
 	   	EphPriv     crypto.Key
 	*/
 	out := bytes.Split(input, []byte{byte(10)})
-	if len(out) != 9 {
+	if len(out) != 10 {
 		return nil, errors.New("Data mismatch in transferInfo unmarshalling")
 	}
 	ret := &TransferInfo{}
@@ -158,7 +158,7 @@ func unmarshallTransferInfo(input []byte) (*TransferInfo, error) {
 	ret.Height = binary.LittleEndian.Uint64(temp)
 
 	temp = make([]byte, 32)
-	hex.Decode(temp, out[7])
+	hex.Decode(temp, out[6])
 	key, err := crypto.FromBytes(temp)
 	if err != nil {
 		return nil, errors.New("Data mismatch in transferInfo unmarshalling")
@@ -166,7 +166,7 @@ func unmarshallTransferInfo(input []byte) (*TransferInfo, error) {
 	ret.KImage = *key
 
 	temp = make([]byte, 32)
-	hex.Decode(temp, out[8])
+	hex.Decode(temp, out[7])
 	key, err = crypto.FromBytes(temp)
 	if err != nil {
 		return nil, errors.New("Data mismatch in transferInfo unmarshalling")
@@ -174,7 +174,7 @@ func unmarshallTransferInfo(input []byte) (*TransferInfo, error) {
 	ret.EphPub = *key
 
 	temp = make([]byte, 32)
-	hex.Decode(temp, out[9])
+	hex.Decode(temp, out[8])
 	key, err = crypto.FromBytes(temp)
 	if err != nil {
 		return nil, errors.New("Data mismatch in transferInfo unmarshalling")
