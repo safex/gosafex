@@ -2,7 +2,7 @@ package SafexRPC
 
 import (
 	"net/http"
-)
+) 
 
 type OutputRq struct {
 	OutputID      string `json:"outputid"`
@@ -11,10 +11,20 @@ type OutputRq struct {
 	BlockDepth    uint64 `json:"blockdepth"`
 }
 type OutputsRq struct {
-	OutputIDs []string `json:"outputid"`
+	OutputIDs  []string `json:"outputid"`
+	OutputType string   `json:"outputtype"`
 }
 
 func outputGetData(w *http.ResponseWriter, r *http.Request, rqData *OutputRq) bool {
+	statusErr := UnmarshalRequest(r, rqData)
+	// Check for error.
+	if statusErr != EverythingOK {
+		FormJSONResponse(nil, statusErr, w)
+		return false
+	}
+	return true
+}
+func outputsGetData(w *http.ResponseWriter, r *http.Request, rqData *OutputsRq) bool {
 	statusErr := UnmarshalRequest(r, rqData)
 	// Check for error.
 	if statusErr != EverythingOK {
@@ -119,12 +129,7 @@ func (w *WalletRPC) GetUnspentOutputs(rw http.ResponseWriter, r *http.Request) {
 	var data JSONElement
 	data = make(JSONElement)
 
-	outs, err := w.wallet.GetUnspentOutputs()
-	if err != nil {
-		data["msg"] = err.Error()
-		FormJSONResponse(data, FailedGettingOutput, &rw)
-		return
-	}
+	outs := w.wallet.GetUnspentOutputs()
 	data["outs"] = outs
 	FormJSONResponse(data, EverythingOK, &rw)
 
@@ -133,7 +138,7 @@ func (w *WalletRPC) GetUnspentOutputs(rw http.ResponseWriter, r *http.Request) {
 func (w *WalletRPC) GetOutputHistogram(rw http.ResponseWriter, r *http.Request) {
 	w.logger.Infof("[RPC] Get output histogram request")
 	var rqData OutputsRq
-	if !outputGetData(&rw, r, &rqData) {
+	if !outputsGetData(&rw, r, &rqData) {
 		// Error response already handled
 		return
 	}
@@ -144,7 +149,7 @@ func (w *WalletRPC) GetOutputHistogram(rw http.ResponseWriter, r *http.Request) 
 	var data JSONElement
 	data = make(JSONElement)
 
-	his, err := w.wallet.GetOutputHistogram(rqData.OutputIDs)
+	his, err := w.wallet.GetOutputHistogram(rqData.OutputIDs, rqData.OutputType)
 	if err != nil {
 		data["msg"] = err.Error()
 		FormJSONResponse(data, FailedGettingOutput, &rw)

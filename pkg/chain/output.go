@@ -25,6 +25,16 @@ func typeToString(typ safex.TxOutType) string {
 	return ""
 }
 
+func stringToType(typ string) safex.TxOutType {
+	if typ == "Cash" {
+		return safex.OutCash
+	}
+	if typ == "Token" {
+		return safex.OutToken
+	}
+	return 0
+}
+
 //LoadOutputs at the moments it loads only unspent outputs in the current memory, this may be changed
 func (w *Wallet) LoadOutputs() error {
 	w.outputs = make(map[string]*OutputInfo)
@@ -127,7 +137,7 @@ func (w *Wallet) matchOutput(txOut *safex.Txout, index uint64, der [crypto.KeyLe
 }
 
 //The correct way to do it
-func (w *Wallet) getOutputHistogram(selectedOutputs []string, outType safex.TxOutType) (histograms []*safex.Histogram, err error) {
+func (w *Wallet) GetOutputHistogram(selectedOutputs []string, outType string) (histograms []*safex.Histogram, err error) {
 	// @todo can be optimized
 	if w.syncing {
 		return nil, ErrSyncing
@@ -142,7 +152,7 @@ func (w *Wallet) getOutputHistogram(selectedOutputs []string, outType safex.TxOu
 		if err != nil {
 			return nil, err
 		}
-		if typ == typeToString(outType) {
+		if typ == outType {
 			outStruct, err := w.GetOutput(val)
 			if err != nil {
 				continue
@@ -160,7 +170,7 @@ func (w *Wallet) getOutputHistogram(selectedOutputs []string, outType safex.TxOu
 	recentCutoff := uint64(t.Unix()) - RecentOutputZone
 
 	sort.Slice(amounts, func(i, j int) bool { return amounts[i] < amounts[j] })
-	histogramRes, _ := w.client.GetOutputHistogram(&amounts, 0, 0, true, recentCutoff, outType)
+	histogramRes, _ := w.client.GetOutputHistogram(&amounts, 0, 0, true, recentCutoff, stringToType(outType))
 	return histogramRes.Histograms, nil
 }
 

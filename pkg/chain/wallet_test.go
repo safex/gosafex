@@ -412,7 +412,7 @@ func TestUpdateBalance(t *testing.T) {
 	if err != nil {
 		t.Fatalf("%s", err)
 	}
-	his, err := w.getOutputHistogram(unspentOuts, safex.OutCash)
+	his, err := w.GetOutputHistogram(unspentOuts, "Cash")
 	if err != nil {
 		t.Fatalf("%s", err)
 	}
