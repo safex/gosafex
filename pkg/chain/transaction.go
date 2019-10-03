@@ -2,7 +2,9 @@ package chain
 
 import (
 	//"math/rand"
+	"errors"
 	"sort"
+
 	//"time"
 
 	//"github.com/jinzhu/copier"
@@ -11,6 +13,7 @@ import (
 	"github.com/safex/gosafex/pkg/account"
 	"github.com/safex/gosafex/pkg/filewallet"
 	"github.com/safex/gosafex/pkg/safex"
+	"github.com/safex/gosafex/pkg/serialization"
 	//	"github.com/safex/gosafex/pkg/serialization"
 )
 
@@ -193,12 +196,11 @@ func checkInputs(inputs []*safex.TxinV) bool {
 	return true
 }
 
-/*
-func (w *Wallet) transferSelected(dsts *[]DestinationEntry, selectedTransfers *[]Transfer, fakeOutsCount int, outs *[][]OutsEntry,
-	outsFee *[][]OutsEntry, unlockTime uint64, fee uint64, extra *[]byte, tx *safex.Transaction, ptx *PendingTx, outType safex.TxOutType) { // destination_split_strategy, // dust_policy
+func (w *Wallet) transferSelected(dsts *[]DestinationEntry, selectedTransfers *[]OutputInfo, fakeOutsCount int, outs *[][]OutsEntry,
+	outsFee *[][]OutsEntry, unlockTime uint64, fee uint64, extra *[]byte, tx *safex.Transaction, ptx *PendingTx, outType safex.TxOutType) error { // destination_split_strategy, // dust_policy
 	// Check if dsts are empty
 	if len(*dsts) == 0 {
-		panic("zero destination")
+		return errors.New("Zero transfers for destinations")
 	}
 
 	//upperTxSizeLimit := consensus.GetUpperTransactionSizeLimit(2, 10)
@@ -218,7 +220,7 @@ func (w *Wallet) transferSelected(dsts *[]DestinationEntry, selectedTransfers *[
 		foundMoney += slctd.Output.Amount
 		foundTokens += slctd.Output.TokenAmount
 	}
-	fmt.Println("SelectedTransfers : ", len(*selectedTransfers))
+	w.logger.Debugf("[Chain]Selected Transfers : %v", len(*selectedTransfers))
 
 	if len(*outs) == 0 {
 		// @todo This should be refactored so it can accomodate tokens as well.
@@ -280,7 +282,7 @@ func (w *Wallet) transferSelected(dsts *[]DestinationEntry, selectedTransfers *[
 		}
 
 		if realIndex == -1 {
-			panic("There is no real output found!")
+			return errors.New("No real output found")
 		}
 
 		realOE := TxOutputEntry{}
@@ -299,8 +301,6 @@ func (w *Wallet) transferSelected(dsts *[]DestinationEntry, selectedTransfers *[
 		sources = append(sources, src)
 		outIndex++
 	}
-
-	log.Println("Outputs prepared!!!")
 
 	var changeDts DestinationEntry
 	var changeTokenDts DestinationEntry
@@ -327,7 +327,7 @@ func (w *Wallet) transferSelected(dsts *[]DestinationEntry, selectedTransfers *[
 	// @todo consider here if we need to send dsts or splitted dsts
 	constructed := w.constructTxAndGetTxKey(&sources, &splittedDsts, &(changeDts.Address), extra, tx, unlockTime, &txKey)
 	if !constructed {
-		panic("Transation is not constructed!!!")
+		errors.New("Transaction is not constructed")
 	}
 
 	// @todo Check this out
@@ -335,13 +335,13 @@ func (w *Wallet) transferSelected(dsts *[]DestinationEntry, selectedTransfers *[
 	//		 in order to control and predict fee.
 	blobSize := serialization.GetTxBlobSize(tx)
 	if blobSize > uint64(GetUpperTransactionSizeLimit(1, 10)) {
-		fmt.Println("Blobsize: ", blobSize)
-		fmt.Println("Limitblobsize: ", uint64(GetUpperTransactionSizeLimit(1, 10)))
-		panic("Transaction too big!!")
+		w.logger.Debugf("[Chain] Blobsize: ", blobSize)
+		w.logger.Debugf("[Chain]Limitblobsize: ", uint64(GetUpperTransactionSizeLimit(1, 10)))
+		errors.New("Transaction too big")
 	}
 
 	if !checkInputs(tx.Vin) {
-		panic("There is input of wrong type!!!")
+		errors.New("There is input of wrong type")
 	}
 
 	ptx.Dust = fee                 // @todo Consider adding dust to fee
@@ -364,8 +364,8 @@ func (w *Wallet) transferSelected(dsts *[]DestinationEntry, selectedTransfers *[
 
 	// @todo TransferSelected is supposed finished at this moment.
 	// @todo Test all everything thoroughly and fix known bugs
-
-}*/
+	return nil
+}
 
 func isWholeValue(input uint64) bool {
 	return (input % uint64(10000000000)) == uint64(0)

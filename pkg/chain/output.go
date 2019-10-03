@@ -2,6 +2,8 @@ package chain
 
 import (
 	"bytes"
+	"errors"
+	"fmt"
 	"math"
 	"math/rand"
 	"sort"
@@ -207,4 +209,207 @@ func txAddFakeOutput(entry *[]OutsEntry, globalIndex uint64, outputKey [32]byte,
 
 	*entry = append(*entry, item)
 	return true
+}
+
+func (w *Wallet) getOuts(outs *[][]OutsEntry, selectedTransfers []string, fakeOutsCount int, outType string) error {
+	// Clear outsEntry array
+
+	*outs = [][]OutsEntry{}
+	if fakeOutsCount > 0 {
+		_, err := w.client.GetDaemonInfo()
+
+		if err != nil {
+			errors.New("Failed to get node info")
+		}
+
+		histograms, err := w.GetOutputHistogram(selectedTransfers, outType)
+		if err != nil {
+			return err
+		}
+		baseRequestedOutputsCount := uint64(float64(fakeOutsCount+1)*1.5 + 1)
+
+		var outsRq []safex.GetOutputRq
+
+		var numSelectedTransfers uint32
+		var seenIndices map[uint64]bool
+		seenIndices = make(map[uint64]bool)
+
+		selectedOutputs, err := w.wallet.GetMassOutput(selectedTransfers)
+		//This can be circumvented but for now let's stop at the first error
+		if err != nil {
+			return err
+		}
+		selectedOutputInfos, err := w.wallet.GetMassOutputInfo(selectedTransfers)
+		if err != nil {
+			return err
+		}
+		for index, val := range selectedOutputs {
+			if !MatchOutputWithType(val, outType) {
+				continue
+			}
+			fmt.Println(index, " ", val)
+			numSelectedTransfers++
+			valueAmount := GetOutputAmount(val.Output, outType)
+			var numOuts uint64
+			var numRecentOutputs uint64
+
+			for _, he := range histograms {
+				fmt.Println("histograms loop")
+				if he.Amount == valueAmount {
+					numOuts = he.UnlockedInstances
+					numRecentOutputs = he.RecentInstances
+					break
+				}
+			}
+
+			var recentOutputsCount uint64 = uint64(RecentOutputRatio * float64(baseRequestedOutputsCount))
+
+			if recentOutputsCount == 0 {
+				recentOutputsCount = 1
+			}
+			if recentOutputsCount > numRecentOutputs {
+				recentOutputsCount = numRecentOutputs
+			}
+
+			if (val.GlobalIndex >= uint64(numOuts-numRecentOutputs)) && recentOutputsCount > 0 {
+				recentOutputsCount--
+			}
+
+			var numFound uint64 = 0
+
+			// @todo In original CLI wallet forked from monero, there is saving used rings in ringdb and reusing them
+			// 		 implement that after
+			// @todo Blackballing outputs.
+
+			if numOuts <= baseRequestedOutputsCount {
+				fmt.Println("This is loop ", numOuts, " ", baseRequestedOutputsCount)
+				var i uint64 = 0
+				for i = 0; i < numOuts; i++ {
+					outsRq = append(outsRq, safex.GetOutputRq{valueAmount, i})
+				}
+
+				for i := numOuts; i < baseRequestedOutputsCount; i++ {
+					outsRq = append(outsRq, safex.GetOutputRq{valueAmount, numOuts - 1})
+				}
+			} else {
+				if numFound == 0 {
+					numFound = 1
+					seenIndices[uint64(val.GlobalIndex)] = true
+					outsRq = append(outsRq, safex.GetOutputRq{valueAmount, uint64(val.GlobalIndex)})
+				}
+
+				var i uint64 = 0
+				// @note There are some other distribution here, but since we dont have "fork segmentation" implemented
+				//		 they are not used here.
+				for numFound < baseRequestedOutputsCount {
+
+					if uint64(len(seenIndices)) == numOuts {
+						break
+					}
+
+					var type_ string = ""
+					if numFound-1 < recentOutputsCount {
+						type_ = "recent"
+
+					} else {
+						type_ = "triangular"
+					}
+					i = getOutputDistribution(type_, numOuts, numRecentOutputs)
+
+					// @todo check this again. There must be better solution
+					if _, ok := seenIndices[i]; ok {
+						continue
+					}
+
+					seenIndices[i] = true
+					outsRq = append(outsRq, safex.GetOutputRq{valueAmount, i})
+					numFound++
+				}
+			}
+			sort.Sort(safex.ByIndex(outsRq))
+		}
+
+		// @todo Error handling.
+		outs1, _ := w.client.GetOutputs(outsRq, outType)
+
+		var scantyOuts map[uint64]int
+		scantyOuts = make(map[uint64]int)
+
+		var base uint64 = 0
+		for _, val := range selectedTransfers {
+			var entry []OutsEntry
+			outputType := GetOutputType(val.Output)
+			if outputType != outType {
+				continue
+			}
+			// @note pkey is extracted as output key.
+			// @note mask is not used as its zerocommit mask for non-rct (0), as we dont support RCT
+			//		 mask will always be zero for every output, hence there is no sense in checkin
+			//		 always true condition.
+			var realOutFound bool = false
+			var n uint64 = 0
+			for n = uint64(0); n < baseRequestedOutputsCount; n++ {
+				i := base + n
+				if uint64(val.GlobalIndex) == outsRq[i].Index {
+					if bytes.Equal(outs1.Outs[i].Key, GetOutputKey(val.Output, outType)) {
+						realOutFound = true
+					}
+				}
+			}
+
+			if !realOutFound {
+				errors.New("There is no our output from daemon!!!")
+			}
+
+			// @todo Refactor!!
+			var outputKeyTemp [32]byte
+			copy(outputKeyTemp[:], GetOutputKey(val.Output, outType))
+
+			entry = append(entry, OutsEntry{val.GlobalIndex, outputKeyTemp})
+
+			var order []uint64
+			for n := uint64(0); n < baseRequestedOutputsCount; n++ {
+				order = append(order, n)
+			}
+
+			// shuffle
+			rand.Seed(time.Now().UnixNano())
+			rand.Shuffle(len(order), func(i, j int) { order[i], order[j] = order[j], order[i] })
+
+			for o := uint64(0); o < baseRequestedOutputsCount && len(entry) < (fakeOutsCount+1); o++ {
+				i := base + order[o]
+				// @todo Refactor!!
+				copy(outputKeyTemp[:], outs1.Outs[i].Key)
+				TxAddFakeOutput(&entry, outsRq[i].Index, outputKeyTemp, val.GlobalIndex, outs1.Outs[i].Unlocked)
+			}
+
+			if len(entry) < fakeOutsCount+1 {
+				scantyOuts[GetOutputAmount(val.Output, outType)] = len(entry)
+			} else {
+				sort.Sort(OutsEntryByIndex(entry))
+			}
+			base += baseRequestedOutputsCount
+			*outs = append(*outs, entry)
+		}
+		if len(scantyOuts) != 0 {
+			errors.New("Not enough outs to mixin")
+		}
+
+	} else {
+		for _, val := range *selectedTransfers {
+			var entry []OutsEntry
+
+			outputType := GetOutputType(val.Output)
+			if outputType != outType {
+				continue
+			}
+			// @todo Refactor!!
+			var outputKeyTemp [32]byte
+			copy(outputKeyTemp[:], GetOutputKey(val.Output, outType))
+
+			entry = append(entry, OutsEntry{val.GlobalIndex, outputKeyTemp})
+			*outs = append(*outs, entry)
+		}
+	}
+	return nil
 }
