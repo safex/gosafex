@@ -122,24 +122,22 @@ func (w *FileWallet) GetOutput(OutID string) (*safex.Txout, error) {
 
 //@TODO: This batching operation is very much better handled at a lower level, should seek to implement a batch read/write mechanism down to the stream level and handle this accordingly
 //GetMassOutput Return a list of outputs as a single operation. It returns a single error, the last one encountered, even if there are more. This can be improved. Also it will return a nil pointer where an error is encountered. If nothing is read correctly, it will return a nil slice
-func (w *FileWallet) GetMassOutput(OutIDs []string) ([]*safex.Txout, error) {
-	ret := make([]*safex.Txout, 0)
+func (w *FileWallet) GetMassOutput(OutIDs []string) (map[string]*safex.Txout, error) {
+	ret := make(map[string]*safex.Txout)
 	var topErr error
 	read := false
 	for _, OutID := range OutIDs {
 		data, err := w.readKey(outputKeyPrefix + OutID)
 		if err != nil {
 			topErr = err
-			ret = append(ret, nil)
 			continue
 		}
 		out := &safex.Txout{}
 		if err = proto.Unmarshal(data, out); err != nil {
 			topErr = err
-			ret = append(ret, nil)
 			continue
 		}
-		ret = append(ret, out)
+		ret[OutID] = out
 		read = true
 	}
 	if !read {
@@ -279,29 +277,26 @@ func (w *FileWallet) GetOutputInfo(outID string) (*OutputInfo, error) {
 
 //@TODO: The same considerations from GetMassOutput apply here.
 //GetMassOutputInfo Returns a list of outputs as a single operation. It returns a single error, the last one encountered, even if there are more. This can be improved. Also it will return a nil pointer where an error is encountered. If nothing is read correctly, it will return a nil slice
-func (w *FileWallet) GetMassOutputInfo(OutIDs []string) ([]*OutputInfo, error) {
-	ret := make([]*OutputInfo, 0)
+func (w *FileWallet) GetMassOutputInfo(OutIDs []string) (map[string]*OutputInfo, error) {
+	ret := make(map[string]*OutputInfo)
 	var topErr error
 	read := false
 	for _, outID := range OutIDs {
 		tempData, err := w.readAppendedKey(outputInfoPrefix + outID)
 		if err != nil {
 			topErr = err
-			ret = append(ret, nil)
 			continue
 		}
 		if err != nil {
 			topErr = ErrOutputNotPresent
-			ret = append(ret, nil)
 			continue
 		}
 		TransferInfoData, err := unmarshallTransferInfo(tempData[5])
 		if err != nil {
 			topErr = err
-			ret = append(ret, nil)
 			continue
 		}
-		ret = append(ret, &OutputInfo{string(tempData[0]), string(tempData[1]), string(tempData[2]), string(tempData[3]), string(tempData[4]), *TransferInfoData})
+		ret[outID] = &OutputInfo{string(tempData[0]), string(tempData[1]), string(tempData[2]), string(tempData[3]), string(tempData[4]), *TransferInfoData}
 
 	}
 	if !read {

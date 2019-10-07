@@ -196,13 +196,21 @@ func checkInputs(inputs []*safex.TxinV) bool {
 	return true
 }
 
-func (w *Wallet) transferSelected(dsts *[]DestinationEntry, selectedTransfers *[]OutputInfo, fakeOutsCount int, outs *[][]OutsEntry,
+func (w *Wallet) transferSelected(dsts *[]DestinationEntry, selectedTransfers []string, fakeOutsCount int, outs *[][]OutsEntry,
 	outsFee *[][]OutsEntry, unlockTime uint64, fee uint64, extra *[]byte, tx *safex.Transaction, ptx *PendingTx, outType safex.TxOutType) error { // destination_split_strategy, // dust_policy
 	// Check if dsts are empty
 	if len(*dsts) == 0 {
 		return errors.New("Zero transfers for destinations")
 	}
-
+	selectedOutputs, err := w.wallet.GetMassOutput(selectedTransfers)
+	//This can be circumvented but for now let's stop at the first error
+	if err != nil {
+		return err
+	}
+	selectedOutputInfos, err := w.wallet.GetMassOutputInfo(selectedTransfers)
+	if err != nil {
+		return err
+	}
 	//upperTxSizeLimit := consensus.GetUpperTransactionSizeLimit(2, 10)
 	neededMoney := fee
 	neededToken := uint64(0)
@@ -216,21 +224,21 @@ func (w *Wallet) transferSelected(dsts *[]DestinationEntry, selectedTransfers *[
 
 	var foundMoney uint64 = 0
 	var foundTokens uint64 = 0
-	for _, slctd := range *selectedTransfers {
-		foundMoney += slctd.Output.Amount
-		foundTokens += slctd.Output.TokenAmount
+	for _, slctd := range selectedOutputs {
+		foundMoney += slctd.Amount
+		foundTokens += slctd.TokenAmount
 	}
-	w.logger.Debugf("[Chain]Selected Transfers : %v", len(*selectedTransfers))
+	w.logger.Debugf("[Chain]Selected Transfers : %v", len(selectedTransfers))
 
 	if len(*outs) == 0 {
 		// @todo This should be refactored so it can accomodate tokens as well.
 		// @note getOuts is fully fitted to accomodate tokens and cash outputs
 		// @todo Test this against cpp code more thoroughly
-		w.getOuts(outs, selectedTransfers, fakeOutsCount, outType)
+		w.getOuts(outs, selectedTransfers, fakeOutsCount, typeToString(outType))
 	}
 
 	if outType == safex.OutToken && len(*outsFee) == 0 {
-		w.getOuts(outsFee, selectedTransfers, fakeOutsCount, safex.OutCash)
+		w.getOuts(outsFee, selectedTransfers, fakeOutsCount, typeToString(safex.OutCash))
 		for _, out := range *outsFee {
 			*outs = append(*outs, out)
 		}
@@ -250,20 +258,20 @@ func (w *Wallet) transferSelected(dsts *[]DestinationEntry, selectedTransfers *[
 	var sources []TxSourceEntry
 	var outIndex uint64 = 0
 	var i uint64 = 0
-	for index, val := range *selectedTransfers {
+	for index, val := range selectedOutputs {
 		src := TxSourceEntry{}
-		outputType := GetOutputType(val.Output)
+		outputType := GetOutputType(val)
 		if outputType == safex.OutCash {
-			src.Amount = GetOutputAmount(val.Output, safex.OutCash)
+			src.Amount = GetOutputAmount(val, safex.OutCash)
 			src.TokenAmount = 0
 		}
 
 		if outputType == safex.OutToken {
 			src.Amount = 0
-			src.TokenAmount = GetOutputAmount(val.Output, safex.OutToken)
+			src.TokenAmount = GetOutputAmount(val, safex.OutToken)
 		}
 
-		src.TokenTx = MatchOutputWithType(val.Output, safex.OutToken)
+		src.TokenTx = MatchOutputWithType(val, safex.OutToken)
 
 		for n := 0; n <= fakeOutsCount; n++ {
 			var oe TxOutputEntry
@@ -274,9 +282,9 @@ func (w *Wallet) transferSelected(dsts *[]DestinationEntry, selectedTransfers *[
 		}
 
 		var realIndex int = -1
-		for index, v1 := range src.Outputs {
-			if v1.Index == val.GlobalIndex {
-				realIndex = index
+		for i, v1 := range src.Outputs {
+			if v1.Index == selectedOutputInfos[index].OutTransfer.GlobalIndex {
+				realIndex = i
 				break
 			}
 		}
@@ -286,18 +294,18 @@ func (w *Wallet) transferSelected(dsts *[]DestinationEntry, selectedTransfers *[
 		}
 
 		realOE := TxOutputEntry{}
-		realOE.Index = val.GlobalIndex
+		realOE.Index = selectedOutputInfos[index].OutTransfer.GlobalIndex
 
-		keyTemp := GetOutputKey(val.Output, outputType)
+		keyTemp := GetOutputKey(val, outputType)
 		copy(realOE.Key[:], keyTemp)
 		src.Outputs[realIndex] = realOE
 
-		tempPub := ExtractTxPubKey(val.Extra)
+		tempPub := ExtractTxPubKey(selectedOutputInfos[index].OutTransfer.Extra)
 		copy(tempPub[:], src.RealOutTxKey[:])
 		src.RealOutput = uint64(realIndex)
-		src.RealOutputInTxIndex = int(val.LocalIndex)
-		src.TransferPtr = &(*selectedTransfers)[index]
-		copy(src.KeyImage[:], val.KImage[:])
+		src.RealOutputInTxIndex = int(selectedOutputInfos[index].OutTransfer.LocalIndex)
+		src.TransferPtr = &(selectedOutputInfos[index]).OutTransfer
+		copy(src.KeyImage[:], selectedOutputInfos[index].OutTransfer.KImage[:])
 		sources = append(sources, src)
 		outIndex++
 	}
@@ -344,12 +352,21 @@ func (w *Wallet) transferSelected(dsts *[]DestinationEntry, selectedTransfers *[
 		errors.New("There is input of wrong type")
 	}
 
+	finalTransfers := make([]filewallet.TransferInfo, 0)
+
+	for _, el := range selectedOutputInfos {
+		if el == nil {
+			continue
+		}
+		finalTransfers = append(finalTransfers, el.OutTransfer)
+	}
+
 	ptx.Dust = fee                 // @todo Consider adding dust to fee
 	ptx.DustAddedToFee = uint64(0) // @todo Dust policy
 	ptx.Tx = tx
 	ptx.ChangeDts = changeDts
 	ptx.ChangeTokenDts = changeTokenDts
-	ptx.SelectedTransfers = selectedTransfers
+	ptx.SelectedTransfers = &finalTransfers
 	ptx.TxKey = txKey
 	ptx.Dests = dsts
 	ptx.Fee = fee
@@ -357,7 +374,7 @@ func (w *Wallet) transferSelected(dsts *[]DestinationEntry, selectedTransfers *[
 	ptx.ConstructionData.ChangeDts = changeDts
 	ptx.ConstructionData.ChangeTokenDts = changeTokenDts
 	ptx.ConstructionData.SplittedDsts = splittedDsts
-	ptx.ConstructionData.SelectedTransfers = selectedTransfers
+	ptx.ConstructionData.SelectedTransfers = &finalTransfers
 	ptx.ConstructionData.Extra = tx.Extra
 	ptx.ConstructionData.UnlockTime = unlockTime
 	ptx.ConstructionData.Dests = *dsts

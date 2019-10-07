@@ -243,18 +243,19 @@ func (w *Wallet) getOuts(outs *[][]OutsEntry, selectedTransfers []string, fakeOu
 		if err != nil {
 			return err
 		}
+
 		for index, val := range selectedOutputs {
-			if !MatchOutputWithType(val, outType) {
+			if !MatchOutputWithType(val, stringToType(outType)) {
 				continue
 			}
 			fmt.Println(index, " ", val)
 			numSelectedTransfers++
-			valueAmount := GetOutputAmount(val.Output, outType)
+			valueAmount := GetOutputAmount(val, stringToType(outType))
 			var numOuts uint64
 			var numRecentOutputs uint64
 
 			for _, he := range histograms {
-				fmt.Println("histograms loop")
+				w.logger.Debugf("[Chain] Checking histograms loop")
 				if he.Amount == valueAmount {
 					numOuts = he.UnlockedInstances
 					numRecentOutputs = he.RecentInstances
@@ -271,7 +272,7 @@ func (w *Wallet) getOuts(outs *[][]OutsEntry, selectedTransfers []string, fakeOu
 				recentOutputsCount = numRecentOutputs
 			}
 
-			if (val.GlobalIndex >= uint64(numOuts-numRecentOutputs)) && recentOutputsCount > 0 {
+			if (selectedOutputInfos[index].OutTransfer.GlobalIndex >= uint64(numOuts-numRecentOutputs)) && recentOutputsCount > 0 {
 				recentOutputsCount--
 			}
 
@@ -294,8 +295,8 @@ func (w *Wallet) getOuts(outs *[][]OutsEntry, selectedTransfers []string, fakeOu
 			} else {
 				if numFound == 0 {
 					numFound = 1
-					seenIndices[uint64(val.GlobalIndex)] = true
-					outsRq = append(outsRq, safex.GetOutputRq{valueAmount, uint64(val.GlobalIndex)})
+					seenIndices[uint64(selectedOutputInfos[index].OutTransfer.GlobalIndex)] = true
+					outsRq = append(outsRq, safex.GetOutputRq{valueAmount, uint64(selectedOutputInfos[index].OutTransfer.GlobalIndex)})
 				}
 
 				var i uint64 = 0
@@ -330,16 +331,16 @@ func (w *Wallet) getOuts(outs *[][]OutsEntry, selectedTransfers []string, fakeOu
 		}
 
 		// @todo Error handling.
-		outs1, _ := w.client.GetOutputs(outsRq, outType)
+		outs1, _ := w.client.GetOutputs(outsRq, stringToType(outType))
 
 		var scantyOuts map[uint64]int
 		scantyOuts = make(map[uint64]int)
 
 		var base uint64 = 0
-		for _, val := range selectedTransfers {
+		for index, val := range selectedOutputs {
 			var entry []OutsEntry
-			outputType := GetOutputType(val.Output)
-			if outputType != outType {
+			outputType := GetOutputType(val)
+			if outputType != stringToType(outType) {
 				continue
 			}
 			// @note pkey is extracted as output key.
@@ -350,8 +351,8 @@ func (w *Wallet) getOuts(outs *[][]OutsEntry, selectedTransfers []string, fakeOu
 			var n uint64 = 0
 			for n = uint64(0); n < baseRequestedOutputsCount; n++ {
 				i := base + n
-				if uint64(val.GlobalIndex) == outsRq[i].Index {
-					if bytes.Equal(outs1.Outs[i].Key, GetOutputKey(val.Output, outType)) {
+				if uint64(selectedOutputInfos[index].OutTransfer.GlobalIndex) == outsRq[i].Index {
+					if bytes.Equal(outs1.Outs[i].Key, GetOutputKey(val, stringToType(outType))) {
 						realOutFound = true
 					}
 				}
@@ -363,9 +364,9 @@ func (w *Wallet) getOuts(outs *[][]OutsEntry, selectedTransfers []string, fakeOu
 
 			// @todo Refactor!!
 			var outputKeyTemp [32]byte
-			copy(outputKeyTemp[:], GetOutputKey(val.Output, outType))
+			copy(outputKeyTemp[:], GetOutputKey(val, stringToType(outType)))
 
-			entry = append(entry, OutsEntry{val.GlobalIndex, outputKeyTemp})
+			entry = append(entry, OutsEntry{selectedOutputInfos[index].OutTransfer.GlobalIndex, outputKeyTemp})
 
 			var order []uint64
 			for n := uint64(0); n < baseRequestedOutputsCount; n++ {
@@ -380,11 +381,11 @@ func (w *Wallet) getOuts(outs *[][]OutsEntry, selectedTransfers []string, fakeOu
 				i := base + order[o]
 				// @todo Refactor!!
 				copy(outputKeyTemp[:], outs1.Outs[i].Key)
-				TxAddFakeOutput(&entry, outsRq[i].Index, outputKeyTemp, val.GlobalIndex, outs1.Outs[i].Unlocked)
+				txAddFakeOutput(&entry, outsRq[i].Index, outputKeyTemp, selectedOutputInfos[index].OutTransfer.GlobalIndex, outs1.Outs[i].Unlocked)
 			}
 
 			if len(entry) < fakeOutsCount+1 {
-				scantyOuts[GetOutputAmount(val.Output, outType)] = len(entry)
+				scantyOuts[GetOutputAmount(val, stringToType(outType))] = len(entry)
 			} else {
 				sort.Sort(OutsEntryByIndex(entry))
 			}
@@ -396,18 +397,27 @@ func (w *Wallet) getOuts(outs *[][]OutsEntry, selectedTransfers []string, fakeOu
 		}
 
 	} else {
-		for _, val := range *selectedTransfers {
+		selectedOutputs, err := w.wallet.GetMassOutput(selectedTransfers)
+		//This can be circumvented but for now let's stop at the first error
+		if err != nil {
+			return err
+		}
+		selectedOutputInfos, err := w.wallet.GetMassOutputInfo(selectedTransfers)
+		if err != nil {
+			return err
+		}
+		for index, val := range selectedOutputs {
 			var entry []OutsEntry
 
-			outputType := GetOutputType(val.Output)
-			if outputType != outType {
+			outputType := GetOutputType(val)
+			if outputType != stringToType(outType) {
 				continue
 			}
 			// @todo Refactor!!
 			var outputKeyTemp [32]byte
-			copy(outputKeyTemp[:], GetOutputKey(val.Output, outType))
+			copy(outputKeyTemp[:], GetOutputKey(val, stringToType(outType)))
 
-			entry = append(entry, OutsEntry{val.GlobalIndex, outputKeyTemp})
+			entry = append(entry, OutsEntry{selectedOutputInfos[index].OutTransfer.GlobalIndex, outputKeyTemp})
 			*outs = append(*outs, entry)
 		}
 	}
