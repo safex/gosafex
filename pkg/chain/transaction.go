@@ -3,11 +3,16 @@ package chain
 import (
 	//"math/rand"
 	"errors"
+	"fmt"
+	"log"
+	"math/rand"
 	"sort"
+	"time"
 
 	//"time"
 
 	//"github.com/jinzhu/copier"
+
 	"github.com/safex/gosafex/internal/crypto"
 	"github.com/safex/gosafex/internal/crypto/curve"
 	"github.com/safex/gosafex/pkg/account"
@@ -388,7 +393,6 @@ func isWholeValue(input uint64) bool {
 	return (input % uint64(10000000000)) == uint64(0)
 }
 
-/*
 func (w *Wallet) TxCreateToken(
 	dsts []DestinationEntry,
 	fakeOutsCount int,
@@ -416,59 +420,71 @@ func (w *Wallet) TxCreateToken(
 	feeMultiplier := GetFeeMultiplier(priority, GetFeeAlgorithm())
 
 	if len(dsts) == 0 {
-		panic("Zero destinations!")
+		w.logger.Infof("[Chain] Zero destinations!")
 	}
 
 	for _, dst := range dsts {
 		if !isWholeValue(dst.TokenAmount) {
-			panic("Token must be whole value!")
+			w.logger.Infof("[Chain] Token must be whole value!")
 		}
 
 		if dst.TokenAmount != 0 {
 			neededToken += dst.TokenAmount
 			// @todo: log stuff
 			if neededToken < dst.TokenAmount {
-				panic("Reached uint64 overflow!")
+				w.logger.Infof("[Chain] Reached uint64 overflow!")
 			}
 		}
 	}
 
 	if neededToken == 0 {
-		panic("Can't send zero amount!")
+		w.logger.Infof("[Chain] Can't send zero amount!")
 	}
 
 	// TODO: This can be expanded to support subaddresses
 	// @todo: make sure that balance is calculated here!
 
 	if neededToken > w.balance.TokenLocked {
-		panic("Not enough tokens!")
+		w.logger.Infof("[Chain] Not enough tokens!")
 	}
 
 	// @todo: For debugging purposes, remove when unlocked cash is ready
 	if false && neededToken > w.balance.TokenUnlocked {
-		panic("Not enough unlocked tokens!")
+		w.logger.Infof("[Chain] Not enough unlocked tokens!")
 	}
 
-	var unusedOutputs []Transfer
-	var unusedTokenOutputs []Transfer
-	var dustOutputs []Transfer
-	var dustTokenOutputs []Transfer
+	var unusedOutputs []TransferInfo
+	var unusedOutputIDs []string
+	var unusedTokenOutputs []TransferInfo
+	var unusedTokenOutputIDs []string
+	var dustOutputs []TransferInfo
+	var dustOutputIDs []string
+	var dustTokenOutputs []TransferInfo
+	var dustTokenOutputIDs []string
 
-	// Find unused outputs
-	for _, val := range w.outputs {
-		if !val.Spent && val.isUnlocked(height) {
-			if MatchOutputWithType(val.Output, safex.OutToken) {
-				if IsDecomposedOutputValue(val.Output.TokenAmount) {
-					unusedTokenOutputs = append(unusedTokenOutputs, val)
+	// Find unused outputs, this could be managed better
+	for index, val := range w.outputs {
+		out, err := w.GetFilewallet().GetOutput(index)
+		if err != nil {
+			continue
+		}
+		if !val.OutTransfer.Spent && val.OutTransfer.IsUnlocked(height) {
+			if MatchOutputWithType(out, safex.OutToken) {
+				if IsDecomposedOutputValue(out.TokenAmount) {
+					unusedTokenOutputs = append(unusedTokenOutputs, val.OutTransfer)
+					unusedTokenOutputIDs = append(unusedTokenOutputIDs, index)
 				} else {
-					dustTokenOutputs = append(dustTokenOutputs, val)
+					dustTokenOutputs = append(dustTokenOutputs, val.OutTransfer)
+					dustTokenOutputIDs = append(dustTokenOutputIDs, index)
 				}
 				continue
 			} else {
-				if IsDecomposedOutputValue(val.Output.Amount) && val.Output.Amount > 0 {
-					unusedOutputs = append(unusedOutputs, val)
+				if IsDecomposedOutputValue(out.Amount) && out.Amount > 0 {
+					unusedOutputs = append(unusedOutputs, val.OutTransfer)
+					unusedOutputIDs = append(unusedOutputIDs, index)
 				} else {
-					dustOutputs = append(dustOutputs, val)
+					dustOutputs = append(dustOutputs, val.OutTransfer)
+					dustOutputIDs = append(dustOutputIDs, index)
 				}
 			}
 		}
@@ -487,24 +503,24 @@ func (w *Wallet) TxCreateToken(
 	// @todo Check mismatch in dust output numbers.
 	// If empty, put dummy entry so that the front can be referenced later in the loop
 	if len(unusedOutputs) == 0 {
-		unusedOutputs = append(unusedOutputs, Transfer{})
+		unusedOutputs = append(unusedOutputs, TransferInfo{})
 	}
 	if len(dustOutputs) == 0 {
-		dustOutputs = append(dustOutputs, Transfer{})
+		dustOutputs = append(dustOutputs, TransferInfo{})
 	}
 
 	if len(unusedTokenOutputs) == 0 {
-		unusedTokenOutputs = append(unusedTokenOutputs, Transfer{})
+		unusedTokenOutputs = append(unusedTokenOutputs, TransferInfo{})
 	}
 	if len(dustTokenOutputs) == 0 {
-		dustTokenOutputs = append(dustTokenOutputs, Transfer{})
+		dustTokenOutputs = append(dustTokenOutputs, TransferInfo{})
 	}
 
 	//@NOTE This part have good results so far in comparsion with cli wallet. There is slight mismatch in number of detected dust outputs.
-	fmt.Println("Lenght of unusedOutputs: ", len(unusedOutputs))
-	fmt.Println("Lenght of dustOutputs:", len(dustOutputs))
-	fmt.Println("Lenght of unusedTokenOutputs: ", len(unusedTokenOutputs))
-	fmt.Println("Lenght of dustTokenOutputs:", len(dustTokenOutputs))
+	w.logger.Debugf("[Chain] Lenght of unusedOutputs: ", len(unusedOutputs))
+	w.logger.Debugf("[Chain] Lenght of dustOutputs:", len(dustOutputs))
+	w.logger.Debugf("[Chain] Lenght of unusedTokenOutputs: ", len(unusedTokenOutputs))
+	w.logger.Debugf("[Chain] Lenght of dustTokenOutputs:", len(dustTokenOutputs))
 
 	var txes []TX
 	txes = append(txes, TX{})
@@ -518,7 +534,10 @@ func (w *Wallet) TxCreateToken(
 
 	fmt.Println(accumulatedFee, accumulatedOutputs, accumulatedChange, availableForFee, neededFee)
 
-	var idx Transfer
+	var idx string
+	var txins []*safex.Txout
+	var txinsID []string
+	var txReference [][]string
 	// basic loop for getting outputs
 	for (len(dsts) != 0 && dsts[0].TokenAmount != 0) || addingFee {
 		tx := &txes[len(txes)-1]
@@ -532,16 +551,25 @@ func (w *Wallet) TxCreateToken(
 		}
 
 		if addingFee {
-			idx = PopBestValueFrom(&unusedOutputs, &(tx.SelectedTransfers), false, safex.OutCash)
+			idx = w.popBestValueFrom(&unusedOutputIDs, (tx.SelectedTransfers), false, safex.OutCash)
 		} else {
-			idx = PopBestValueFrom(&unusedTokenOutputs, &(tx.SelectedTransfers), true, safex.OutToken)
+			idx = w.popBestValueFrom(&unusedTokenOutputIDs, (tx.SelectedTransfers), true, safex.OutToken)
 		}
 		// @todo: Check this once more.
+		out, err := w.wallet.GetOutput(idx)
+		if err != nil {
+			return nil, err
+		}
+		info, err := w.wallet.GetOutputInfo(idx)
+		if err != nil {
+			return nil, err
+		}
+		txins = append(txins, out)
+		txinsID = append(txinsID, idx)
+		tx.SelectedTransfers = append(tx.SelectedTransfers, info.OutTransfer)
 
-		tx.SelectedTransfers = append(tx.SelectedTransfers, idx)
-
-		availableAmount := idx.Output.Amount
-		availableTokenAmount := idx.Output.TokenAmount
+		availableAmount := out.Amount
+		availableTokenAmount := out.TokenAmount
 		accumulatedOutputs += availableAmount
 		accumulatedTokenOutputs += availableTokenAmount
 
@@ -584,8 +612,8 @@ func (w *Wallet) TxCreateToken(
 			var inputs uint64 = 0
 			var outputs uint64 = neededFee
 
-			for _, val := range tx.SelectedTransfers {
-				inputs += val.Output.Amount
+			for _, val := range txins {
+				inputs += val.Amount
 			}
 
 			for _, val := range tx.Dsts {
@@ -603,7 +631,7 @@ func (w *Wallet) TxCreateToken(
 
 				// Transfer selected
 				fmt.Println(">>>>>>>>>>>>> FIRST TRANSFER SELECTED <<<<<<<<<<<<<<<<<<")
-				w.transferSelected(&tx.Dsts, &tx.SelectedTransfers, fakeOutsCount, &outs, &outsFee, unlockTime, neededFee, &extra, &testTx, &testPtx, safex.OutToken)
+				w.transferSelected(&tx.Dsts, txinsID, fakeOutsCount, &outs, &outsFee, unlockTime, neededFee, &extra, &testTx, &testPtx, safex.OutToken)
 
 				txBlob := serialization.SerializeTransaction(testPtx.Tx, true)
 				neededFee = CalculateFee(feePerKb, len(txBlob), feeMultiplier)
@@ -638,7 +666,7 @@ func (w *Wallet) TxCreateToken(
 					log.Println("We made a tx, adjusting fee and saving it, we need " + string(neededFee) + " and we have " + string(testPtx.Fee))
 					for neededFee > testPtx.Fee {
 						fmt.Println("NeededFee: ", neededFee, ", testPtx.Fee ", testPtx.Fee)
-						w.transferSelected(&tx.Dsts, &tx.SelectedTransfers, fakeOutsCount, &outs, &outsFee, unlockTime, neededFee, &extra, &testTx, &testPtx, safex.OutToken)
+						w.transferSelected(&tx.Dsts, txinsID, fakeOutsCount, &outs, &outsFee, unlockTime, neededFee, &extra, &testTx, &testPtx, safex.OutToken)
 						txBlob = serialization.SerializeTransaction(testPtx.Tx, true)
 						neededFee = CalculateFee(feePerKb, len(txBlob), feeMultiplier)
 						log.Println("Made an attempt at a final tx, with " + string(testPtx.Fee) + " fee and " + string(testPtx.ChangeDts.Amount) + " change")
@@ -663,6 +691,7 @@ func (w *Wallet) TxCreateToken(
 					accumulatedChange += testPtx.ChangeDts.Amount
 					accumulatedTokenChange += testPtx.ChangeDts.TokenAmount
 					addingFee = false
+					txReference = append(txReference, txinsID)
 					if len(dsts) != 0 {
 						log.Println("We have more to pay, starting another tx")
 						txes = append(txes, TX{})
@@ -692,7 +721,7 @@ func (w *Wallet) TxCreateToken(
 		testPtx := new(PendingTx)
 		w.transferSelected(
 			&tx.Dsts,
-			&tx.SelectedTransfers,
+			txReference[index],
 			fakeOutsCount,
 			&tx.Outs,
 			&tx.OutsFee,
@@ -719,7 +748,7 @@ func (w *Wallet) TxCreateToken(
 	}
 	return ret, nil
 }
-*/
+
 func isTokenOutput(txout *safex.Txout) bool {
 	return txout.Target.TxoutTokenToKey != nil
 }
@@ -771,15 +800,16 @@ func (tx *TX) Add(acc account.Address, amount uint64, originalOutputIndex int, m
 	}
 }
 
-/*
 // @todo add token_transfer support
-func PopBestValueFrom(unusedIndices, selectedTransfers *[]Transfer, smallest bool, outType safex.TxOutType) (ret Transfer) {
-	var candidates []int
+func (w *Wallet) popBestValueFrom(unusedIndxIDs *[]string, selectedTransfers []TransferInfo, smallest bool, outType safex.TxOutType) (ret string) {
+	var candidates []string
 	var bestRelatedness float32 = 1.0
-	for index, candidate := range *unusedIndices {
+	//Handle errors here
+	unusedIndices, _ := w.wallet.GetMassOutputInfo(*unusedIndxIDs)
+	for index, candidate := range unusedIndices {
 		var relatedness float32 = 0.0
-		for _, selected := range *selectedTransfers {
-			r := candidate.getRelatedness(&selected)
+		for _, selected := range selectedTransfers {
+			r := candidate.OutTransfer.GetRelatedness(&selected)
 			if r > relatedness {
 				relatedness = r
 				if relatedness == 1.0 {
@@ -798,19 +828,26 @@ func PopBestValueFrom(unusedIndices, selectedTransfers *[]Transfer, smallest boo
 		}
 	}
 
-	var idx int = 0
+	idx := candidates[0]
+	chosenOut, _ := w.wallet.GetOutput(idx)
 	if smallest {
-		for index, val := range candidates {
+		for _, val := range candidates {
+			out, err := w.wallet.GetOutput(val)
+			if err != nil {
+				continue
+			}
 			if outType == safex.OutCash {
-				if (*unusedIndices)[val].Output.Amount < (*unusedIndices)[idx].Output.Amount {
-					idx = index
+				if out.Amount < chosenOut.Amount {
+					idx = val
+					chosenOut, _ = w.wallet.GetOutput(idx)
 				}
 				continue
 			}
 
 			if outType == safex.OutToken {
-				if (*unusedIndices)[val].Output.TokenAmount < (*unusedIndices)[idx].Output.TokenAmount {
-					idx = index
+				if out.TokenAmount < chosenOut.TokenAmount {
+					idx = val
+					chosenOut, _ = w.wallet.GetOutput(idx)
 				}
 				continue
 			}
@@ -819,14 +856,20 @@ func PopBestValueFrom(unusedIndices, selectedTransfers *[]Transfer, smallest boo
 	} else {
 		s := rand.NewSource(time.Now().UnixNano())
 		r := rand.New(s)
-		idx = r.Int() % len(candidates)
+		idx = candidates[r.Int()%len(candidates)]
 	}
-	copier.Copy(&ret, &(*unusedIndices)[candidates[idx]])
-	idx = candidates[idx]
-	*unusedIndices = append((*unusedIndices)[:idx], (*unusedIndices)[idx+1:]...)
+	pos := func() int {
+		for index, val := range *unusedIndxIDs {
+			if val == idx {
+				return index
+			}
+		}
+		return 0
+	}()
+	*unusedIndxIDs = append((*unusedIndxIDs)[:pos], (*unusedIndxIDs)[pos+1:]...)
 
-	return ret
-}*/
+	return idx
+}
 
 func estimateTxSize(nInputs, mixin, nOutputs, extraSize int) int {
 	return nInputs*(mixin+1)*APPROXIMATE_INPUT_BYTES + extraSize

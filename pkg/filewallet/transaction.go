@@ -154,7 +154,7 @@ func (w *FileWallet) GetMultipleTransactionInfos(input []string) ([]*Transaction
 	return ret, nil
 }
 
-func (t *TransferInfo) getRelatedness(input *TransferInfo) float32 {
+func (t *TransferInfo) GetRelatedness(input *TransferInfo) float32 {
 
 	var dh uint64
 	if t.Height > input.Height {
@@ -176,7 +176,7 @@ func (t *TransferInfo) getRelatedness(input *TransferInfo) float32 {
 	return float32(0.0)
 }
 
-func (t *TransferInfo) isUnlocked(height uint64) bool {
+func (t *TransferInfo) IsUnlocked(height uint64) bool {
 	if t.MinerTx {
 		return height-t.Height > 60
 	} else {
