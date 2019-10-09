@@ -3,15 +3,9 @@ package chain
 import (
 	//"math/rand"
 	"errors"
-	"fmt"
-	"log"
 	"math/rand"
 	"sort"
 	"time"
-
-	//"time"
-
-	//"github.com/jinzhu/copier"
 
 	"github.com/safex/gosafex/internal/crypto"
 	"github.com/safex/gosafex/internal/crypto/curve"
@@ -19,7 +13,6 @@ import (
 	"github.com/safex/gosafex/pkg/filewallet"
 	"github.com/safex/gosafex/pkg/safex"
 	"github.com/safex/gosafex/pkg/serialization"
-	//	"github.com/safex/gosafex/pkg/serialization"
 )
 
 /* NOTES:
@@ -249,17 +242,6 @@ func (w *Wallet) transferSelected(dsts *[]DestinationEntry, selectedTransfers []
 		}
 	}
 
-	// fmt.Println("------------------------- OUTPUTS -------------------------------------")
-	// fmt.Println("OUTPUTS")
-	// for _, val1 := range *outs {
-	// 	for _, val2 := range val1 {
-	// 		fmt.Println("GlobalIndex: ", val2.Index, " Pubkey: ", val2.PubKey)
-	// 	}
-	// }
-	// fmt.Println("-----------------------------------------------------------------------")
-
-	// See how to handle fees for token transactions.
-
 	var sources []TxSourceEntry
 	var outIndex uint64 = 0
 	var i uint64 = 0
@@ -348,8 +330,8 @@ func (w *Wallet) transferSelected(dsts *[]DestinationEntry, selectedTransfers []
 	//		 in order to control and predict fee.
 	blobSize := serialization.GetTxBlobSize(tx)
 	if blobSize > uint64(GetUpperTransactionSizeLimit(1, 10)) {
-		w.logger.Debugf("[Chain] Blobsize: ", blobSize)
-		w.logger.Debugf("[Chain]Limitblobsize: ", uint64(GetUpperTransactionSizeLimit(1, 10)))
+		w.logger.Debugf("[Chain] Blobsize: %v", blobSize)
+		w.logger.Debugf("[Chain]Limitblobsize: %v", uint64(GetUpperTransactionSizeLimit(1, 10)))
 		errors.New("Transaction too big")
 	}
 
@@ -517,10 +499,10 @@ func (w *Wallet) TxCreateToken(
 	}
 
 	//@NOTE This part have good results so far in comparsion with cli wallet. There is slight mismatch in number of detected dust outputs.
-	w.logger.Debugf("[Chain] Lenght of unusedOutputs: ", len(unusedOutputs))
-	w.logger.Debugf("[Chain] Lenght of dustOutputs:", len(dustOutputs))
-	w.logger.Debugf("[Chain] Lenght of unusedTokenOutputs: ", len(unusedTokenOutputs))
-	w.logger.Debugf("[Chain] Lenght of dustTokenOutputs:", len(dustTokenOutputs))
+	w.logger.Debugf("[Chain] Length of unusedOutputs: %v", len(unusedOutputs))
+	w.logger.Debugf("[Chain] Length of dustOutputs: %v", len(dustOutputs))
+	w.logger.Debugf("[Chain] Length of unusedTokenOutputs: %v", len(unusedTokenOutputs))
+	w.logger.Debugf("[Chain] Length of dustTokenOutputs: %v", len(dustTokenOutputs))
 
 	var txes []TX
 	txes = append(txes, TX{})
@@ -532,7 +514,10 @@ func (w *Wallet) TxCreateToken(
 	var originalOutputIndex int = 0
 	var addingFee bool = false
 
-	fmt.Println(accumulatedFee, accumulatedOutputs, accumulatedChange, availableForFee, neededFee)
+	w.logger.Debugf("[Chain] Length of unusedOutputs: %v", len(unusedOutputs))
+	w.logger.Debugf("[Chain] Length of dustOutputs: %v", len(dustOutputs))
+	w.logger.Debugf("[Chain] Length of unusedTokenOutputs: %v", len(unusedTokenOutputs))
+	w.logger.Debugf("[Chain] Length of dustTokenOutputs: %v", len(dustTokenOutputs))
 
 	var idx string
 	var txins []*safex.Txout
@@ -543,11 +528,13 @@ func (w *Wallet) TxCreateToken(
 		tx := &txes[len(txes)-1]
 
 		if len(unusedTokenOutputs) == 0 && len(dustTokenOutputs) == 0 {
-			panic("Not enough tokens")
+			w.logger.Debugf("[Chain] Not enough tokens")
+			return nil, errors.New("Not enough tokens")
 		}
 
 		if len(unusedOutputs) == 0 && len(dustOutputs) == 0 {
-			panic("Not enough cash for fee")
+			w.logger.Debugf("[Chain] Not enough cash for fee")
+			return nil, errors.New("Not enough cash for fee")
 		}
 
 		if addingFee {
@@ -630,7 +617,7 @@ func (w *Wallet) TxCreateToken(
 			} else {
 
 				// Transfer selected
-				fmt.Println(">>>>>>>>>>>>> FIRST TRANSFER SELECTED <<<<<<<<<<<<<<<<<<")
+				w.logger.Debugf("[Chain] First output selected")
 				w.transferSelected(&tx.Dsts, txinsID, fakeOutsCount, &outs, &outsFee, unlockTime, neededFee, &extra, &testTx, &testPtx, safex.OutToken)
 
 				txBlob := serialization.SerializeTransaction(testPtx.Tx, true)
@@ -647,7 +634,8 @@ func (w *Wallet) TxCreateToken(
 					}
 
 					if i == nil {
-						panic("Paid Address not found in outputs")
+						w.logger.Debugf("[Chain] Paid Address not found in outputs")
+						return nil, errors.New("Paid Address not found in outputs")
 					}
 
 					if i.Amount > neededFee {
@@ -660,16 +648,17 @@ func (w *Wallet) TxCreateToken(
 				}
 
 				if neededFee > availableForFee {
-					log.Println("We couldnt make a tx, switching to fee accumulation")
+					w.logger.Debugf("[Chain] Couldn't make a tx, switching to fee accumulation")
 					addingFee = true
 				} else {
-					log.Println("We made a tx, adjusting fee and saving it, we need " + string(neededFee) + " and we have " + string(testPtx.Fee))
+					w.logger.Debugf("[Chain] Made a tx, adjusting fee and saving it, need %v; have %v", neededFee, testPtx.Fee)
 					for neededFee > testPtx.Fee {
-						fmt.Println("NeededFee: ", neededFee, ", testPtx.Fee ", testPtx.Fee)
+						w.logger.Debugf("[Chain] neddedFee: %v", neededFee)
+						w.logger.Debugf("[Chain] testPtx.fee: %v", testPtx.Fee)
 						w.transferSelected(&tx.Dsts, txinsID, fakeOutsCount, &outs, &outsFee, unlockTime, neededFee, &extra, &testTx, &testPtx, safex.OutToken)
 						txBlob = serialization.SerializeTransaction(testPtx.Tx, true)
 						neededFee = CalculateFee(feePerKb, len(txBlob), feeMultiplier)
-						log.Println("Made an attempt at a final tx, with " + string(testPtx.Fee) + " fee and " + string(testPtx.ChangeDts.Amount) + " change")
+						w.logger.Debugf("[Chain] Made an attempt at a final tx, with %v; fee and %v change", testPtx.Fee, testPtx.ChangeDts.Amount)
 					}
 
 					tx.Tx = testTx
@@ -693,7 +682,6 @@ func (w *Wallet) TxCreateToken(
 					addingFee = false
 					txReference = append(txReference, txinsID)
 					if len(dsts) != 0 {
-						log.Println("We have more to pay, starting another tx")
 						txes = append(txes, TX{})
 						originalOutputIndex = 0
 					}
@@ -709,12 +697,12 @@ func (w *Wallet) TxCreateToken(
 	}
 
 	if addingFee {
-		log.Println("We ran out of outputs while trying to gather final fee")
-		panic("Transactions is not possible") // @todo add error.
+		w.logger.Infof("[Chain] We ran out of outputs while trying to gather final fee")
+		w.logger.Infof("[Chain] Transactions is not possible") // @todo add error.
 	}
 
 	// @todo Add more log info. How many txs, total fee, total funds etc...
-	log.Println("Done creating txs!!")
+	w.logger.Infof("[Chain] Done creating transactions")
 
 	for index, tx := range txes {
 		testTx := new(safex.Transaction)
@@ -817,7 +805,6 @@ func (w *Wallet) popBestValueFrom(unusedIndxIDs *[]string, selectedTransfers []T
 				}
 			}
 		}
-
 		if relatedness < bestRelatedness {
 			bestRelatedness = relatedness
 			candidates = nil
@@ -827,7 +814,9 @@ func (w *Wallet) popBestValueFrom(unusedIndxIDs *[]string, selectedTransfers []T
 			candidates = append(candidates, index)
 		}
 	}
-
+	if len(candidates) < 1 {
+		return ""
+	}
 	idx := candidates[0]
 	chosenOut, _ := w.wallet.GetOutput(idx)
 	if smallest {
@@ -879,7 +868,6 @@ func txSizeTarget(input int) int {
 	return input * 2 / 3
 }
 
-/*
 func (w *Wallet) TxCreateCash(
 	dsts []DestinationEntry,
 	fakeOutsCount int,
@@ -907,7 +895,6 @@ func (w *Wallet) TxCreateCash(
 	feeMultiplier := GetFeeMultiplier(priority, GetFeeAlgorithm())
 
 	if len(dsts) == 0 {
-
 		return nil, errors.New("Zero destinations!")
 	}
 
@@ -937,16 +924,24 @@ func (w *Wallet) TxCreateCash(
 		return nil, errors.New("Not enough unlocked cash!")
 	}
 
-	var unusedOutputs []Transfer
-	var dustOutputs []Transfer
+	var unusedOutputs []TransferInfo
+	var unusedOutputIDs []string
+	var dustOutputs []TransferInfo
+	var dustOutputIDs []string
 
 	// Find unused outputs
-	for _, val := range w.outputs {
-		if !val.Spent && !isTokenOutput(val.Output) && val.isUnlocked(height) {
-			if IsDecomposedOutputValue(val.Output.Amount) {
-				unusedOutputs = append(unusedOutputs, val)
+	for index, val := range w.outputs {
+		out, err := w.GetFilewallet().GetOutput(index)
+		if err != nil {
+			continue
+		}
+		if !val.OutTransfer.Spent && !isTokenOutput(out) && val.OutTransfer.IsUnlocked(height) {
+			if IsDecomposedOutputValue(out.Amount) {
+				unusedOutputs = append(unusedOutputs, val.OutTransfer)
+				unusedOutputIDs = append(unusedOutputIDs, index)
 			} else {
-				dustOutputs = append(dustOutputs, val)
+				dustOutputs = append(dustOutputs, val.OutTransfer)
+				dustOutputIDs = append(dustOutputIDs, index)
 			}
 		}
 	}
@@ -959,15 +954,15 @@ func (w *Wallet) TxCreateCash(
 	// @todo Check mismatch in dust output numbers.
 	// If empty, put dummy entry so that the front can be referenced later in the loop
 	if len(unusedOutputs) == 0 {
-		unusedOutputs = append(unusedOutputs, Transfer{})
+		unusedOutputs = append(unusedOutputs, TransferInfo{})
 	}
 	if len(dustOutputs) == 0 {
-		dustOutputs = append(dustOutputs, Transfer{})
+		dustOutputs = append(dustOutputs, TransferInfo{})
 	}
 
 	//@NOTE This part have good results so far in comparsion with cli wallet. There is slight mismatch in number of detected dust outputs.
-	fmt.Println("Lenght of unusedOutputs: ", len(unusedOutputs))
-	fmt.Println("Lenght of dustOutputs:", len(dustOutputs))
+	w.logger.Debugf("[Chain]Length of unusedOutputs: %v", len(unusedOutputs))
+	w.logger.Debugf("[Chain]Length of dustOutputs: %v", len(dustOutputs))
 
 	var txes []TX
 	txes = append(txes, TX{})
@@ -978,23 +973,39 @@ func (w *Wallet) TxCreateCash(
 	var originalOutputIndex int = 0
 	var addingFee bool = false
 
-	fmt.Println(accumulatedFee, accumulatedOutputs, accumulatedChange, availableForFee, neededFee)
+	w.logger.Debugf("[Chain] accumulatedFee: %v", accumulatedFee)
+	w.logger.Debugf("[Chain] accumulatedOutputs: %v", accumulatedOutputs)
+	w.logger.Debugf("[Chain] accumulatedChange: %v", accumulatedChange)
+	w.logger.Debugf("[Chain] availableForFee: %v", availableForFee)
+	w.logger.Debugf("[Chain] neededFee: %v", neededFee)
 
-	var idx Transfer
+	var idx string
+	var txins []*safex.Txout
+	var txinsID []string
+	var txReference [][]string
 	// basic loop for getting outputs
 	for (len(dsts) != 0 && dsts[0].Amount != 0) || addingFee {
 		tx := &txes[len(txes)-1]
-
 		if len(unusedOutputs) == 0 && len(dustOutputs) == 0 {
-			panic("Not enough money")
+			w.logger.Debugf("[Chain] Not enough outputs")
+			return nil, errors.New("Not enough outputs")
 		}
 
 		// @todo: Check this once more.
-		idx = PopBestValueFrom(&unusedOutputs, &(tx.SelectedTransfers), false, safex.OutCash)
+		idx = w.popBestValueFrom(&unusedOutputIDs, tx.SelectedTransfers, false, safex.OutCash)
+		out, err := w.wallet.GetOutput(idx)
+		if err != nil {
+			return nil, err
+		}
+		info, err := w.wallet.GetOutputInfo(idx)
+		if err != nil {
+			return nil, err
+		}
+		txins = append(txins, out)
+		txinsID = append(txinsID, idx)
+		tx.SelectedTransfers = append(tx.SelectedTransfers, info.OutTransfer)
 
-		tx.SelectedTransfers = append(tx.SelectedTransfers, idx)
-
-		availableAmount := idx.Output.Amount
+		availableAmount := out.Amount
 		accumulatedOutputs += availableAmount
 
 		outs = nil
@@ -1036,8 +1047,8 @@ func (w *Wallet) TxCreateCash(
 			var inputs uint64 = 0
 			var outputs uint64 = neededFee
 
-			for _, val := range tx.SelectedTransfers {
-				inputs += val.Output.Amount
+			for _, val := range txins {
+				inputs += val.Amount
 			}
 
 			for _, val := range tx.Dsts {
@@ -1054,8 +1065,9 @@ func (w *Wallet) TxCreateCash(
 			} else {
 
 				// Transfer selected
-				//fmt.Println(">>>>>>>>>>>>> FIRST TRANSFER SELECTED <<<<<<<<<<<<<<<<<<")
-				w.transferSelected(&tx.Dsts, &tx.SelectedTransfers, fakeOutsCount, &outs, nil, unlockTime, neededFee, &extra, &testTx, &testPtx, safex.OutCash)
+				w.logger.Debugf("[Chain] Transfer Selected %v", len(unusedOutputs))
+
+				w.transferSelected(&tx.Dsts, txinsID, fakeOutsCount, &outs, nil, unlockTime, neededFee, &extra, &testTx, &testPtx, safex.OutCash)
 
 				txBlob := serialization.SerializeTransaction(testPtx.Tx, true)
 				neededFee = CalculateFee(feePerKb, len(txBlob), feeMultiplier)
@@ -1071,7 +1083,8 @@ func (w *Wallet) TxCreateCash(
 					}
 
 					if i == nil {
-						panic("Paid Address not found in outputs")
+						w.logger.Debugf("[Chain] Paid Address not found in outputs")
+						return nil, errors.New("Paid Address not found in outputs")
 					}
 
 					if i.Amount > neededFee {
@@ -1084,15 +1097,15 @@ func (w *Wallet) TxCreateCash(
 				}
 
 				if neededFee > availableForFee {
-					log.Println("We couldnt make a tx, switching to fee accumulation")
+					w.logger.Debugf("[Chain] Couldn't make a tx, switching to fee accumulation")
 					addingFee = true
 				} else {
-					log.Println("We made a tx, adjusting fee and saving it, we need " + string(neededFee) + " and we have " + string(testPtx.Fee))
+					w.logger.Debugf("[Chain] Made a tx, adjusting fee and saving it, need %v; have %v", neededFee, testPtx.Fee)
 					for neededFee > testPtx.Fee {
-						w.transferSelected(&tx.Dsts, &tx.SelectedTransfers, fakeOutsCount, &outs, nil, unlockTime, neededFee, &extra, &testTx, &testPtx, safex.OutCash)
+						w.transferSelected(&tx.Dsts, txinsID, fakeOutsCount, &outs, nil, unlockTime, neededFee, &extra, &testTx, &testPtx, safex.OutCash)
 						txBlob = serialization.SerializeTransaction(testPtx.Tx, true)
 						neededFee = CalculateFee(feePerKb, len(txBlob), feeMultiplier)
-						log.Println("Made an attempt at a final tx, with " + string(testPtx.Fee) + " fee and " + string(testPtx.ChangeDts.Amount) + " change")
+						w.logger.Debugf("[Chain] Made an attempt at a final tx, with %v; fee and %v change", testPtx.Fee, testPtx.ChangeDts.Amount)
 					}
 
 					tx.Tx = testTx
@@ -1104,9 +1117,9 @@ func (w *Wallet) TxCreateCash(
 					}
 					accumulatedFee += testPtx.Fee
 					accumulatedChange += testPtx.ChangeDts.Amount
+					txReference = append(txReference, txinsID)
 					addingFee = false
 					if len(dsts) != 0 {
-						log.Println("We have more to pay, starting another tx")
 						txes = append(txes, TX{})
 						originalOutputIndex = 0
 					}
@@ -1122,20 +1135,19 @@ func (w *Wallet) TxCreateCash(
 	}
 
 	if addingFee {
-		log.Println("We ran out of outputs while trying to gather final fee")
-		panic("Transactions is not possible") // @todo add error.
+		w.logger.Infof("[Chain] We ran out of outputs while trying to gather final fee")
+		w.logger.Infof("[Chain] Transactions is not possible") // @todo add error.
 	}
 
 	// @todo Add more log info. How many txs, total fee, total funds etc...
-	log.Println("Done creating txs!!")
+	w.logger.Infof("[Chain] Done creating transactions")
 
 	for index, tx := range txes {
 		testTx := new(safex.Transaction)
 		testPtx := new(PendingTx)
-		fmt.Println("_______________________________________ ", index, " ______+_+_+______")
 		w.transferSelected(
 			&tx.Dsts,
-			&tx.SelectedTransfers,
+			txReference[index],
 			fakeOutsCount,
 			&tx.Outs,
 			nil,
@@ -1162,4 +1174,3 @@ func (w *Wallet) TxCreateCash(
 	}
 	return ret, nil
 }
-*/

@@ -23,7 +23,7 @@ const masterPass = "masterpass"
 const foldername = "test"
 
 //change this address and port
-const clientAddress = "ec2-54-158-235-41.compute-1.amazonaws.com"
+const clientAddress = "ec2-3-85-115-100.compute-1.amazonaws.com"
 const clientPort = 37001
 
 const wallet1pubview = "278ae1e6b5e7a272dcdca311e0362a222fa5ce98c975ccfff67e40751c1daf2c"

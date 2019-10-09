@@ -297,7 +297,7 @@ func (w *FileWallet) GetMassOutputInfo(OutIDs []string) (map[string]*OutputInfo,
 			continue
 		}
 		ret[outID] = &OutputInfo{string(tempData[0]), string(tempData[1]), string(tempData[2]), string(tempData[3]), string(tempData[4]), *TransferInfoData}
-
+		read = true
 	}
 	if !read {
 		return nil, topErr

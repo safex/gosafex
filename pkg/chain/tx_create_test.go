@@ -1,16 +1,17 @@
 package chain
 
-/* 
 import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/safex/gosafex/internal/crypto/curve"
 	"github.com/safex/gosafex/pkg/account"
 	"github.com/safex/gosafex/pkg/key"
 	log "github.com/sirupsen/logrus"
 )
+
 func TestTxCreate(t *testing.T) {
 	prepareFolder()
 	testLogger.Infof("[Test] Testing balance update")
@@ -54,11 +55,16 @@ func TestTxCreate(t *testing.T) {
 		t.Fatalf("%s", err)
 	}
 	var extra []byte
+	w.BeginUpdating()
+	for w.syncing {
+		time.Sleep(100 * time.Millisecond)
+	}
 	ptxs, err := w.TxCreateCash([]DestinationEntry{DestinationEntry{1000, 0, *a.Address(), false, false}}, 2, 0, 1, extra, true)
 	if err != nil {
+		testLogger.Debugf("[Test] Waiting ")
 		t.Fatalf("%s", err)
 	}
-	
+
 	fmt.Println("Length of ptxs: ", len(ptxs))
 
 	totalFee := uint64(0)
@@ -70,4 +76,3 @@ func TestTxCreate(t *testing.T) {
 	fmt.Println("TotalFee was: ", totalFee, ", MoneyPaid: ", 300000000000000)
 	t.Errorf("Failing!")
 }
-*/
