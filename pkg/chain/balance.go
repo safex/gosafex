@@ -156,8 +156,6 @@ func (w *Wallet) loadBalance() error {
 	w.resetBalance()
 	height := w.wallet.GetLatestBlockHeight()
 	w.logger.Debugf("[Wallet] Loading balance up to: %d", height)
-	//We might need a sync check here
-	w.unlockBalance(height)
 	w.countOutputs(w.wallet.GetUnspentOutputs())
 	return nil
 }
@@ -173,7 +171,7 @@ func (w *Wallet) unlockBalance(height uint64) error {
 	for _, el := range w.wallet.GetLockedOutputs() {
 		age, _ := w.wallet.GetOutputAge(el)
 		txtyp, _ := w.wallet.GetOutputTransactionType(el)
-		if txtyp == "miner" && height-age > 60 {
+		if txtyp == "miner" && height-age >= 60 {
 			w.logger.Infof("[Chain] Unlocking coinbase output %s aged %v", el, age)
 			if err := w.wallet.UnlockOutput(el); err != nil {
 				return err
@@ -181,7 +179,7 @@ func (w *Wallet) unlockBalance(height uint64) error {
 			if err := w.countUnlockedOutput(el); err != nil {
 				return err
 			}
-		} else if txtyp == "normal" && height-age > 10 {
+		} else if txtyp == "normal" && height-age >= 10 {
 			w.logger.Infof("[Chain] Unlocking cash output %s aged %v", el, age)
 			if err := w.wallet.UnlockOutput(el); err != nil {
 				return err

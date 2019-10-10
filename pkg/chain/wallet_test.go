@@ -353,7 +353,7 @@ func TestGetTransactionByBlock(t *testing.T) {
 func TestUpdateBalance(t *testing.T) {
 	prepareFolder()
 	testLogger.Infof("[Test] Testing balance update")
-	testLogger.SetLevel(log.InfoLevel)
+	testLogger.SetLevel(log.DebugLevel)
 	w := New(testLogger)
 	fullpath := strings.Join([]string{foldername, filename}, "/")
 
@@ -416,5 +416,5 @@ func TestUpdateBalance(t *testing.T) {
 	if err != nil {
 		t.Fatalf("%s", err)
 	}
-	t.Fatal(his)
+	t.Fatalf("%+v\n%+v", unspentOuts, his)
 }

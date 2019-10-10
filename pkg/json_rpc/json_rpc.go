@@ -29,7 +29,7 @@ func main() {
 	passPtr := flag.String("password", "", "Password for decryption")
 
 	if logFile != "" {
-		logOutput, _ = os.OpenFile(logFile, os.O_APPEND|os.O_CREATE, 0755)
+		logOutput, _ = os.OpenFile(logFile, os.O_APPEND|os.O_CREATE, os.ModeAppend)
 	}
 
 	logger := log.StandardLogger()

@@ -814,9 +814,6 @@ func (w *Wallet) popBestValueFrom(unusedIndxIDs *[]string, selectedTransfers []T
 			candidates = append(candidates, index)
 		}
 	}
-	if len(candidates) < 1 {
-		return ""
-	}
 	idx := candidates[0]
 	chosenOut, _ := w.wallet.GetOutput(idx)
 	if smallest {
