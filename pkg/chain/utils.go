@@ -3,13 +3,14 @@ package chain
 import (
 	"bytes"
 	"unsafe"
+
 	"github.com/golang/glog"
 	"github.com/safex/gosafex/internal/crypto"
 	"github.com/safex/gosafex/internal/crypto/curve"
-	"github.com/safex/gosafex/pkg/account" 
+	"github.com/safex/gosafex/pkg/account"
+	"github.com/safex/gosafex/pkg/key"
 	"github.com/safex/gosafex/pkg/safex"
 	"github.com/safex/gosafex/pkg/serialization"
-	"github.com/safex/gosafex/pkg/key"
 
 	"encoding/hex"
 	"math/rand"
@@ -34,8 +35,8 @@ func EncryptPaymentId(paymentId [8]byte, pub [32]byte, priv [32]byte) [8]byte {
 	var data [33]byte
 	dpub := key.NewPublicKeyFromBytes(pub)
 	dpriv := key.NewPrivateKeyFromBytes(priv)
-	der1Bytes, err := key.DeriveKey(*dpub,*dpriv) 
-	if err != nil{
+	der1Bytes, err := key.DeriveKey(*dpub, *dpriv)
+	if err != nil {
 		return [8]byte{}
 	}
 	derivation1 = [32]byte(der1Bytes.ToBytes())
@@ -45,7 +46,7 @@ func EncryptPaymentId(paymentId [8]byte, pub [32]byte, priv [32]byte) [8]byte {
 	hash = *(*[]byte)(unsafe.Pointer(&tempDigest))
 	for i := 0; i < 8; i++ {
 		paymentId[i] ^= hash[i]
-	} 
+	}
 
 	return paymentId
 }
@@ -176,10 +177,10 @@ func classifyAddress(destinations *[]DestinationEntry,
 }
 
 // Adding signatures into protobuf transaction for sending to node.
-func addSigToTx(tx *safex.Transaction, sigs *[]curve.RSig) { 
+func addSigToTx(tx *safex.Transaction, sigs *[]curve.RSig) {
 	sigTx := new(safex.Signature)
 	for _, sig := range *sigs {
-		sigData := new(safex.SigData) 
+		sigData := new(safex.SigData)
 		sigData.C = make([]byte, 32)
 		sigData.R = make([]byte, 32)
 		copy(sigData.C, (sig.C)[:])
@@ -225,7 +226,7 @@ func (w *Wallet) constructTxWithKey(
 					glog.Error("Destinations have to have exactly one output to support encrypted payment ids")
 					return false
 				}
-				viewKeyPubBytes := viewKeyPub.ToBytes() 
+				viewKeyPubBytes := viewKeyPub.ToBytes()
 				paymentId = EncryptPaymentId(val.([8]byte), viewKeyPubBytes, *txKey)
 				extraMap[NonceEncryptedPaymentId] = paymentId
 			}
@@ -287,8 +288,8 @@ func (w *Wallet) constructTxWithKey(
 
 		return bytes.Compare(kI[:], kJ[:]) > 0
 	})
- 
-	pubTxKey := curve.ScalarmultBase(*txKey) 
+
+	pubTxKey := curve.ScalarmultBase(*txKey)
 	glog.Info("PubTxKey: ", hex.EncodeToString(pubTxKey[:]))
 	// @note When put in extraMap pubTxKey must be [32]byte
 	// @todo Find better way for solving this
@@ -320,19 +321,19 @@ func (w *Wallet) constructTxWithKey(
 
 	var derivation1 *key.PrivateKey
 
-	for _, dst := range *destinations { 
+	for _, dst := range *destinations {
 		if changeAddr != nil && dst.Address.String() == changeAddr.String() {
-			tmpKey := key.NewPublicKey(&pubTxKey) 
-			derivation1, _ = key.DeriveKey(*tmpKey, w.account.PrivateViewKey()) 
+			tmpKey := key.NewPublicKey(&pubTxKey)
+			derivation1, _ = key.DeriveKey(*tmpKey, w.account.PrivateViewKey())
 		} else {
 			//var tempViewKey crypto.Key
 			//copy(tempViewKey[:], dst.Address.ViewKey)
-			//var tempTxKey crypto.Key 
-			//copy(tempTxKey[:], txKey[:])  
+			//var tempTxKey crypto.Key
+			//copy(tempTxKey[:], txKey[:])
 			tempPriv := key.NewPrivateKeyFromBytes(*txKey)
 			derivation1, _ = key.DeriveKey(dst.Address.ViewKey, *tempPriv)
-		} 
- 		outEphemeral, err := curve.DerivationToPublicKey(uint64(outputIndex), (*crypto.Key)(unsafe.Pointer(derivation1)), (*crypto.Key)(unsafe.Pointer(&dst.Address.SpendKey))) 
+		}
+		outEphemeral, err := curve.DerivationToPublicKey(uint64(outputIndex), (*crypto.Key)(unsafe.Pointer(derivation1)), (*crypto.Key)(unsafe.Pointer(&dst.Address.SpendKey)))
 		if err != nil {
 			glog.Error("Error during calculation of publicTxKey: " + err.Error())
 			return false
@@ -416,7 +417,7 @@ func (w *Wallet) constructTxAndGetTxKey(
 	txKey *[32]byte) (r bool) {
 
 	secTxKey := curve.NewRandomScalar()
-	copy((*txKey)[:], secTxKey[:]) 
+	copy((*txKey)[:], secTxKey[:])
 	// src/cryptonote_core/cryptonote_tx_utils.cpp bool construct_tx_and_get_tx_key()
 	// There are no subaddresses involved, so no additional keys therefore we dont
 	// need to involve anything regarding suaddress hence
@@ -523,7 +524,6 @@ func DigitSplitStrategy(
 			})
 	}
 }
-
 
 func MatchOutputWithType(output *safex.Txout, outType safex.TxOutType) bool {
 	var detectedType safex.TxOutType = safex.OutInvalid
