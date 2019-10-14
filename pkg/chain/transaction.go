@@ -152,13 +152,17 @@ func (w *Wallet) processTransactionPerAccount(tx *safex.Transaction, blckHash st
 						txPresent = true
 					}
 				}
+				out, err := w.wallet.GetOutput(outID)
+				if err != nil {
+					return err
+				}
 				if err := w.spendOutput(outID); err != nil {
 					return err
 				}
 				if outType == "Token" {
-					w.balance.CashUnlocked -= amount
+					w.balance.TokenUnlocked -= out.GetTokenAmount()
 				} else if outType == "Cash" {
-					w.balance.TokenUnlocked -= amount
+					w.balance.CashUnlocked -= out.GetAmount()
 				}
 			}
 		}
