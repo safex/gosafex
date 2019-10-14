@@ -9,7 +9,6 @@ import (
 	"sort"
 	"time"
 
-	"github.com/golang/glog"
 	"github.com/safex/gosafex/internal/crypto"
 	"github.com/safex/gosafex/internal/crypto/curve"
 	"github.com/safex/gosafex/pkg/filewallet"
@@ -193,11 +192,11 @@ func getOutputDistribution(type_ string, numOuts uint64, numRecentOutputs uint64
 
 func txAddFakeOutput(entry *[]OutsEntry, globalIndex uint64, outputKey [32]byte, localIndex uint64, unlocked bool) bool {
 	if !unlocked {
-		glog.Error("Failed to add fake output")
+		generalLogger.Println("[Chain] Failed to add fake output")
 		return false
 	}
 	if globalIndex == localIndex {
-		glog.Error("Same global and local index!")
+		generalLogger.Println("[Chain] Same global and local index!")
 		return false
 	}
 	item := OutsEntry{globalIndex, outputKey}

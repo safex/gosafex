@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"unsafe"
 
-	"github.com/golang/glog"
 	"github.com/safex/gosafex/internal/crypto"
 	"github.com/safex/gosafex/internal/crypto/curve"
 	"github.com/safex/gosafex/pkg/account"
@@ -139,7 +138,7 @@ func getTxInVFromTxInToKey(input TxInToKey) (ret *safex.TxinV) {
 		toKey.KImage = input.KeyImage[:]
 		ret.TxinToKey = toKey
 	}
-	glog.Info("Transaction Input added!: ", *ret)
+	generalLogger.Info("[Chain] Transaction Input added!: ", *ret)
 	return ret
 }
 
@@ -223,7 +222,7 @@ func (w *Wallet) constructTxWithKey(
 			if val, isThere1 := extraMap[NonceEncryptedPaymentId]; isThere1 {
 				viewKeyPub := GetDestinationViewKeyPub(destinations, changeAddr)
 				if viewKeyPub == nil {
-					glog.Error("Destinations have to have exactly one output to support encrypted payment ids")
+					generalLogger.Error("[Chain] Destinations have to have exactly one output to support encrypted payment ids")
 					return false
 				}
 				viewKeyPubBytes := viewKeyPub.ToBytes()
@@ -234,7 +233,7 @@ func (w *Wallet) constructTxWithKey(
 		}
 		// @todo set extra after public tx key calculation
 	} else {
-		glog.Error("Failed to parse tx extra!")
+		generalLogger.Error("[Chain] Failed to parse tx extra!")
 		return false
 	}
 
@@ -245,7 +244,7 @@ func (w *Wallet) constructTxWithKey(
 	for _, src := range *sources {
 		idx++
 		if src.RealOutput >= uint64(len(src.Outputs)) {
-			glog.Error("RealOutputIndex (" + string(src.RealOutput) + ") bigger thatn Outputs length (" + string(len(src.Outputs)) + ")")
+			generalLogger.Error("[Chain] RealOutputIndex (" + string(src.RealOutput) + ") bigger thatn Outputs length (" + string(len(src.Outputs)) + ")")
 			return false
 		}
 
@@ -290,7 +289,7 @@ func (w *Wallet) constructTxWithKey(
 	})
 
 	pubTxKey := curve.ScalarmultBase(*txKey)
-	glog.Info("PubTxKey: ", hex.EncodeToString(pubTxKey[:]))
+	generalLogger.Info("[Chain] PubTxKey: ", hex.EncodeToString(pubTxKey[:]))
 	// @note When put in extraMap pubTxKey must be [32]byte
 	// @todo Find better way for solving this
 	var tempPubTxKey [32]byte
@@ -304,7 +303,7 @@ func (w *Wallet) constructTxWithKey(
 	//		 however in futur that can be changed, so PAY ATTENTION!!!
 	okExtra, tempExtra := SerializeExtra(extraMap)
 	if !okExtra {
-		glog.Error("Serializing extra field failed!")
+		generalLogger.Error("[Chain] Serializing extra field failed!")
 		return false
 	}
 
@@ -335,7 +334,7 @@ func (w *Wallet) constructTxWithKey(
 		}
 		outEphemeral, err := curve.DerivationToPublicKey(uint64(outputIndex), (*crypto.Key)(unsafe.Pointer(derivation1)), (*crypto.Key)(unsafe.Pointer(&dst.Address.SpendKey)))
 		if err != nil {
-			glog.Error("Error during calculation of publicTxKey: " + err.Error())
+			generalLogger.Error("[Chain] Error during calculation of publicTxKey: " + err.Error())
 			return false
 		}
 
@@ -359,7 +358,7 @@ func (w *Wallet) constructTxWithKey(
 			copy(ttk1.Key, outEphemeral[:])
 			out.Target = ttk
 		}
-		glog.Info("Added output to tx: ", *out)
+		generalLogger.Info("[Chain] Added output to tx: ", *out)
 		tx.Vout = append(tx.Vout, out)
 		outputIndex++
 		summaryOutsMoney += dst.Amount
@@ -370,17 +369,17 @@ func (w *Wallet) constructTxWithKey(
 	//		 As Safex Blockchain doesnt support officially subaddresses this is left blank.
 
 	if summaryOutsMoney > summaryInputsMoney {
-		glog.Error("Tx inputs cash (", summaryInputsMoney, ") less than outputs cash (", summaryOutsMoney, ")")
+		generalLogger.Error("[Chain] Tx inputs cash (", summaryInputsMoney, ") less than outputs cash (", summaryOutsMoney, ")")
 		return false
 	}
 
 	if summaryOutsTokens > summaryInputsToken {
-		glog.Error("Tx inputs token (", summaryInputsToken, ") less than outputs token (", summaryOutsTokens, ")")
+		generalLogger.Error("[Chain] Tx inputs token (", summaryInputsToken, ") less than outputs token (", summaryOutsTokens, ")")
 		return false
 	}
 
 	if w.watchOnlyWallet {
-		glog.Info("Zero secret key, skipping signatures")
+		generalLogger.Info("[Chain] Zero secret key, skipping signatures")
 		return true
 	}
 
@@ -396,9 +395,9 @@ func (w *Wallet) constructTxWithKey(
 				copy(keys[ii][:], outputEntry.Key[:])
 				ii++
 			}
-			glog.Info("Output keys to be signed: ", keys)
+			generalLogger.Info("[Chain] Output keys to be signed: ", keys)
 			sigs, _ := curve.GenerateRingSignature(txPrefixHash, src.KeyImage, keys, &src.TransferPtr.KImage, int(src.RealOutput))
-			glog.Info("Formed signature: ", sigs)
+			generalLogger.Info("[Chain] Formed signature: ", sigs)
 			addSigToTx(tx, &sigs)
 		}
 
@@ -426,7 +425,7 @@ func (w *Wallet) constructTxAndGetTxKey(
 }
 
 func (w *Wallet) CommitPtx(ptx *PendingTx) (res safex.SendTxRes, err error) {
-	glog.Info("CommitTx: Commiting transaction: ", *ptx.Tx)
+	generalLogger.Info("[Chain] CommitTx: Commiting transaction: ", *ptx.Tx)
 	return w.client.SendTransaction(ptx.Tx, false)
 }
 
