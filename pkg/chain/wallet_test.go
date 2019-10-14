@@ -22,6 +22,9 @@ const accountName2 = "account2"
 const masterPass = "masterpass"
 const foldername = "test"
 
+const staticfilename = "statictest.db"
+const staticfoldername = "statictest"
+
 //change this address and port
 const clientAddress = "ec2-3-85-115-100.compute-1.amazonaws.com"
 const clientPort = 37001
@@ -45,12 +48,26 @@ func prepareFolder() {
 	if _, err := os.Stat(fullpath); os.IsExist(err) {
 		os.Remove(fullpath)
 	}
-	logFile, _ := os.OpenFile(testLogFile, os.O_APPEND|os.O_CREATE, 0755)
+	logFile, _ := os.OpenFile(testLogFile, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0755)
 
 	testLogger.SetOutput(logFile)
 	testLogger.SetLevel(log.DebugLevel)
 
 	os.Mkdir(foldername, os.FileMode(int(0700)))
+}
+
+func prepareStaticFolder() {
+
+	fullpath := strings.Join([]string{staticfoldername, staticfilename}, "/")
+
+	if _, err := os.Stat(fullpath); !os.IsExist(err) {
+		logFile, _ := os.OpenFile(testLogFile, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0755)
+
+		testLogger.SetOutput(logFile)
+		testLogger.SetLevel(log.DebugLevel)
+
+		os.Mkdir(staticfoldername, os.FileMode(int(0700)))
+	}
 }
 
 func CleanAfterTests(w *Wallet, fullpath string) {
@@ -351,16 +368,18 @@ func TestGetTransactionByBlock(t *testing.T) {
 }
 
 func TestUpdateBalance(t *testing.T) {
-	prepareFolder()
+	prepareStaticFolder()
 	testLogger.Infof("[Test] Testing balance update")
 	testLogger.SetLevel(log.DebugLevel)
 	w := New(testLogger)
-	fullpath := strings.Join([]string{foldername, filename}, "/")
+	fullpath := strings.Join([]string{staticfoldername, staticfilename}, "/")
 
-	if err := w.OpenAndCreate("wallet1", fullpath, masterPass, true, testLogger); err != nil {
-		t.Fatalf("%s", err)
+	if err := w.OpenFile(fullpath, masterPass, true, testLogger); err != nil {
+		if err := w.OpenAndCreate("wallet1", fullpath, masterPass, true, testLogger); err != nil {
+			t.Fatalf("%s", err)
+		}
 	}
-	defer CleanAfterTests(w, fullpath)
+	// defer CleanAfterTests(w, fullpath)
 	defer w.KillUpdating()
 	if err := w.InitClient(clientAddress, clientPort); err != nil {
 		t.Fatalf("%s", err)
@@ -386,11 +405,11 @@ func TestUpdateBalance(t *testing.T) {
 
 	//pubspendbytes := a.PublicSpendKey().ToBytes()
 	//pubviewbytes := a.PublicViewKey().ToBytes()
-	if err := w.CreateAccount(accountName1, a, true); err != nil {
-		t.Fatalf("%s", err)
-	}
+
 	if err := w.OpenAccount(accountName1, true); err != nil {
-		t.Fatalf("%s", err)
+		if err := w.CreateAccount(accountName1, a, true); err != nil {
+			t.Fatalf("%s", err)
+		}
 	}
 	w.BeginUpdating()
 	for w.syncing {
@@ -412,9 +431,8 @@ func TestUpdateBalance(t *testing.T) {
 	if err != nil {
 		t.Fatalf("%s", err)
 	}
-	his, err := w.GetOutputHistogram(unspentOuts, "Cash")
+	_, err = w.GetOutputHistogram(unspentOuts, "Cash")
 	if err != nil {
 		t.Fatalf("%s", err)
 	}
-	t.Fatalf("%+v\n%+v", unspentOuts, his)
 }
