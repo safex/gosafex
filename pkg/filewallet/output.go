@@ -316,14 +316,14 @@ func (w *FileWallet) CheckIfOutputExists(outID string) (int, error) {
 }
 
 //Inserts the given output within the filewallet, returns the outID
-func (w *FileWallet) putOutput(out *safex.Txout, globalIndex uint64, localIndex uint64, blockHash string) (string, error) {
+func (w *FileWallet) putOutput(out *safex.Txout, globalIndex uint64, amount uint64, blockHash string) (string, error) {
 
-	data, outID, err := prepareOutput(out, blockHash, globalIndex, localIndex)
+	data, outID, err := prepareOutput(out, blockHash, globalIndex, amount)
 	if err != nil {
 		return "", err
 	}
 	if tempout, _ := w.GetOutput(outID); tempout != nil {
-		w.logger.Errorf("[FileWallet] %s", ErrOutputPresent)
+		w.logger.Errorf("[FileWallet] %s with globalIndex: %v and amount %v", ErrOutputPresent)
 		return "", ErrOutputPresent
 	}
 	if err = w.writeKey(outputKeyPrefix+outID, data); err != nil {
@@ -338,7 +338,7 @@ func (w *FileWallet) putOutput(out *safex.Txout, globalIndex uint64, localIndex 
 }
 
 //AddOutput Inserts the given output and it's metadata within the filewallet, returns the outputID
-func (w *FileWallet) AddOutput(out *safex.Txout, globalIndex uint64, localIndex uint64, outInfo *OutputInfo, inputID string) (string, error) {
+func (w *FileWallet) AddOutput(out *safex.Txout, globalIndex uint64, amount uint64, outInfo *OutputInfo, inputID string) (string, error) {
 
 	if inputID != "" {
 		if w.IsUnspent(inputID) {
@@ -370,7 +370,7 @@ func (w *FileWallet) AddOutput(out *safex.Txout, globalIndex uint64, localIndex 
 	}
 
 	//We put the output in it's own key and a reference in the global list
-	outID, err := w.putOutput(out, globalIndex, localIndex, outInfo.BlockHash)
+	outID, err := w.putOutput(out, globalIndex, amount, outInfo.BlockHash)
 	if err != nil {
 		return "", err
 	}
@@ -619,6 +619,7 @@ func (w *FileWallet) UnlockOutput(outID string) error {
 		for i, el := range w.lockedOutputs {
 			if el == outID {
 				w.lockedOutputs = append(w.lockedOutputs[:i], w.lockedOutputs[i+1:]...)
+				break
 			}
 		}
 		return w.putOutputInfo(outID, OutInf)

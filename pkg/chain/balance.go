@@ -46,10 +46,11 @@ func (w *Wallet) processBlockRange(blocks safex.Blocks) bool {
 
 	// @todo This must be refactored due new discoveries regarding get_tx_hash
 	// Get transaction hashes
-	var txs []string
-	var minerTxs []string
 	txblck := make(map[string]string)
 	for _, blck := range blocks.Block {
+		var txs []string
+		var minerTxs []string
+		w.logger.Infof("[Chain] Processing block: %v", blck.GetHeader().GetDepth())
 		if err := w.wallet.PutBlockHeader(blck.GetHeader()); err != nil {
 			continue
 		}
@@ -59,27 +60,26 @@ func (w *Wallet) processBlockRange(blocks safex.Blocks) bool {
 		}
 		minerTxs = append(minerTxs, blck.MinerTx)
 		txblck[blck.MinerTx] = blck.GetHeader().GetHash()
-	}
+		// Get transaction data and process.
+		loadedTxs, err := w.client.GetTransactions(txs)
+		if err != nil {
+			return false
+		}
+		mloadedTxs, err := w.client.GetTransactions(minerTxs)
+		if err != nil {
+			return false
+		}
 
-	// Get transaction data and process.
-	loadedTxs, err := w.client.GetTransactions(txs)
-	if err != nil {
-		return false
-	}
-	mloadedTxs, err := w.client.GetTransactions(minerTxs)
-	if err != nil {
-		return false
-	}
+		w.logger.Infof("[Chain] Number of minerTxs: %d", len(minerTxs))
+		w.logger.Infof("[Chain] Number of mloadedTxs: %d", len(mloadedTxs.Tx))
 
-	w.logger.Infof("[Chain] Number of minerTxs: %d", len(minerTxs))
-	w.logger.Infof("[Chain] Number of mloadedTxs: %d", len(mloadedTxs.Tx))
+		for _, tx := range loadedTxs.Tx {
+			w.processTransaction(tx, txblck[tx.GetTxHash()], false)
+		}
 
-	for _, tx := range loadedTxs.Tx {
-		w.processTransaction(tx, txblck[tx.GetTxHash()], false)
-	}
-
-	for _, tx := range mloadedTxs.Tx {
-		w.processTransaction(tx, txblck[tx.GetTxHash()], true)
+		for _, tx := range mloadedTxs.Tx {
+			w.processTransaction(tx, txblck[tx.GetTxHash()], true)
+		}
 	}
 	return true
 }
@@ -103,10 +103,10 @@ func (w *Wallet) countUnlockedOutput(outID string) error {
 		return err
 	}
 	if outType == "Cash" {
-		//w.balance.CashLocked -= out.GetAmount()
+		w.balance.CashLocked -= out.GetAmount()
 		w.balance.CashUnlocked += out.GetAmount()
 	} else {
-		//w.balance.TokenLocked -= out.GetTokenAmount()
+		w.balance.TokenLocked -= out.GetTokenAmount()
 		w.balance.TokenUnlocked += out.GetTokenAmount()
 	}
 	return nil
@@ -168,10 +168,12 @@ func (w *Wallet) resetBalance() {
 }
 
 func (w *Wallet) unlockBalance(height uint64) error {
-	for _, el := range w.wallet.GetLockedOutputs() {
+	lockedOuts := make([]string, len(w.wallet.GetLockedOutputs()))
+	copy(lockedOuts, w.wallet.GetLockedOutputs())
+	for _, el := range lockedOuts {
 		age, _ := w.wallet.GetOutputAge(el)
 		txtyp, _ := w.wallet.GetOutputTransactionType(el)
-		if txtyp == "miner" && height-age >= 60 {
+		if txtyp == "miner" && age >= 59 {
 			w.logger.Infof("[Chain] Unlocking coinbase output %s aged %v", el, age)
 			if err := w.wallet.UnlockOutput(el); err != nil {
 				return err
@@ -179,7 +181,7 @@ func (w *Wallet) unlockBalance(height uint64) error {
 			if err := w.countUnlockedOutput(el); err != nil {
 				return err
 			}
-		} else if txtyp == "normal" && height-age >= 10 {
+		} else if txtyp == "normal" && age >= 9 {
 			w.logger.Infof("[Chain] Unlocking cash output %s aged %v", el, age)
 			if err := w.wallet.UnlockOutput(el); err != nil {
 				return err

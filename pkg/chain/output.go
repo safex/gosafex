@@ -74,11 +74,22 @@ func (w *Wallet) spendOutput(outID string) error {
 	if !found {
 		return filewallet.ErrOutputNotPresent
 	}
-
-	err := w.wallet.RemoveUnspentOutput(outID)
+	out, err := w.wallet.GetOutput(outID)
 	if err != nil {
 		return err
 	}
+	locked := w.wallet.GetLockedOutputs()
+	for _, el := range locked {
+		if el == outID {
+			w.wallet.UnlockOutput(el)
+		}
+	}
+	err = w.wallet.RemoveUnspentOutput(outID)
+	if err != nil {
+		return err
+	}
+
+	w.logger.Infof("[Chain] Spending output: %s Amount: %v, Token Amount: %v", outID, out.GetAmount(), out.GetTokenAmount())
 
 	if _, ok := w.outputs[outID]; ok {
 		delete(w.outputs, outID)
@@ -90,10 +101,12 @@ func (w *Wallet) spendOutput(outID string) error {
 func (w *Wallet) addOutput(output *safex.Txout, accountName string, index uint64, globalindex uint64, minertx bool, blckHash string, txHash string, height uint64, keyimage *crypto.Key, extra []byte, ephemeralPublic crypto.Key, ephemeralSecret crypto.Key) error {
 	var typ string
 	var txtyp string
-	w.logger.Infof("[Chain] Adding new output to user: %s out: %s", accountName, output.GetTarget().String())
+	var setAmount uint64
 	if output.GetAmount() != 0 {
+		setAmount = output.GetAmount()
 		typ = "Cash"
 	} else {
+		setAmount = output.GetTokenAmount()
 		typ = "Token"
 	}
 	if minertx {
@@ -111,11 +124,12 @@ func (w *Wallet) addOutput(output *safex.Txout, accountName string, index uint64
 	OutTransfer := &TransferInfo{extra, index, globalindex, false, minertx, height, *keyimage, ephemeralPublic, ephemeralSecret}
 	outInfo := &filewallet.OutputInfo{OutputType: typ, BlockHash: blckHash, TransactionID: txHash, TxLocked: filewallet.LockedStatus, TxType: txtyp, OutTransfer: *OutTransfer}
 
-	outID, err := w.wallet.AddOutput(output, uint64(index), globalindex, &filewallet.OutputInfo{OutputType: typ, BlockHash: blckHash, TransactionID: txHash, TxLocked: filewallet.LockedStatus, TxType: txtyp, OutTransfer: *OutTransfer}, "")
+	outID, err := w.wallet.AddOutput(output, globalindex, setAmount, &filewallet.OutputInfo{OutputType: typ, BlockHash: blckHash, TransactionID: txHash, TxLocked: filewallet.LockedStatus, TxType: txtyp, OutTransfer: *OutTransfer}, "")
 
 	if err != nil {
 		return err
 	}
+	w.logger.Infof("[Chain] Adding new output to user: %s With ID: %s, Amount: %v, Token Amount: %v", accountName, outID, output.GetAmount(), output.GetTokenAmount())
 	w.outputs[outID] = outInfo
 
 	return nil

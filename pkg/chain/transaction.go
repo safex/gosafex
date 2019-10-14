@@ -46,15 +46,11 @@ func extractTxPubKey(extra []byte) (pubTxKey [crypto.KeyLength]byte) {
 }
 func (w *Wallet) isOurKey(kImage [crypto.KeyLength]byte, keyOffsets []uint64, outType string, amount uint64) (string, bool) {
 	kImgCurve := crypto.Key(kImage)
-	for _, offset := range keyOffsets {
-		outID, err := filewallet.PackOutputIndex(offset, amount)
-		if err != nil {
-			continue
-		}
-		if output, ok := w.outputs[outID]; ok {
-			if output.OutTransfer.KImage == kImgCurve {
-				return outID, true
-			}
+	for outID, output := range w.outputs {
+		w.logger.Infof("[Chain] Comparing input: %v with: %v", kImgCurve, output.OutTransfer.KImage)
+		if output.OutTransfer.KImage == kImgCurve {
+			w.logger.Infof("[Chain] Spending")
+			return outID, true
 		}
 	}
 	return "", false
@@ -103,6 +99,7 @@ func (w *Wallet) processTransactionPerAccount(tx *safex.Transaction, blckHash st
 
 			keyimage := curve.KeyImage(ephemeralPublic, ephemeralSecret)
 
+			w.logger.Debugf("[Chain] Got output with key: %x", *keyimage)
 			globalIndex := tx.OutputIndices[index]
 			outID, _ := filewallet.PackOutputIndex(globalIndex, output.GetAmount())
 
@@ -129,6 +126,8 @@ func (w *Wallet) processTransactionPerAccount(tx *safex.Transaction, blckHash st
 			var keyOffsets []uint64
 			var outType string
 			var amount uint64
+			isOurs := false
+			var outID string
 			if input.TxinGen != nil {
 				continue
 			}
@@ -141,8 +140,8 @@ func (w *Wallet) processTransactionPerAccount(tx *safex.Transaction, blckHash st
 					outType = "Cash"
 				}
 				amount = input.TxinToKey.Amount
+				outID, isOurs = w.isOurKey(kImage, keyOffsets, outType, amount)
 			}
-			outID, isOurs := w.isOurKey(kImage, keyOffsets, outType, amount)
 			if isOurs {
 				if !txPresent {
 					w.logger.Infof("[Chain] Adding new transaction to user: %s TxHash: %s", acc, tx.GetTxHash())
@@ -153,14 +152,14 @@ func (w *Wallet) processTransactionPerAccount(tx *safex.Transaction, blckHash st
 						txPresent = true
 					}
 				}
-			}
-			if err := w.spendOutput(outID); err != nil {
-				return err
-			}
-			if outType == "Token" {
-				w.balance.CashUnlocked -= amount
-			} else if outType == "Cash" {
-				w.balance.TokenUnlocked -= amount
+				if err := w.spendOutput(outID); err != nil {
+					return err
+				}
+				if outType == "Token" {
+					w.balance.CashUnlocked -= amount
+				} else if outType == "Cash" {
+					w.balance.TokenUnlocked -= amount
+				}
 			}
 		}
 	}

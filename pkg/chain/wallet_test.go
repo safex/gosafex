@@ -370,7 +370,7 @@ func TestGetTransactionByBlock(t *testing.T) {
 func TestUpdateBalance(t *testing.T) {
 	prepareStaticFolder()
 	testLogger.Infof("[Test] Testing balance update")
-	testLogger.SetLevel(log.DebugLevel)
+	testLogger.SetLevel(log.InfoLevel)
 	w := New(testLogger)
 	fullpath := strings.Join([]string{staticfoldername, staticfilename}, "/")
 
@@ -379,8 +379,8 @@ func TestUpdateBalance(t *testing.T) {
 			t.Fatalf("%s", err)
 		}
 	}
-	// defer CleanAfterTests(w, fullpath)
 	defer w.KillUpdating()
+
 	if err := w.InitClient(clientAddress, clientPort); err != nil {
 		t.Fatalf("%s", err)
 	}
@@ -403,9 +403,6 @@ func TestUpdateBalance(t *testing.T) {
 
 	a := account.NewStore(account.NewRegularTestnetAddress(*key.NewPublicKey(pubSpendKey), *key.NewPublicKey(pubViewKey)), *key.NewPrivateKey(privViewKey), *key.NewPrivateKey(privSpendKey))
 
-	//pubspendbytes := a.PublicSpendKey().ToBytes()
-	//pubviewbytes := a.PublicViewKey().ToBytes()
-
 	if err := w.OpenAccount(accountName1, true); err != nil {
 		if err := w.CreateAccount(accountName1, a, true); err != nil {
 			t.Fatalf("%s", err)
@@ -424,15 +421,15 @@ func TestUpdateBalance(t *testing.T) {
 		t.Fatalf("Got null balance\n")
 	}
 
-	testLogger.Infof("[Test] Passed balance update: %v, %v, %v, %v", b.CashUnlocked, b.CashLocked, b.TokenUnlocked, b.TokenLocked)
+	testLogger.Infof("[Test] Passed balance update: Cash Unlocked: %v, Cash Locked: %v, Token Unlocked: %v, Token Locked:%v", b.CashUnlocked, b.CashLocked, b.TokenUnlocked, b.TokenLocked)
 	testLogger.Infof("[Test] Latest block loaded: %v", w.GetLatestLoadedBlockHeight())
 
-	unspentOuts := w.GetUnspentOutputs()
+	/*unspentOuts := w.GetUnspentOutputs()
 	if err != nil {
 		t.Fatalf("%s", err)
 	}
 	_, err = w.GetOutputHistogram(unspentOuts, "Cash")
 	if err != nil {
 		t.Fatalf("%s", err)
-	}
+	}*/
 }
