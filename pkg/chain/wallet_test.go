@@ -423,16 +423,20 @@ func TestUpdateBalance(t *testing.T) {
 	} else if b.CashUnlocked == 0 && b.CashLocked == 0 && b.TokenUnlocked == 0 && b.TokenLocked == 0 {
 		t.Fatalf("Got null balance\n")
 	}
-
-	testLogger.Infof("[Test] Passed balance update: %v, %v, %v, %v", b.CashUnlocked, b.CashLocked, b.TokenUnlocked, b.TokenLocked)
+	txs, err := w.GetTransactionUpToBlockHeight(w.GetLatestLoadedBlockHeight())
+	if err != nil {
+		t.Fatalf("%s", err)
+	}
+	testLogger.Infof("[Test] Passed balance update: Unlocked Cash: %v, Locked Cash: %v, Unlocked Token: %v, Locked Token: %v", b.CashUnlocked, b.CashLocked, b.TokenUnlocked, b.TokenLocked)
 	testLogger.Infof("[Test] Latest block loaded: %v", w.GetLatestLoadedBlockHeight())
-
-	unspentOuts := w.GetUnspentOutputs()
+	testLogger.Infof("[Test] Total number of transactions counted: %v", len(txs))
+	/*unspentOuts := w.GetUnspentOutputs()
 	if err != nil {
 		t.Fatalf("%s", err)
 	}
 	_, err = w.GetOutputHistogram(unspentOuts, "Cash")
 	if err != nil {
 		t.Fatalf("%s", err)
-	}
+	}*/
+
 }

@@ -103,7 +103,6 @@ func (w *Wallet) runUpdater() {
 				}
 				w.logger.Debugf("[Updater] Known block: %d", loadedHeight)
 				time.Sleep(CheckCycleTime * time.Millisecond)
-
 			} else {
 				if !w.working {
 					if w.GetLatestLoadedBlockHeight() < bcHeight-1 {
