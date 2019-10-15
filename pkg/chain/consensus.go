@@ -3,13 +3,13 @@ package chain
 func (w *Wallet) UseForkRules(version uint32, earlyBlocks uint64) bool {
 	// @TODO Consider using singleton pattern for client communication
 	if w.client != nil {
-		if w.latestInfo == nil{
+		if w.latestInfo == nil {
 			return false
 		}
 		hfInfo, _ := w.client.GetHardForkInfo(version)
 
 		// @TODO Log stuff
-		return w.latestInfo.Height >= hfInfo.EarliestHeight-earlyBlocks 
+		return w.latestInfo.Height >= hfInfo.EarliestHeight-earlyBlocks
 	}
 	return false
 }
@@ -32,15 +32,15 @@ func GetFeeAlgorithm() uint32 {
 func (w *Wallet) GetPerKBFee() uint64 {
 	// @TODO Consider using singleton pattern for client communication
 	if w.client != nil {
-	fee, err := w.client.GetDynamicFeeEstimate()
+		fee, err := w.client.GetDynamicFeeEstimate()
 
-	if err == nil {
-		return FeePerKB
-	} else {
-		return fee
+		if err == nil {
+			return FeePerKB
+		} else {
+			return fee
+		}
 	}
-	}
-return 0
+	return 0
 }
 
 // wallet::get_fee_multiplier
