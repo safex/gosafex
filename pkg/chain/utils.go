@@ -385,7 +385,11 @@ func (w *Wallet) constructTxWithKey(
 
 	if tx.Version == 1 {
 		tmpTxPrefixBytes := crypto.NewDigest(serialization.SerializeTransaction(tx, false))
-		txPrefixHash := *((*[]byte)(unsafe.Pointer(&tmpTxPrefixBytes)))
+		// txPrefixHash := *((*[]byte)(unsafe.Pointer(&tmpTxPrefixBytes)))
+		txPrefixHash := make([]byte, 32)
+		for i := 0; i < 32; i++ {
+			txPrefixHash[i] = tmpTxPrefixBytes[i]
+		}
 
 		for _, src := range *sources {
 			keys := make([]crypto.Key, len(src.Outputs))
