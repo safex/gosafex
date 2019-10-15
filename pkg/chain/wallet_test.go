@@ -26,7 +26,7 @@ const staticfilename = "statictest.db"
 const staticfoldername = "statictest"
 
 //change this address and port
-const clientAddress = "ec2-3-85-115-100.compute-1.amazonaws.com"
+const clientAddress = "ec2-3-92-32-92.compute-1.amazonaws.com"
 const clientPort = 37001
 
 const wallet1pubview = "278ae1e6b5e7a272dcdca311e0362a222fa5ce98c975ccfff67e40751c1daf2c"
@@ -424,12 +424,4 @@ func TestUpdateBalance(t *testing.T) {
 	testLogger.Infof("[Test] Passed balance update: Cash Unlocked: %v, Cash Locked: %v, Token Unlocked: %v, Token Locked:%v", b.CashUnlocked, b.CashLocked, b.TokenUnlocked, b.TokenLocked)
 	testLogger.Infof("[Test] Latest block loaded: %v", w.GetLatestLoadedBlockHeight())
 
-	/*unspentOuts := w.GetUnspentOutputs()
-	if err != nil {
-		t.Fatalf("%s", err)
-	}
-	_, err = w.GetOutputHistogram(unspentOuts, "Cash")
-	if err != nil {
-		t.Fatalf("%s", err)
-	}*/
 }

@@ -134,12 +134,14 @@ func (w *Wallet) processTransactionPerAccount(tx *safex.Transaction, blckHash st
 			if input.TxinToKey != nil {
 				copy(kImage[:], input.TxinToKey.KImage[0:crypto.KeyLength])
 				keyOffsets = input.TxinToKey.KeyOffsets
-				if input.TxinToKey.GetAmount() == 0 {
-					outType = "Token" // @todo Check this
-				} else {
-					outType = "Cash"
-				}
+				outType = "Cash"
 				amount = input.TxinToKey.Amount
+				outID, isOurs = w.isOurKey(kImage, keyOffsets, outType, amount)
+			} else if input.TxinTokenToKey != nil {
+				copy(kImage[:], input.TxinTokenToKey.KImage[0:crypto.KeyLength])
+				keyOffsets = input.TxinTokenToKey.KeyOffsets
+				outType = "Token" // @todo Check this
+				amount = input.TxinTokenToKey.TokenAmount
 				outID, isOurs = w.isOurKey(kImage, keyOffsets, outType, amount)
 			}
 			if isOurs {
