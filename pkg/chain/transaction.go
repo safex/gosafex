@@ -46,10 +46,10 @@ func extractTxPubKey(extra []byte) (pubTxKey [crypto.KeyLength]byte) {
 }
 func (w *Wallet) isOurKey(kImage [crypto.KeyLength]byte, keyOffsets []uint64, outType string, amount uint64) (string, bool) {
 	kImgCurve := crypto.Key(kImage)
+	w.logger.Debugf("[Chain] Checking ownership of input: %v ", kImgCurve)
 	for outID, output := range w.outputs {
-		w.logger.Infof("[Chain] Comparing input: %v with: %v", kImgCurve, output.OutTransfer.KImage)
 		if output.OutTransfer.KImage == kImgCurve {
-			w.logger.Infof("[Chain] Spending")
+			w.logger.Debugf("[Chain] Spending")
 			return outID, true
 		}
 	}

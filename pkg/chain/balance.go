@@ -43,14 +43,15 @@ func (w *Wallet) rescanBlockRange(blocks safex.Blocks, acc string) error {
 
 func (w *Wallet) processBlockRange(blocks safex.Blocks) bool {
 	// @todo Here handle block metadata.
-
+	var count int
+	var mcount int
 	// @todo This must be refactored due new discoveries regarding get_tx_hash
 	// Get transaction hashes
 	txblck := make(map[string]string)
 	for _, blck := range blocks.Block {
 		var txs []string
 		var minerTxs []string
-		w.logger.Infof("[Chain] Processing block: %v", blck.GetHeader().GetDepth())
+		w.logger.Debugf("[Chain] Processing block: %v", blck.GetHeader().GetDepth())
 		if err := w.wallet.PutBlockHeader(blck.GetHeader()); err != nil {
 			continue
 		}
@@ -70,17 +71,18 @@ func (w *Wallet) processBlockRange(blocks safex.Blocks) bool {
 			return false
 		}
 
-		w.logger.Infof("[Chain] Number of minerTxs: %d", len(minerTxs))
-		w.logger.Infof("[Chain] Number of mloadedTxs: %d", len(mloadedTxs.Tx))
-
 		for _, tx := range loadedTxs.Tx {
 			w.processTransaction(tx, txblck[tx.GetTxHash()], false)
 		}
-
+		count = count + len(loadedTxs.Tx)
 		for _, tx := range mloadedTxs.Tx {
 			w.processTransaction(tx, txblck[tx.GetTxHash()], true)
 		}
+		mcount = mcount + len(mloadedTxs.Tx)
 	}
+
+	w.logger.Infof("[Chain] Number of minerTxs: %d", count)
+	w.logger.Infof("[Chain] Number of mloadedTxs: %d", mcount)
 	return true
 }
 
