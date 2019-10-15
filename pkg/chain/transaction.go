@@ -46,15 +46,11 @@ func extractTxPubKey(extra []byte) (pubTxKey [crypto.KeyLength]byte) {
 }
 func (w *Wallet) isOurKey(kImage [crypto.KeyLength]byte, keyOffsets []uint64, outType string, amount uint64) (string, bool) {
 	kImgCurve := crypto.Key(kImage)
-	for _, offset := range keyOffsets {
-		outID, err := filewallet.PackOutputIndex(offset, amount)
-		if err != nil {
-			continue
-		}
-		if output, ok := w.outputs[outID]; ok {
-			if output.OutTransfer.KImage == kImgCurve {
-				return outID, true
-			}
+	w.logger.Debugf("[Chain] Checking ownership of input: %v ", kImgCurve)
+	for outID, output := range w.outputs {
+		if output.OutTransfer.KImage == kImgCurve {
+			w.logger.Debugf("[Chain] Spending")
+			return outID, true
 		}
 	}
 	return "", false
@@ -103,6 +99,7 @@ func (w *Wallet) processTransactionPerAccount(tx *safex.Transaction, blckHash st
 
 			keyimage := curve.KeyImage(ephemeralPublic, ephemeralSecret)
 
+			w.logger.Debugf("[Chain] Got output with key: %x", *keyimage)
 			globalIndex := tx.OutputIndices[index]
 			outID, _ := filewallet.PackOutputIndex(globalIndex, output.GetAmount())
 
@@ -129,20 +126,24 @@ func (w *Wallet) processTransactionPerAccount(tx *safex.Transaction, blckHash st
 			var keyOffsets []uint64
 			var outType string
 			var amount uint64
+			isOurs := false
+			var outID string
 			if input.TxinGen != nil {
 				continue
 			}
 			if input.TxinToKey != nil {
 				copy(kImage[:], input.TxinToKey.KImage[0:crypto.KeyLength])
 				keyOffsets = input.TxinToKey.KeyOffsets
-				if input.TxinToKey.GetAmount() == 0 {
-					outType = "Token" // @todo Check this
-				} else {
-					outType = "Cash"
-				}
+				outType = "Cash"
 				amount = input.TxinToKey.Amount
+				outID, isOurs = w.isOurKey(kImage, keyOffsets, outType, amount)
+			} else if input.TxinTokenToKey != nil {
+				copy(kImage[:], input.TxinTokenToKey.KImage[0:crypto.KeyLength])
+				keyOffsets = input.TxinTokenToKey.KeyOffsets
+				outType = "Token" // @todo Check this
+				amount = input.TxinTokenToKey.TokenAmount
+				outID, isOurs = w.isOurKey(kImage, keyOffsets, outType, amount)
 			}
-			outID, isOurs := w.isOurKey(kImage, keyOffsets, outType, amount)
 			if isOurs {
 				if !txPresent {
 					w.logger.Infof("[Chain] Adding new transaction to user: %s TxHash: %s", acc, tx.GetTxHash())
@@ -153,14 +154,18 @@ func (w *Wallet) processTransactionPerAccount(tx *safex.Transaction, blckHash st
 						txPresent = true
 					}
 				}
-			}
-			if err := w.spendOutput(outID); err != nil {
-				return err
-			}
-			if outType == "Token" {
-				w.balance.CashUnlocked -= amount
-			} else if outType == "Cash" {
-				w.balance.TokenUnlocked -= amount
+				out, err := w.wallet.GetOutput(outID)
+				if err != nil {
+					return err
+				}
+				if err := w.spendOutput(outID); err != nil {
+					return err
+				}
+				if outType == "Token" {
+					w.balance.TokenUnlocked -= out.GetTokenAmount()
+				} else if outType == "Cash" {
+					w.balance.CashUnlocked -= out.GetAmount()
+				}
 			}
 		}
 	}

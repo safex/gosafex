@@ -26,7 +26,7 @@ const staticfilename = "statictest.db"
 const staticfoldername = "statictest"
 
 //change this address and port
-const clientAddress = "ec2-3-85-115-100.compute-1.amazonaws.com"
+const clientAddress = "ec2-3-92-32-92.compute-1.amazonaws.com"
 const clientPort = 37001
 
 const wallet1pubview = "278ae1e6b5e7a272dcdca311e0362a222fa5ce98c975ccfff67e40751c1daf2c"
@@ -370,7 +370,7 @@ func TestGetTransactionByBlock(t *testing.T) {
 func TestUpdateBalance(t *testing.T) {
 	prepareStaticFolder()
 	testLogger.Infof("[Test] Testing balance update")
-	testLogger.SetLevel(log.DebugLevel)
+	testLogger.SetLevel(log.InfoLevel)
 	w := New(testLogger)
 	fullpath := strings.Join([]string{staticfoldername, staticfilename}, "/")
 
@@ -379,8 +379,8 @@ func TestUpdateBalance(t *testing.T) {
 			t.Fatalf("%s", err)
 		}
 	}
-	// defer CleanAfterTests(w, fullpath)
 	defer w.KillUpdating()
+
 	if err := w.InitClient(clientAddress, clientPort); err != nil {
 		t.Fatalf("%s", err)
 	}
@@ -403,9 +403,6 @@ func TestUpdateBalance(t *testing.T) {
 
 	a := account.NewStore(account.NewRegularTestnetAddress(*key.NewPublicKey(pubSpendKey), *key.NewPublicKey(pubViewKey)), *key.NewPrivateKey(privViewKey), *key.NewPrivateKey(privSpendKey))
 
-	//pubspendbytes := a.PublicSpendKey().ToBytes()
-	//pubviewbytes := a.PublicViewKey().ToBytes()
-
 	if err := w.OpenAccount(accountName1, true); err != nil {
 		if err := w.CreateAccount(accountName1, a, true); err != nil {
 			t.Fatalf("%s", err)
@@ -423,6 +420,7 @@ func TestUpdateBalance(t *testing.T) {
 	} else if b.CashUnlocked == 0 && b.CashLocked == 0 && b.TokenUnlocked == 0 && b.TokenLocked == 0 {
 		t.Fatalf("Got null balance\n")
 	}
+
 	txs, err := w.GetTransactionUpToBlockHeight(w.GetLatestLoadedBlockHeight())
 	if err != nil {
 		t.Fatalf("%s", err)
