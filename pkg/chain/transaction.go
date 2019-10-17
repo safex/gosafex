@@ -1,11 +1,13 @@
 package chain
 
 import (
+	"fmt"
+	"math/rand"
+	"time"
+
 	//"math/rand"
 	"errors"
-	"math/rand"
 	"sort"
-	"time"
 
 	"github.com/safex/gosafex/internal/crypto"
 	"github.com/safex/gosafex/internal/crypto/curve"
@@ -201,6 +203,7 @@ func checkInputs(inputs []*safex.TxinV) bool {
 
 func (w *Wallet) transferSelected(dsts *[]DestinationEntry, selectedTransfers []string, fakeOutsCount int, outs *[][]OutsEntry,
 	outsFee *[][]OutsEntry, unlockTime uint64, fee uint64, extra *[]byte, tx *safex.Transaction, ptx *PendingTx, outType safex.TxOutType) error { // destination_split_strategy, // dust_policy
+
 	// Check if dsts are empty
 	if len(*dsts) == 0 {
 		return errors.New("Zero transfers for destinations")
@@ -249,8 +252,11 @@ func (w *Wallet) transferSelected(dsts *[]DestinationEntry, selectedTransfers []
 
 	var sources []TxSourceEntry
 	var outIndex uint64 = 0
-	var i uint64 = 0
-	for index, val := range selectedOutputs {
+
+	for _, index := range selectedTransfers {
+
+		val := selectedOutputs[index]
+
 		src := TxSourceEntry{}
 		outputType := GetOutputType(val)
 		if outputType == safex.OutCash {
@@ -270,9 +276,9 @@ func (w *Wallet) transferSelected(dsts *[]DestinationEntry, selectedTransfers []
 			oe.Index = (*outs)[outIndex][n].Index
 			copy(oe.Key[:], (*outs)[outIndex][n].PubKey[:])
 			src.Outputs = append(src.Outputs, oe)
-			i++
 		}
 
+		// ERROR
 		var realIndex int = -1
 		for i, v1 := range src.Outputs {
 			if v1.Index == selectedOutputInfos[index].OutTransfer.GlobalIndex {
@@ -282,9 +288,10 @@ func (w *Wallet) transferSelected(dsts *[]DestinationEntry, selectedTransfers []
 		}
 
 		if realIndex == -1 {
+			fmt.Println("Exit")
 			return errors.New("No real output found")
 		}
-
+		// ERROR
 		realOE := TxOutputEntry{}
 		realOE.Index = selectedOutputInfos[index].OutTransfer.GlobalIndex
 
@@ -598,6 +605,7 @@ func (w *Wallet) TxCreateToken(
 		if tryTx {
 			var testTx safex.Transaction
 			var testPtx PendingTx
+
 			estimatedTxSize := estimateTxSize(len(tx.SelectedTransfers), fakeOutsCount, len(tx.Dsts), len(extra))
 			neededFee = CalculateFee(feePerKb, estimatedTxSize, feeMultiplier)
 
@@ -1159,6 +1167,7 @@ func (w *Wallet) TxCreateCash(
 			testTx,
 			testPtx,
 			safex.OutCash)
+
 		txBlob := serialization.SerializeTransaction(testPtx.Tx, true)
 		txes[index].Tx = *testTx
 		txes[index].PendingTx = *testPtx

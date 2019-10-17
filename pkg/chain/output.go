@@ -257,7 +257,10 @@ func (w *Wallet) getOuts(outs *[][]OutsEntry, selectedTransfers []string, fakeOu
 			return err
 		}
 
-		for index, val := range selectedOutputs {
+		for _, index := range selectedTransfers {
+
+			val := selectedOutputs[index]
+
 			if !MatchOutputWithType(val, stringToType(outType)) {
 				continue
 			}
@@ -350,7 +353,9 @@ func (w *Wallet) getOuts(outs *[][]OutsEntry, selectedTransfers []string, fakeOu
 		scantyOuts = make(map[uint64]int)
 
 		var base uint64 = 0
-		for index, val := range selectedOutputs {
+		for _, index := range selectedTransfers {
+
+			val := selectedOutputs[index]
 			var entry []OutsEntry
 			outputType := GetOutputType(val)
 			if outputType != stringToType(outType) {
@@ -419,7 +424,10 @@ func (w *Wallet) getOuts(outs *[][]OutsEntry, selectedTransfers []string, fakeOu
 		if err != nil {
 			return err
 		}
-		for index, val := range selectedOutputs {
+
+		for _, index := range selectedTransfers {
+
+			val := selectedOutputs[index]
 			var entry []OutsEntry
 
 			outputType := GetOutputType(val)
