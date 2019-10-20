@@ -1,6 +1,6 @@
 package chain
 
-import(
+import (
 	"bytes"
 	"errors"
 )
@@ -13,17 +13,17 @@ type ExtraTag byte
 type ExtraMap map[ExtraTag]interface{}
 
 const (
-	NonceMaxCount ExtraTag = 255
-	Padding = 0x00
-	PubKey = 0x01
-	Nonce = 0x02
-	MergeMiningTag = 0x03
-	AdditionalPubkeys = 0x04 // Most probably not used
-	MysteriousMinergate = 0xDE //
-	BitcoinHash = 0x10
-	MigrationPubkeys = 0x11
+	NonceMaxCount       ExtraTag = 255
+	Padding                      = 0x00
+	PubKey                       = 0x01
+	Nonce                        = 0x02
+	MergeMiningTag               = 0x03
+	AdditionalPubkeys            = 0x04 // Most probably not used
+	MysteriousMinergate          = 0xDE //
+	BitcoinHash                  = 0x10
+	MigrationPubkeys             = 0x11
 
-	NoncePaymentId = 0xF0
+	NoncePaymentId          = 0xF0
 	NonceEncryptedPaymentId = 0xF1
 )
 
@@ -63,7 +63,7 @@ func getNonce(extraMap ExtraMap) []byte {
 			buf.WriteByte(0x00)
 			buf.Write(dataBytes)
 		} else {
-			generalLogger.Println("unencrypted payment id size mismatch expected")
+			generalLogger.Println("[Chain] unencrypted payment id size mismatch expected")
 		}
 	}
 
@@ -74,7 +74,7 @@ func getNonce(extraMap ExtraMap) []byte {
 			buf.WriteByte(0x01)
 			buf.Write(dataBytes)
 		} else {
-			generalLogger.Println("encrypted payment id size mismatch expected")
+			generalLogger.Println("[Chain] encrypted payment id size mismatch expected")
 		}
 	}
 
@@ -88,7 +88,7 @@ func ParseExtra(extra *[]byte) (r bool, extraMap ExtraMap) {
 
 	readPortion := make([]byte, 1)
 
-	for ;; {
+	for {
 
 		if buf.Len() == 0 {
 			return true, extraMap
@@ -97,7 +97,7 @@ func ParseExtra(extra *[]byte) (r bool, extraMap ExtraMap) {
 		readBytes, err := buf.Read(readPortion)
 
 		switch ExtraTag(readPortion[0]) {
-		case Padding: 
+		case Padding:
 			readBytes, err = buf.Read(readPortion)
 			if checkForError(err, "Extra couldnt be parsed") {
 				return false, extraMap
@@ -123,7 +123,7 @@ func ParseExtra(extra *[]byte) (r bool, extraMap ExtraMap) {
 
 		case Nonce: // this is followed by 1 byte length, then length bytes of data
 			readBytes, err = buf.Read(readPortion)
-			if checkForError(err, "Extra nonce could not be read!") {
+			if checkForError(err, "[Chain] Extra nonce could not be read!") {
 				return false, extraMap
 			}
 
@@ -131,14 +131,14 @@ func ParseExtra(extra *[]byte) (r bool, extraMap ExtraMap) {
 
 			nonce := make([]byte, length)
 			readBytes, err = buf.Read(nonce)
-			
+
 			if err != nil || readBytes != int(length) {
-				generalLogger.Println(1, "Extra Nonce could not be read ")
+				generalLogger.Println(1, "[Chain] Extra Nonce could not be read ")
 				return false, extraMap
 			}
 
 			switch length {
-			case 33: 
+			case 33:
 				if nonce[0] == byte(0x00) {
 					extraMap[NoncePaymentId] = nonce[1:]
 				} else {
@@ -147,7 +147,7 @@ func ParseExtra(extra *[]byte) (r bool, extraMap ExtraMap) {
 				}
 
 			case 9: // encrypted 9 byte payment id
-				generalLogger.Warning("EXTRA 9 fuck")
+				generalLogger.Warning("[Chain] EXTRA 9 fuck")
 				if nonce[0] == byte(0x01) {
 					extraMap[NonceEncryptedPaymentId] = (*extra)[1:]
 				} else {
@@ -155,13 +155,13 @@ func ParseExtra(extra *[]byte) (r bool, extraMap ExtraMap) {
 					return false, extraMap
 				}
 
-			default: 
+			default:
 			}
 
 			extraMap[Nonce] = nonce
 
 		default: // any any other unknown tag or data, fails the parsing
-			generalLogger.Println("Unhandled tag! ", readPortion[0])
+			generalLogger.Println("[Chain] Unhandled tag! ", readPortion[0])
 
 			return false, extraMap
 
@@ -176,12 +176,11 @@ func SerializeExtra(extraMap ExtraMap) (bool, []byte) {
 	if _, ok := extraMap[PubKey]; ok {
 		buf.WriteByte(PubKey)
 		key := extraMap[PubKey].([32]byte)
-		buf.Write(key[:]) 
+		buf.Write(key[:])
 	} else {
-		generalLogger.Error("There is no TX public key")
+		generalLogger.Error("[Chain] There is no TX public key")
 		return false, buf.Bytes()
 	}
-
 
 	tempExtra := getNonce(extraMap)
 	dataExtra, additionalExtraNonce := extraMap[Nonce]
@@ -191,7 +190,7 @@ func SerializeExtra(extraMap ExtraMap) (bool, []byte) {
 		buf.WriteByte(byte(Nonce)) // write marker
 		tempExtra = append(tempExtra, dataExtra.([]byte)...)
 		if len(tempExtra) > 255 {
-			generalLogger.Warning("TX extra none is spilling, trimming the nonce to 254 bytes")
+			generalLogger.Warning("[Chain] TX extra none is spilling, trimming the nonce to 254 bytes")
 			tempExtra = tempExtra[:254]
 		}
 		buf.WriteByte(byte(len(tempExtra))) // write length of extra nonce single byte

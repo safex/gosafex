@@ -13,16 +13,16 @@ import (
 )
 
 func TestTxCreate(t *testing.T) {
-	prepareFolder()
+	prepareStaticFolder()
 	testLogger.Infof("[Test] Testing balance update")
 	testLogger.SetLevel(log.DebugLevel)
 	w := New(testLogger)
-	fullpath := strings.Join([]string{foldername, filename}, "/")
+	fullpath := strings.Join([]string{staticfoldername, staticfilename}, "/")
 
 	if err := w.OpenAndCreate("wallet1", fullpath, masterPass, true, testLogger); err != nil {
 		t.Fatalf("%s", err)
 	}
-	defer CleanAfterTests(w, fullpath)
+	// defer CleanAfterTests(w, fullpath)
 	defer w.KillUpdating()
 	if err := w.InitClient(clientAddress, clientPort); err != nil {
 		t.Fatalf("%s", err)
@@ -48,12 +48,20 @@ func TestTxCreate(t *testing.T) {
 
 	//pubspendbytes := a.PublicSpendKey().ToBytes()
 	//pubviewbytes := a.PublicViewKey().ToBytes()
-	if err := w.CreateAccount(accountName1, a, true); err != nil {
-		t.Fatalf("%s", err)
-	}
+	// if err := w.CreateAccount(accountName1, a, true); err != nil {
+	// 	t.Fatalf("%s", err)
+	// }
+	// if err := w.OpenAccount(accountName1, true); err != nil {
+	// 	t.Fatalf("%s", err)
+	// }
+
+	// Creation with static folder
 	if err := w.OpenAccount(accountName1, true); err != nil {
-		t.Fatalf("%s", err)
+		if err := w.CreateAccount(accountName1, a, true); err != nil {
+			t.Fatalf("%s", err)
+		}
 	}
+
 	var extra []byte
 	w.BeginUpdating()
 	for w.syncing {
@@ -74,5 +82,5 @@ func TestTxCreate(t *testing.T) {
 		fmt.Println("Res: ", res, " err: ", err)
 	}
 	fmt.Println("TotalFee was: ", totalFee, ", MoneyPaid: ", 300000000000000)
-	t.Errorf("Failing!")
+	// t.Errorf("Failing!")
 }

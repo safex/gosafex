@@ -20,6 +20,8 @@ import (
 type JSONElement = map[string]interface{}
 type JSONArray = []interface{}
 
+var generalLogger *log.Logger
+
 type Client struct {
 	logger     *log.Logger
 	Port       uint
@@ -81,7 +83,7 @@ func (c Client) JSONSafexdCall(method string, params interface{}) ([]byte, error
 
 	jsonBuff, _ := json.Marshal(body)
 
-	log.Debugf("[RPC] endpoint: %s", url, "body: ", string(jsonBuff))
+	c.logger.Debugf("[RPC] endpoint: %s", url, "body: ", string(jsonBuff))
 
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonBuff))
 	must(err)
@@ -101,7 +103,7 @@ func (c Client) JSONSafexdCall(method string, params interface{}) ([]byte, error
 		return nil, err
 	}
 
-	log.Debugf("[RPC] Response: ", string(resBody))
+	c.logger.Debugf("[RPC] Response: ", string(resBody))
 	return resBody, err
 }
 
@@ -117,7 +119,7 @@ func (c Client) SafexdCall(method string, params interface{}, httpMethod string)
 	must(err)
 	url := "http://" + c.Host + ":" + strconv.Itoa(int(c.Port)) + "/" + method
 
-	log.Debugf("[RPC] endpoint: %s", url)
+	c.logger.Debugf("[RPC] endpoint: %s", url)
 
 	req, err := http.NewRequest(httpMethod, url, bytes.NewBuffer(body))
 	must(err)
@@ -145,7 +147,7 @@ func (c Client) SafexdProtoCall(method string, body []byte, httpMethod string) (
 	var err error
 	url := "http://" + c.Host + ":" + strconv.Itoa(int(c.Port)) + "/" + method
 
-	log.Debugf("[RPC] endpoint: %s", url)
+	c.logger.Debugf("[RPC] endpoint: %s", url)
 	req, err := http.NewRequest(httpMethod, url, bytes.NewBuffer(body))
 	must(err)
 

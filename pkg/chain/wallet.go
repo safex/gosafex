@@ -582,6 +582,7 @@ func (w *Wallet) SetLogger(prevLog *log.Logger) {
 func New(prevLog *log.Logger) *Wallet {
 	w := new(Wallet)
 	w.SetLogger(prevLog)
+	generalLogger = prevLog
 	w.outputs = make(map[string]*OutputInfo)
 	//Some of these values are hardcoded, might not be wise
 	w.update = make(chan bool, 8)

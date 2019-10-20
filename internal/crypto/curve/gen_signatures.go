@@ -2,8 +2,6 @@ package curve
 
 import (
 	"errors"
-
-	"github.com/golang/glog"
 )
 
 // @note Ready for merge
@@ -25,7 +23,6 @@ func GenerateRingSignature(prefixHash []byte, keyImage Key, pubs []Key, priv *Ke
 	copy(toHash, prefixHash)
 
 	if realIndex >= len(pubs) {
-		glog.Error("GenerateRingSignature: Sanity check failed!")
 		return sigs, errors.New("Sanity check failed!")
 	}
 

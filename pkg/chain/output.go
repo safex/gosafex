@@ -9,7 +9,6 @@ import (
 	"sort"
 	"time"
 
-	"github.com/golang/glog"
 	"github.com/safex/gosafex/internal/crypto"
 	"github.com/safex/gosafex/internal/crypto/curve"
 	"github.com/safex/gosafex/pkg/filewallet"
@@ -207,11 +206,11 @@ func getOutputDistribution(type_ string, numOuts uint64, numRecentOutputs uint64
 
 func txAddFakeOutput(entry *[]OutsEntry, globalIndex uint64, outputKey [32]byte, localIndex uint64, unlocked bool) bool {
 	if !unlocked {
-		glog.Error("Failed to add fake output")
+		generalLogger.Println("[Chain] Failed to add fake output")
 		return false
 	}
 	if globalIndex == localIndex {
-		glog.Error("Same global and local index!")
+		generalLogger.Println("[Chain] Same global and local index!")
 		return false
 	}
 	item := OutsEntry{globalIndex, outputKey}
@@ -258,7 +257,10 @@ func (w *Wallet) getOuts(outs *[][]OutsEntry, selectedTransfers []string, fakeOu
 			return err
 		}
 
-		for index, val := range selectedOutputs {
+		for _, index := range selectedTransfers {
+
+			val := selectedOutputs[index]
+
 			if !MatchOutputWithType(val, stringToType(outType)) {
 				continue
 			}
@@ -351,7 +353,9 @@ func (w *Wallet) getOuts(outs *[][]OutsEntry, selectedTransfers []string, fakeOu
 		scantyOuts = make(map[uint64]int)
 
 		var base uint64 = 0
-		for index, val := range selectedOutputs {
+		for _, index := range selectedTransfers {
+
+			val := selectedOutputs[index]
 			var entry []OutsEntry
 			outputType := GetOutputType(val)
 			if outputType != stringToType(outType) {
@@ -420,7 +424,10 @@ func (w *Wallet) getOuts(outs *[][]OutsEntry, selectedTransfers []string, fakeOu
 		if err != nil {
 			return err
 		}
-		for index, val := range selectedOutputs {
+
+		for _, index := range selectedTransfers {
+
+			val := selectedOutputs[index]
 			var entry []OutsEntry
 
 			outputType := GetOutputType(val)

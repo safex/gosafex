@@ -188,7 +188,7 @@ func (e *EncryptedDB) Read(key string) ([]byte, error) {
 		return nil, err
 	}
 	data = unpad(decrypt(data, encryptedKey[:]))
-	log.Debugf("[Filestore] Read Data: %s", data)
+	e.logger.Debugf("[Filestore] Read Data: %s", data)
 	return data, nil
 }
 
