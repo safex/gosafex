@@ -60,7 +60,7 @@ func (w *Wallet) runUpdater() {
 			w.rescanning = rscan
 		case temp := <-w.update:
 			if temp == true {
-				w.updating = true 
+				w.updating = true
 			}
 			if temp == false {
 				w.updating = false
@@ -71,20 +71,22 @@ func (w *Wallet) runUpdater() {
 			return
 		default:
 		}
-		if !w.updating && w.rescanning != "" {
+		if w.updating && w.rescanning != "" {
 			var err error
 			loadedHeight := w.GetLatestLoadedBlockHeight()
 			scannedHeight := uint64(1)
-			if scannedHeight > loadedHeight-1 {
+			if scannedHeight >= loadedHeight-1 {
 				w.logger.Infof("[Updater] There was no need to rescan!")
 			}
-			for scannedHeight <= loadedHeight-1 {
+			for scannedHeight < loadedHeight-1 {
 				err, scannedHeight = w.rescanBlocks(w.rescanning, scannedHeight, BlocksPerCycle)
 				if err != nil {
 					w.logger.Errorf("[Updater] Error while rescanning: %s", err.Error())
 					break
 				}
+				w.logger.Infof("[Updater] Rescanned up to block %v", scannedHeight)
 			}
+			w.unlockBalance(loadedHeight)
 			w.rescanning = ""
 		}
 		if w.updating {

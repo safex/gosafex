@@ -256,12 +256,16 @@ func (c Client) GetOutputs(out_entries []safex.GetOutputRq, txOutType safex.TxOu
 	return outs, err
 }
 
-func (c Client) SendTransaction(tx *safex.Transaction, doNotRelay bool) (res safex.SendTxRes, err error) {
+func (c Client) SendTransaction(tx *safex.Transaction, doNotRelay bool) (res *safex.SendTxRes, err error) {
 	data, err := proto.Marshal(tx)
 
 	result, err := c.SafexdProtoCall("proto/sendrawtransaction", data, "POST")
-	must(err)
+	if err != nil {
+		return nil, err
+	}
 	err = json.Unmarshal(result, &res)
-	must(err)
+	if err != nil {
+		return nil, err
+	}
 	return res, err
 }

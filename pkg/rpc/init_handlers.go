@@ -129,12 +129,12 @@ func (w *WalletRPC) CreateNew(rw http.ResponseWriter, r *http.Request) {
 	err := w.wallet.InitClient(rqData.DaemonHost, rqData.DaemonPort)
 	noConn := err != nil
 
-	if _, err := os.Stat(rqData.Path); err == nil {
+	/*if _, err := os.Stat(rqData.Path); err == nil {
 		FormJSONResponse(nil, FileAlreadyExists, &rw)
 		return
-	}
+	}*/
 
-	err = w.wallet.OpenAndCreate("primary", rqData.Path, rqData.Password, !w.mainnet, w.logger)
+	err = w.wallet.OpenAndCreate("primary", rqData.Path, rqData.Password, w.mainnet, w.logger)
 
 	if err != nil {
 		data["msg"] = err.Error()

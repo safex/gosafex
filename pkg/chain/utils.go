@@ -430,7 +430,8 @@ func (w *Wallet) constructTxAndGetTxKey(
 
 func (w *Wallet) CommitPtx(ptx *PendingTx) (res safex.SendTxRes, err error) {
 	generalLogger.Info("[Chain] CommitTx: Commiting transaction: ", *ptx.Tx)
-	return w.client.SendTransaction(ptx.Tx, false)
+	ret, err := w.client.SendTransaction(ptx.Tx, false)
+	return *ret, err
 }
 
 func DecomposeAmountIntoDigits(

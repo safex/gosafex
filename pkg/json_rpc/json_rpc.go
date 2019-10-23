@@ -33,7 +33,7 @@ func main() {
 	}
 
 	logger := log.StandardLogger()
-	logger.SetLevel(log.DebugLevel)
+	logger.SetLevel(log.InfoLevel)
 	logger.SetOutput(logOutput)
 	flag.Parse()
 

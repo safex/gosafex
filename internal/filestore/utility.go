@@ -50,6 +50,7 @@ func encryptSafe(data []byte, secret []byte) []byte {
 }
 
 func encrypt(data []byte, secret []byte, nonce []byte) []byte {
+
 	tempHash := SafexCrypto.NewDigest(secret)
 	c, err := aes.NewCipher(tempHash[:])
 	if err != nil {
