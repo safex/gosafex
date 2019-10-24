@@ -4,6 +4,9 @@ import (
 	"encoding/hex"
 	"fmt"
 	"net/http"
+
+	"github.com/safex/gosafex/pkg/account"
+	"github.com/safex/gosafex/pkg/chain"
 )
 
 type TransactionRq struct {
@@ -14,6 +17,11 @@ type TransactionRq struct {
 	Destination string `json:"destination"`
 	Mixin       uint32 `json:"mixin"`
 	PaymentID   string `json:"payment_id`
+
+	fakeOutsCount uint64 `json:"fake_outs_count"`
+	extra         []byte `json:"extra"`
+	unlockTime    uint32 `json:"unlock_time"`
+	priority      uint32 `json:"priority"`
 
 	TxAsHex JSONArray `json:"tx_as_hex"`
 }
@@ -159,23 +167,57 @@ func (w *WalletRPC) TransactionCash(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	// @todo Add here actual logic for creating txs.
-	if txSendMock%2 != 0 {
+	/*if txSendMock%2 != 0 {
 		FormJSONResponse(nil, ErrorDuringSendingTx, &rw)
 		txSendMock++
 		return
 	}
 	txSendMock++
-
+	*/
 	data := make(JSONElement)
-	data["txs"] = make(JSONArray, 0)
-	txJSON := make(JSONElement)
-	txJSON["tx_as_hex"] = "ABA123CD331F99809D9F0398320F8"
-	txJSON["fee"] = 100000000
-	txJSON["amount"] = 200000000000
-	txJSON["success"] = "ok"
-	data["txs"] = append(data["txs"].([]interface{}), txJSON)
+	destAddress, err := account.FromBase58(rqData.Destination)
 
-	FormJSONResponse(data, EverythingOK, &rw)
+	fakeOutsCount := 0
+
+	if rqData.fakeOutsCount != 0 {
+		fakeOutsCount = int(rqData.fakeOutsCount)
+	}
+
+	ptxs, err := w.wallet.TxCreateCash([]chain.DestinationEntry{chain.DestinationEntry{rqData.Amount, 0, *destAddress, false, false}}, fakeOutsCount, rqData.fakeOutsCount, rqData.unlockTime, rqData.extra, false)
+	if err != nil {
+		data["msg"] = err.Error()
+		FormJSONResponse(data, FailedToCreateTransaction, &rw)
+		return
+	}
+
+	totalFee := uint64(0)
+	data["txs"] = make(JSONArray, 0)
+	var retInt StatusCodeError
+	if len(ptxs) == 0 {
+		data["status"] = "unknown error"
+		retInt = FailedToSendTransaction
+	} else {
+		data["status"] = "ok"
+	}
+	for _, ptx := range ptxs {
+		txJSON := make(JSONElement)
+		totalFee += ptx.Fee
+		res, err := w.wallet.CommitPtx(&ptx)
+		if err != nil {
+			txJSON["status"] = "error"
+			txJSON["error"] = err
+			retInt = FailedToSendTransaction
+			data["status"] = "error"
+		} else {
+			txJSON["status"] = "sent"
+			txJSON["tx"] = ptx.Tx.String()
+			txJSON["fee"] = ptx.Fee
+			txJSON["response"] = res
+			data["txs"] = append(data["txs"].([]interface{}), txJSON)
+		}
+	}
+
+	FormJSONResponse(data, retInt, &rw)
 }
 
 func (w *WalletRPC) TransactionToken(rw http.ResponseWriter, r *http.Request) {

@@ -11,7 +11,6 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-var logger = log.StandardLogger()
 var logfile = "safexsdk.log"
 
 func loadRoutes(wallet *SafexRPC.WalletRPC, router *mux.Router) {
@@ -28,6 +27,8 @@ func main() {
 
 	logOutput, _ := os.OpenFile(logfile, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0755)
 
+	logger := log.StandardLogger()
+	logger.SetLevel(log.InfoLevel)
 	logger.SetOutput(logOutput)
 	logger.SetLevel(log.DebugLevel)
 

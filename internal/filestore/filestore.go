@@ -231,6 +231,7 @@ func (e *EncryptedDB) Append(key string, newData []byte) error {
 }
 
 func (e *EncryptedDB) ReadAppended(key string) ([][]byte, error) {
+
 	e.logger.Debugf("[Filestore] Reading appended key : %s", key)
 
 	if !e.stream.BucketExists() {
@@ -249,6 +250,12 @@ func (e *EncryptedDB) ReadAppended(key string) ([][]byte, error) {
 	if _, err := io.ReadFull(kdf, encryptedKey[:]); err != nil {
 		return nil, err
 	}
+
+	defer func() {
+		if r := recover(); r != nil {
+			e.logger.Errorf("Panicked with parameters: key %v, encryptedKey: %v, nonce: %v", pad([]byte(key), 32), encryptedKey[:], nonce[:])
+		}
+	}()
 
 	tempKey := SafexCrypto.NewDigest(encrypt(pad([]byte(key), 32), encryptedKey[:], nonce[:]))
 	e.stream.targetKey = tempKey[:]
