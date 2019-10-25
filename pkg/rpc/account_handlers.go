@@ -278,7 +278,7 @@ func (w *WalletRPC) CreateAccountFromMnemonic(rw http.ResponseWriter, r *http.Re
 	}
 
 	if !w.OpenCheck(&rw) {
-		FormJSONResponse(nil, WalletIsNotOpened, &rw)
+		// the response is formed in OpenCheck
 		return
 	}
 
@@ -321,7 +321,7 @@ func (w *WalletRPC) CreateAccountFromKeys(rw http.ResponseWriter, r *http.Reques
 	}
 
 	if !w.OpenCheck(&rw) {
-		FormJSONResponse(nil, WalletIsNotOpened, &rw)
+		// the response is formed in OpenCheck
 		return
 	}
 
@@ -382,7 +382,7 @@ func (w *WalletRPC) CreateAccountFromKeysFile(rw http.ResponseWriter, r *http.Re
 	}
 
 	if !w.OpenCheck(&rw) {
-		FormJSONResponse(nil, WalletIsNotOpened, &rw)
+		// the response is formed in OpenCheck
 		return
 	}
 
@@ -414,7 +414,7 @@ func (w *WalletRPC) CreateAccountFromKeysFile(rw http.ResponseWriter, r *http.Re
 
 func (w *WalletRPC) SyncAccount(rw http.ResponseWriter, r *http.Request) {
 	if !w.OpenCheck(&rw) {
-		FormJSONResponse(nil, WalletIsNotOpened, &rw)
+		// the response is formed in OpenCheck
 		return
 	}
 
@@ -448,7 +448,7 @@ func (w *WalletRPC) RemoveAccount(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	if !w.OpenCheck(&rw) {
-		FormJSONResponse(nil, WalletIsNotOpened, &rw)
+		// the response is formed in OpenCheck
 		return
 	}
 	openAcc, _ := w.wallet.GetOpenAccount()
@@ -467,6 +467,10 @@ func (w *WalletRPC) RemoveAccount(rw http.ResponseWriter, r *http.Request) {
 
 //Rescans the loaded blocks looking for transactions for the newly added user
 func (w *WalletRPC) Rescan(rw http.ResponseWriter, r *http.Request) {
+	if !w.OpenCheck(&rw) {
+		// the response is formed in OpenCheck
+		return
+	}
 
 	var rqData AccountRq
 	if !accountGetData(&rw, r, &rqData) {

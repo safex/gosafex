@@ -37,8 +37,8 @@ func main() {
 	var walletRPC = SafexRPC.New(logger)
 	loadRoutes(walletRPC, router)
 
-	logger.Infof("[Main] Starting server on %v", *portPtr)
-	logger.Infof("[Main] With password %v", *passPtr)
+	logger.Infof("[Main] Starting server on -%v-", *portPtr)
+	logger.Infof("[Main] With password -%v-", *passPtr)
 	logger.Fatal(http.ListenAndServe(":"+strconv.Itoa(*portPtr), router))
 
 }

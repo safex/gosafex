@@ -55,7 +55,5 @@ func (w *WalletRPC) GetRoutes() (routes []Route) {
 
 	routes = append(routes, Route{"CloseWallet", "POST", "/close", w.Close})
 
-	routes = append(routes, Route{"GetBalance", "GET", "/balance/get", w.GetAccountBalance})
-
 	return routes
 }
