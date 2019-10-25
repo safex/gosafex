@@ -30,7 +30,7 @@ type WalletInitRq struct {
 
 func initGetData(w *http.ResponseWriter, r *http.Request, rqData *WalletInitRq) bool {
 	statusErr := UnmarshalRequest(r, rqData)
-	log.Infof("[RPC] Request Data: %s", *rqData)
+	log.Infof("[RPC] Request Data: %v", *rqData)
 	// Check for error.
 	if statusErr != EverythingOK {
 		FormJSONResponse(nil, statusErr, w)
