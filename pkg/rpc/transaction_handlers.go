@@ -3,8 +3,10 @@ package SafexRPC
 import (
 	"encoding/hex"
 	"fmt"
-	"log"
 	"net/http"
+
+	"github.com/safex/gosafex/pkg/account"
+	"github.com/safex/gosafex/pkg/chain"
 )
 
 type TransactionRq struct {
@@ -16,6 +18,11 @@ type TransactionRq struct {
 	Mixin       uint32 `json:"mixin"`
 	PaymentID   string `json:"payment_id`
 
+	fakeOutsCount uint64 `json:"fake_outs_count"`
+	extra         []byte `json:"extra"`
+	unlockTime    uint32 `json:"unlock_time"`
+	priority      uint32 `json:"priority"`
+
 	TxAsHex JSONArray `json:"tx_as_hex"`
 }
 
@@ -24,7 +31,6 @@ var txSendMock int = 0
 
 func transactionGetData(w *http.ResponseWriter, r *http.Request, rqData *TransactionRq) bool {
 	statusErr := UnmarshalRequest(r, rqData)
-	log.Println(*rqData)
 	// Check for error.
 	if statusErr != EverythingOK {
 		FormJSONResponse(nil, statusErr, w)
@@ -35,6 +41,7 @@ func transactionGetData(w *http.ResponseWriter, r *http.Request, rqData *Transac
 
 //GetTransactionInfo .
 func (w *WalletRPC) GetTransactionInfo(rw http.ResponseWriter, r *http.Request) {
+	w.logger.Infof("[RPC] Get transactions info request")
 	var rqData TransactionRq
 	if !transactionGetData(&rw, r, &rqData) {
 		// Error response already handled
@@ -62,6 +69,8 @@ func (w *WalletRPC) GetTransactionInfo(rw http.ResponseWriter, r *http.Request) 
 
 //GetTransactionUpToBlockHeight .
 func (w *WalletRPC) GetTransactionUpToBlockHeight(rw http.ResponseWriter, r *http.Request) {
+	w.logger.Infof("[RPC] Get transactions up to block request")
+
 	var rqData TransactionRq
 	if !transactionGetData(&rw, r, &rqData) {
 		// Error response already handled
@@ -92,6 +101,7 @@ func (w *WalletRPC) GetTransactionUpToBlockHeight(rw http.ResponseWriter, r *htt
 
 //GetTransactionUpToBlockHeight .
 func (w *WalletRPC) GetHistory(rw http.ResponseWriter, r *http.Request) {
+	w.logger.Infof("[RPC] Get history request")
 
 	if w.wallet == nil || !w.wallet.IsOpen() {
 		FormJSONResponse(nil, WalletIsNotOpened, &rw)
@@ -116,6 +126,7 @@ func (w *WalletRPC) GetHistory(rw http.ResponseWriter, r *http.Request) {
 }
 
 func (w *WalletRPC) TransactionCash(rw http.ResponseWriter, r *http.Request) {
+	w.logger.Infof("[RPC] Generating cash transaction")
 	var rqData TransactionRq
 	if !transactionGetData(&rw, r, &rqData) {
 		// Error response already handled
@@ -133,7 +144,6 @@ func (w *WalletRPC) TransactionCash(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	if rqData.Mixin == uint32(0) {
-		log.Println("Mixin zero, assuming default value of 6")
 		rqData.Mixin = 6
 	}
 
@@ -157,26 +167,61 @@ func (w *WalletRPC) TransactionCash(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	// @todo Add here actual logic for creating txs.
-	if txSendMock%2 != 0 {
+	/*if txSendMock%2 != 0 {
 		FormJSONResponse(nil, ErrorDuringSendingTx, &rw)
 		txSendMock++
 		return
 	}
 	txSendMock++
-
+	*/
 	data := make(JSONElement)
-	data["txs"] = make(JSONArray, 0)
-	txJSON := make(JSONElement)
-	txJSON["tx_as_hex"] = "ABA123CD331F99809D9F0398320F8"
-	txJSON["fee"] = 100000000
-	txJSON["amount"] = 200000000000
-	txJSON["success"] = "ok"
-	data["txs"] = append(data["txs"].([]interface{}), txJSON)
+	destAddress, err := account.FromBase58(rqData.Destination)
 
-	FormJSONResponse(data, EverythingOK, &rw)
+	fakeOutsCount := 0
+
+	if rqData.fakeOutsCount != 0 {
+		fakeOutsCount = int(rqData.fakeOutsCount)
+	}
+
+	ptxs, err := w.wallet.TxCreateCash([]chain.DestinationEntry{chain.DestinationEntry{rqData.Amount, 0, *destAddress, false, false}}, fakeOutsCount, rqData.fakeOutsCount, rqData.unlockTime, rqData.extra, false)
+	if err != nil {
+		data["msg"] = err.Error()
+		FormJSONResponse(data, FailedToCreateTransaction, &rw)
+		return
+	}
+
+	totalFee := uint64(0)
+	data["txs"] = make(JSONArray, 0)
+	var retInt StatusCodeError
+	if len(ptxs) == 0 {
+		data["status"] = "unknown error"
+		retInt = FailedToSendTransaction
+	} else {
+		data["status"] = "ok"
+	}
+	for _, ptx := range ptxs {
+		txJSON := make(JSONElement)
+		totalFee += ptx.Fee
+		res, err := w.wallet.CommitPtx(&ptx)
+		if err != nil {
+			txJSON["status"] = "error"
+			txJSON["error"] = err
+			retInt = FailedToSendTransaction
+			data["status"] = "error"
+		} else {
+			txJSON["status"] = "sent"
+			txJSON["tx"] = ptx.Tx.String()
+			txJSON["fee"] = ptx.Fee
+			txJSON["response"] = res
+			data["txs"] = append(data["txs"].([]interface{}), txJSON)
+		}
+	}
+
+	FormJSONResponse(data, retInt, &rw)
 }
 
 func (w *WalletRPC) TransactionToken(rw http.ResponseWriter, r *http.Request) {
+	w.logger.Infof("[RPC] Generating token transaction")
 	var rqData TransactionRq
 	if !transactionGetData(&rw, r, &rqData) {
 		// Error response already handled
@@ -194,7 +239,6 @@ func (w *WalletRPC) TransactionToken(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	if rqData.Mixin == uint32(0) {
-		log.Println("Mixin zero, assuming default value of 6")
 		rqData.Mixin = 6
 	}
 
@@ -236,6 +280,7 @@ func (w *WalletRPC) TransactionToken(rw http.ResponseWriter, r *http.Request) {
 }
 
 func (w *WalletRPC) TransactionCommit(rw http.ResponseWriter, r *http.Request) {
+	w.logger.Infof("[RPC] Committing transaction")
 	var rqData TransactionRq
 	if !transactionGetData(&rw, r, &rqData) {
 		// Error response already handled

@@ -54,6 +54,7 @@ func (w *FileWallet) GetBlockHeaderFromHeight(blockHeight uint64) (*safex.BlockH
 	latestHash := w.latestBlockHash
 
 	if latestHeight < blockHeight {
+		w.logger.Errorf("[FileWallet] %s", ErrBlockNotFound)
 		return nil, ErrBlockNotFound
 	}
 	blck, _ := w.GetBlockHeader(latestHash)
@@ -73,6 +74,7 @@ func (w *FileWallet) GetBlockHeaderFromHeight(blockHeight uint64) (*safex.BlockH
 func (w *FileWallet) RewindBlockHeader(targetHash string) error {
 
 	if w.latestBlockHash == "" {
+		w.logger.Errorf("[FileWallet] %s", ErrNoBlocks)
 		return ErrNoBlocks
 	}
 
@@ -91,6 +93,7 @@ func (w *FileWallet) RewindBlockHeader(targetHash string) error {
 	for actHash != targetHash {
 		i := w.CheckIfBlockExists(actHash)
 		if i == -1 {
+			w.logger.Errorf("[FileWallet] %s at %s", ErrMistmatchedBlock, actHash)
 			return ErrMistmatchedBlock
 		}
 		data, err := w.readKey(blockKeyPrefix + actHash)
@@ -132,6 +135,7 @@ func (w *FileWallet) RewindBlockHeader(targetHash string) error {
 	}
 	w.latestBlockNumber = header.GetDepth()
 	w.latestBlockHash = header.GetHash()
+	w.logger.Infof("[Filewallet] Adding block number: %d Hash: %s", w.latestBlockNumber, w.latestBlockHash)
 	return nil
 }
 
@@ -175,6 +179,7 @@ func (w *FileWallet) PutBlockHeader(blck *safex.BlockHeader) error {
 	blockHash := blck.GetHash()
 	a := blck.GetPrevHash()
 	if a != w.latestBlockHash && w.latestBlockHash != "" {
+		w.logger.Errorf("[FileWallet] %s at %s", ErrMistmatchedBlock, a)
 		return ErrMistmatchedBlock
 	}
 

@@ -11,6 +11,7 @@ func (e *Stream) Delete() error {
 	return e.db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket(e.targetBucket)
 		if b == nil {
+			e.logger.Debugf("[Stream] %s", ErrNoBucketSet)
 			return ErrNoBucketSet
 		}
 		err := b.Delete(e.targetKey)
@@ -30,6 +31,7 @@ func (e *Stream) Write(p []byte) (int, error) {
 	err := e.db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket(e.targetBucket)
 		if b == nil {
+			e.logger.Debugf("[Stream] %s", ErrNoBucketSet)
 			return ErrNoBucketSet
 		}
 		err := b.Put(e.targetKey, p)
@@ -44,10 +46,12 @@ func (e *Stream) Read() ([]byte, error) {
 	err := e.db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket(e.targetBucket)
 		if b == nil {
+			e.logger.Debugf("[Stream] %s", ErrNoBucketSet)
 			return ErrNoBucketSet
 		}
 		ret = b.Get(e.targetKey)
 		if ret == nil {
+			e.logger.Debugf("[Stream] %s", ErrKeyNotFound)
 			return ErrKeyNotFound
 		}
 		return nil

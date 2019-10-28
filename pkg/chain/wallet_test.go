@@ -5,6 +5,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/safex/gosafex/internal/crypto/curve"
 	"github.com/safex/gosafex/internal/mnemonic"
@@ -12,6 +13,7 @@ import (
 	"github.com/safex/gosafex/pkg/filewallet"
 	"github.com/safex/gosafex/pkg/key"
 	"github.com/safex/gosafex/pkg/safex"
+	log "github.com/sirupsen/logrus"
 )
 
 const filename = "test.db"
@@ -20,8 +22,11 @@ const accountName2 = "account2"
 const masterPass = "masterpass"
 const foldername = "test"
 
+const staticfilename = "statictest.db"
+const staticfoldername = "statictest"
+
 //change this address and port
-const clientAddress = "192.168.119.129"
+const clientAddress = "ec2-3-92-32-92.compute-1.amazonaws.com"
 const clientPort = 37001
 
 const wallet1pubview = "278ae1e6b5e7a272dcdca311e0362a222fa5ce98c975ccfff67e40751c1daf2c"
@@ -33,6 +38,9 @@ const mnemonic_seed = "shrugged january avatar fungal pawnshop thwart grunt yoga
 const mnemonic_key = "ace8f0a434437935b01ca3d2aa7438f1ec27d7dc02a33b8d7a62dfda1fe13907"
 const mnemonic_address = "Safex5zgYGP2tyGNaqkrAoirRqrEw8Py79KPLRhwqEHbDcnPVvSwvCx2iTUbTR6PVMHR9qapyAq6Fj5TF9ATn5iq27YPrxCkJyD11"
 
+var testLogger = log.StandardLogger()
+var testLogFile = "test.log"
+
 func prepareFolder() {
 
 	fullpath := strings.Join([]string{foldername, filename}, "/")
@@ -40,7 +48,26 @@ func prepareFolder() {
 	if _, err := os.Stat(fullpath); os.IsExist(err) {
 		os.Remove(fullpath)
 	}
-	os.Mkdir(foldername, os.FileMode(int(0770)))
+	logFile, _ := os.OpenFile(testLogFile, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0755)
+
+	testLogger.SetOutput(logFile)
+	testLogger.SetLevel(log.DebugLevel)
+
+	os.Mkdir(foldername, os.FileMode(int(0700)))
+}
+
+func prepareStaticFolder() {
+
+	fullpath := strings.Join([]string{staticfoldername, staticfilename}, "/")
+
+	if _, err := os.Stat(fullpath); !os.IsExist(err) {
+		logFile, _ := os.OpenFile(testLogFile, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0755)
+
+		testLogger.SetOutput(logFile)
+		testLogger.SetLevel(log.DebugLevel)
+
+		os.Mkdir(staticfoldername, os.FileMode(int(0700)))
+	}
 }
 
 func CleanAfterTests(w *Wallet, fullpath string) {
@@ -55,11 +82,12 @@ func CleanAfterTests(w *Wallet, fullpath string) {
 
 func TestRecoverFromMnemonic(t *testing.T) {
 	prepareFolder()
+	testLogger.Infof("[Test] Testing account recovery from mnemonic")
 
-	w := new(Wallet)
+	w := New(testLogger)
 	fullpath := strings.Join([]string{foldername, filename}, "/")
 
-	if err := w.OpenFile(fullpath, masterPass, false); err != nil {
+	if err := w.OpenFile(fullpath, masterPass, false, testLogger); err != nil {
 		t.Fatalf("%s", err)
 	}
 	defer CleanAfterTests(w, fullpath)
@@ -84,17 +112,50 @@ func TestRecoverFromMnemonic(t *testing.T) {
 	if store.Address().String() != mnemonic_address {
 		t.Fatalf("Addresses do not match")
 	}
+	testLogger.Infof("[Test] Passed account recovery from mnemonic")
 }
 
-func TestOpenCreate(t *testing.T) {
+func TestOpen(t *testing.T) {
 	prepareFolder()
+	testLogger.Infof("[Test] Testing wallet opening")
 	w := new(Wallet)
 	fullpath := strings.Join([]string{foldername, filename}, "/")
 
 	if w.IsOpen() != false {
 		t.Fatalf("Error in open status")
 	}
-	if err := w.OpenFile(fullpath, masterPass, false); err != nil {
+	if err := w.OpenAndCreate(accountName1, fullpath, masterPass, false, testLogger); err != nil {
+		t.Fatalf("%s", err)
+	}
+	defer CleanAfterTests(w, fullpath)
+
+	if err := w.CreateAccount(accountName1, nil, false); err == nil {
+		t.Fatalf("No duplicate error")
+	}
+	if err := w.CreateAccount(accountName2, nil, false); err != nil {
+		t.Fatalf("%s", err)
+	}
+	if err := w.OpenAccount(accountName1, false); err != nil {
+		t.Fatalf("%s", err)
+	}
+	if accs, err := w.GetAccounts(); err != nil {
+		t.Fatalf("%s", err)
+	} else if len(accs) != 2 || accs[0] != accountName1 || accs[1] != accountName2 {
+		t.Fatalf("Error in reading account list")
+	}
+	testLogger.Infof("[Test] Passed wallet opening")
+}
+
+func TestOpenCreate(t *testing.T) {
+	prepareFolder()
+	testLogger.Infof("[Test] Testing wallet opening and creation")
+	w := new(Wallet)
+	fullpath := strings.Join([]string{foldername, filename}, "/")
+
+	if w.IsOpen() != false {
+		t.Fatalf("Error in open status")
+	}
+	if err := w.OpenFile(fullpath, masterPass, false, testLogger); err != nil {
 		t.Fatalf("%s", err)
 	}
 	defer CleanAfterTests(w, fullpath)
@@ -108,15 +169,54 @@ func TestOpenCreate(t *testing.T) {
 	if err := w.OpenAccount(accountName1, false); err != nil {
 		t.Fatalf("%s", err)
 	}
+	if accs, err := w.GetAccounts(); err != nil {
+		t.Fatalf("%s", err)
+	} else if len(accs) != 2 || accs[0] != accountName1 || accs[1] != accountName2 {
+		t.Fatalf("Error in reading account list")
+	}
+	testLogger.Infof("[Test] Passed wallet opening and creation")
+}
+
+func TestColdOpen(t *testing.T) {
+	prepareFolder()
+	testLogger.Infof("[Test] Testing cold wallet opening")
+	w := new(Wallet)
+	fullpath := strings.Join([]string{foldername, filename}, "/")
+
+	if w.IsOpen() != false {
+		t.Fatalf("Error in open status")
+	}
+	if err := w.OpenAndCreate(accountName1, fullpath, masterPass, false, testLogger); err != nil {
+		t.Fatalf("%s", err)
+	}
+	if err := w.CreateAccount(accountName2, nil, false); err != nil {
+		t.Fatalf("%s", err)
+	}
+	w.Close()
+	if err := w.OpenFile(fullpath, "asdasdasd", false, testLogger); err == nil {
+		t.Fatalf("No password error")
+	}
+	w.Close()
+	if err := w.OpenFile(fullpath, masterPass, false, testLogger); err != nil {
+		t.Fatalf("%s", err)
+	}
+	defer CleanAfterTests(w, fullpath)
+	if accs, err := w.GetAccounts(); err != nil {
+		t.Fatalf("%s", err)
+	} else if len(accs) != 2 || accs[0] != accountName1 || accs[1] != accountName2 {
+		t.Fatalf("Error in reading account list")
+	}
+	testLogger.Infof("[Test] Passed cold wallet opening")
 }
 
 func TestRPC(t *testing.T) {
 	prepareFolder()
+	testLogger.Infof("[Test] Testing RPC connection")
 
 	w := new(Wallet)
 	fullpath := strings.Join([]string{foldername, filename}, "/")
 
-	if err := w.OpenAndCreate("wallet1", fullpath, masterPass, true); err != nil {
+	if err := w.OpenAndCreate("wallet1", fullpath, masterPass, true, testLogger); err != nil {
 		t.Fatalf("%s", err)
 	}
 	defer CleanAfterTests(w, fullpath)
@@ -129,15 +229,17 @@ func TestRPC(t *testing.T) {
 	} else if info.Status != "OK" {
 		t.Fatal(info)
 	}
+	testLogger.Infof("[Test] Passed RPC connection")
 }
 
 func TestGetHistory(t *testing.T) {
 	prepareFolder()
+	testLogger.Infof("[Test] Testing history retrieval")
 
 	w := new(Wallet)
 	fullpath := strings.Join([]string{foldername, filename}, "/")
 
-	if err := w.OpenAndCreate("wallet1", fullpath, masterPass, true); err != nil {
+	if err := w.OpenAndCreate("wallet1", fullpath, masterPass, true, testLogger); err != nil {
 		t.Fatalf("%s", err)
 	}
 	defer CleanAfterTests(w, fullpath)
@@ -177,15 +279,17 @@ func TestGetHistory(t *testing.T) {
 	if his[0].TxHash != tx1.TxHash {
 		t.Fatalf("Error in recovering txhash")
 	}
+	testLogger.Infof("[Test] Passed history retrieval")
 }
 
 func TestGetTransaction(t *testing.T) {
 	prepareFolder()
+	testLogger.Infof("[Test] Testing transaction retrieval")
 
 	w := new(Wallet)
 	fullpath := strings.Join([]string{foldername, filename}, "/")
 
-	if err := w.OpenAndCreate("wallet1", fullpath, masterPass, true); err != nil {
+	if err := w.OpenAndCreate("wallet1", fullpath, masterPass, true, testLogger); err != nil {
 		t.Fatalf("%s", err)
 	}
 	defer CleanAfterTests(w, fullpath)
@@ -210,15 +314,17 @@ func TestGetTransaction(t *testing.T) {
 	if tx.TxHash != tx1.TxHash {
 		t.Fatalf("Error in recovering txhash")
 	}
+	testLogger.Infof("[Test] Passed trasaction retrieval")
 }
 
 func TestGetTransactionByBlock(t *testing.T) {
 	prepareFolder()
+	testLogger.Infof("[Test] Testing transaction retrieval by block")
 
 	w := new(Wallet)
 	fullpath := strings.Join([]string{foldername, filename}, "/")
 
-	if err := w.OpenAndCreate("wallet1", fullpath, masterPass, true); err != nil {
+	if err := w.OpenAndCreate("wallet1", fullpath, masterPass, true, testLogger); err != nil {
 		t.Fatalf("%s", err)
 	}
 	defer CleanAfterTests(w, fullpath)
@@ -258,19 +364,23 @@ func TestGetTransactionByBlock(t *testing.T) {
 	if his[3].TxHash != tx1.TxHash {
 		t.Fatalf("Error in recovering txhash")
 	}
+	testLogger.Infof("[Test] Passed transaction retrieval by block")
 }
 
-//this test for now fails to check balance
 func TestUpdateBalance(t *testing.T) {
-	prepareFolder()
+	prepareStaticFolder()
+	testLogger.Infof("[Test] Testing balance update")
+	testLogger.SetLevel(log.InfoLevel)
+	w := New(testLogger)
+	fullpath := strings.Join([]string{staticfoldername, staticfilename}, "/")
 
-	w := new(Wallet)
-	fullpath := strings.Join([]string{foldername, filename}, "/")
-
-	if err := w.OpenAndCreate("wallet1", fullpath, masterPass, true); err != nil {
-		t.Fatalf("%s", err)
+	if err := w.OpenFile(fullpath, masterPass, true, testLogger); err != nil {
+		if err := w.OpenAndCreate("wallet1", fullpath, masterPass, true, testLogger); err != nil {
+			t.Fatalf("%s", err)
+		}
 	}
-	defer CleanAfterTests(w, fullpath)
+	defer w.KillUpdating()
+
 	if err := w.InitClient(clientAddress, clientPort); err != nil {
 		t.Fatalf("%s", err)
 	}
@@ -293,19 +403,25 @@ func TestUpdateBalance(t *testing.T) {
 
 	a := account.NewStore(account.NewRegularTestnetAddress(*key.NewPublicKey(pubSpendKey), *key.NewPublicKey(pubViewKey)), *key.NewPrivateKey(privViewKey), *key.NewPrivateKey(privSpendKey))
 
-	//pubspendbytes := a.PublicSpendKey().ToBytes()
-	//pubviewbytes := a.PublicViewKey().ToBytes()
-	if err := w.CreateAccount(accountName1, a, true); err != nil {
-		t.Fatalf("%s", err)
-	}
 	if err := w.OpenAccount(accountName1, true); err != nil {
-		t.Fatalf("%s", err)
+		if err := w.CreateAccount(accountName1, a, true); err != nil {
+			t.Fatalf("%s", err)
+		}
 	}
-	if b, err := w.UpdateBalance(); err != nil {
+	w.BeginUpdating()
+	for w.syncing {
+		testLogger.Infof("[Test] Waiting for sync")
+		time.Sleep(30 * time.Second)
+	}
+	var b *Balance
+	b, err = w.GetBalance()
+	if err != nil {
 		t.Fatalf("%s", err)
 	} else if b.CashUnlocked == 0 && b.CashLocked == 0 && b.TokenUnlocked == 0 && b.TokenLocked == 0 {
 		t.Fatalf("Got null balance\n")
-	} else {
-		t.Fatalf("Locked Cash:%v\nUnlocked Cash:%v\nLocked Tokens:%v\nUnlocked Tokens:%v", float64(b.CashLocked)/10e9, float64(b.CashUnlocked)/10e9, float64(b.TokenLocked)/10e9, float64(b.TokenUnlocked)/10e9)
 	}
+
+	testLogger.Infof("[Test] Passed balance update: Cash Unlocked: %v, Cash Locked: %v, Token Unlocked: %v, Token Locked:%v", b.CashUnlocked, b.CashLocked, b.TokenUnlocked, b.TokenLocked)
+	testLogger.Infof("[Test] Latest block loaded: %v", w.GetLatestLoadedBlockHeight())
+
 }

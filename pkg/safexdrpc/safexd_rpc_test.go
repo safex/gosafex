@@ -1,11 +1,19 @@
 package safexdrpc
 
-import "testing"
+import (
+	"testing"
+	log "github.com/sirupsen/logrus"
+)
+var testLogger = log.StandardLogger()
+var testLogFile = "test.log"
+
+testLogger.SetOutput(logFile)
+testLogger.SetLevel(log.DebugLevel)
 
 var clientURL = "127.0.0.1"
 var clientPort = uint(29393)
 
-var client = InitClient(clientURL, clientPort)
+var client = InitClient(clientURL, clientPort,testLogger)
 
 func TestClient_GetBlockByHeight(t *testing.T) {
 	height, err := client.GetBlockCount()

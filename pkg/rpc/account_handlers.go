@@ -9,7 +9,6 @@ import (
 	keysFile "github.com/safex/gosafex/pkg/keys_file"
 
 	"fmt"
-	"log"
 	"net/http"
 )
 
@@ -40,7 +39,7 @@ func (w *WalletRPC) accountInfoFromStore(store *account.Store, rw *http.Response
 	viewkey := make(JSONElement)
 	spendkey := make(JSONElement)
 
-	data["account_name"] = w.wallet.GetOpenAccount()
+	data["account_name"], _ = w.wallet.GetOpenAccount()
 	data["address"] = store.Address().String()
 
 	viewkey["public"] = getKeyString(store.Address().ViewKey)
@@ -83,7 +82,7 @@ func (w *WalletRPC) currentAccInfo(rw *http.ResponseWriter) JSONElement {
 }
 
 func (w *WalletRPC) accInfo(name string, rw *http.ResponseWriter) JSONElement {
-	currAcc := w.wallet.GetOpenAccount()
+	currAcc, _ := w.wallet.GetOpenAccount()
 
 	err := w.wallet.OpenAccount(name, !w.mainnet)
 	if err != nil {
@@ -108,7 +107,6 @@ func (w *WalletRPC) accInfo(name string, rw *http.ResponseWriter) JSONElement {
 
 func accountGetData(w *http.ResponseWriter, r *http.Request, rqData *AccountRq) bool {
 	statusErr := UnmarshalRequest(r, rqData)
-	log.Println(*rqData)
 	// Check for error.
 	if statusErr != EverythingOK {
 		FormJSONResponse(nil, statusErr, w)
@@ -182,7 +180,7 @@ func (w *WalletRPC) GetAllAccountsInfo(rw http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	currAcc := w.wallet.GetOpenAccount()
+	currAcc, _ := w.wallet.GetOpenAccount()
 
 	for _, acc := range accounts {
 		err := w.wallet.OpenAccount(acc, !w.mainnet)
@@ -262,7 +260,7 @@ func (w *WalletRPC) GetAccountBalance(rw http.ResponseWriter, r *http.Request) {
 	var data JSONElement
 	data = make(JSONElement)
 
-	data["balance"] = w.wallet.GetBalance()
+	data["balance"], _ = w.wallet.GetBalance()
 
 	FormJSONResponse(data, EverythingOK, &rw)
 }
@@ -420,7 +418,7 @@ func (w *WalletRPC) SyncAccount(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	b, err := w.wallet.UpdateBalance()
+	b, err := w.wallet.GetBalance()
 	if FormErrorRes(err, SyncFailed, &rw) {
 		return
 	}
@@ -432,7 +430,7 @@ func (w *WalletRPC) SyncAccount(rw http.ResponseWriter, r *http.Request) {
 	balance["token-unlocked"] = b.TokenUnlocked
 
 	data["balance"] = balance
-	data["name"] = w.wallet.GetOpenAccount()
+	data["name"], _ = w.wallet.GetOpenAccount()
 
 	FormJSONResponse(data, EverythingOK, &rw)
 }
@@ -453,8 +451,8 @@ func (w *WalletRPC) RemoveAccount(rw http.ResponseWriter, r *http.Request) {
 		FormJSONResponse(nil, WalletIsNotOpened, &rw)
 		return
 	}
-
-	if rqData.Name == w.wallet.GetOpenAccount() {
+	openAcc, _ := w.wallet.GetOpenAccount()
+	if rqData.Name == openAcc {
 		FormJSONResponse(nil, RemovingCurrentAccount, &rw)
 		return
 	}
@@ -465,4 +463,21 @@ func (w *WalletRPC) RemoveAccount(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	FormJSONResponse(nil, EverythingOK, &rw)
+}
+
+//Rescans the loaded blocks looking for transactions for the newly added user
+func (w *WalletRPC) Rescan(rw http.ResponseWriter, r *http.Request) {
+
+	var rqData AccountRq
+	if !accountGetData(&rw, r, &rqData) {
+		// Error response already handled
+		return
+	}
+	w.logger.Infof("[RPC] Getting rescan request for account: %s", rqData.Name)
+	w.wallet.Rescan(rqData.Name)
+
+	data := make(JSONElement)
+	data["msg"] = w.wallet.UpdaterStatus()
+
+	FormJSONResponse(data, EverythingOK, &rw)
 }

@@ -1,63 +1,14 @@
 package chain
 
 import (
-	"errors"
-	"fmt"
-	"time"
-
-	"github.com/safex/gosafex/internal/crypto"
-	"github.com/safex/gosafex/pkg/balance"
 	"github.com/safex/gosafex/pkg/safex"
 )
 
-func (t *Transfer) getRelatedness(input *Transfer) float32 {
-
-	// @todo: Implement txid check.
-	// if t.Txid == input.Txid {
-	//	return float32(1.0)
-	//}
-
-	var dh uint64
-	if t.Height > input.Height {
-		dh = t.Height - input.Height
-	} else {
-		dh = input.Height - t.Height
-	}
-
-	if dh == 0 {
-		return float32(0.9)
-	}
-	if dh == 1 {
-		return float32(0.8)
-	}
-	if dh < 10 {
-		return float32(0.2)
-	}
-
-	return float32(0.0)
-}
-
-func (t Transfer) IsUnlocked(height uint64) bool {
-	if t.MinerTx {
-		return height-t.Height > 60
-	} else {
-		return height-t.Height > 10
-	}
-}
-
-func (w *Wallet) processBlockRange(blocks safex.Blocks) bool {
-	// @todo Here handle block metadata.
-
-	// @todo This must be refactored due new discoveries regarding get_tx_hash
-	// Get transaction hashes
+func (w *Wallet) rescanBlockRange(blocks safex.Blocks, acc string) error {
 	var txs []string
 	var minerTxs []string
 	txblck := make(map[string]string)
 	for _, blck := range blocks.Block {
-		if err := w.wallet.PutBlockHeader(blck.GetHeader()); err != nil {
-			fmt.Print(err)
-			continue
-		}
 		for _, el := range blck.Txs {
 			txblck[el] = blck.GetHeader().GetHash()
 			txs = append(txs, el)
@@ -69,25 +20,69 @@ func (w *Wallet) processBlockRange(blocks safex.Blocks) bool {
 	// Get transaction data and process.
 	loadedTxs, err := w.client.GetTransactions(txs)
 	if err != nil {
-		return false
+		return err
 	}
 
 	for _, tx := range loadedTxs.Tx {
-		w.ProcessTransaction(tx, txblck[tx.GetTxHash()], false)
+		w.processTransactionPerAccount(tx, txblck[tx.GetTxHash()], false, acc)
 	}
 
 	mloadedTxs, err := w.client.GetTransactions(minerTxs)
 	if err != nil {
-		return false
+		return err
 	}
 
-	fmt.Println("Len of minerTxs: ", len(minerTxs))
-	fmt.Println("Len of mloadedTxs: ", len(mloadedTxs.Tx))
+	w.logger.Infof("[Chain] Number of minerTxs: %d", len(minerTxs))
+	w.logger.Infof("[Chain] Number of mloadedTxs: %d", len(mloadedTxs.Tx))
 
 	for _, tx := range mloadedTxs.Tx {
-		w.ProcessTransaction(tx, txblck[tx.GetTxHash()], true)
+		w.processTransactionPerAccount(tx, txblck[tx.GetTxHash()], true, acc)
+	}
+	return nil
+}
+
+func (w *Wallet) processBlockRange(blocks safex.Blocks) bool {
+	// @todo Here handle block metadata.
+	var count int
+	var mcount int
+	// @todo This must be refactored due new discoveries regarding get_tx_hash
+	// Get transaction hashes
+	txblck := make(map[string]string)
+	for _, blck := range blocks.Block {
+		var txs []string
+		var minerTxs []string
+		w.logger.Debugf("[Chain] Processing block: %v", blck.GetHeader().GetDepth())
+		if err := w.wallet.PutBlockHeader(blck.GetHeader()); err != nil {
+			continue
+		}
+		for _, el := range blck.Txs {
+			txblck[el] = blck.GetHeader().GetHash()
+			txs = append(txs, el)
+		}
+		minerTxs = append(minerTxs, blck.MinerTx)
+		txblck[blck.MinerTx] = blck.GetHeader().GetHash()
+		// Get transaction data and process.
+		loadedTxs, err := w.client.GetTransactions(txs)
+		if err != nil {
+			return false
+		}
+		mloadedTxs, err := w.client.GetTransactions(minerTxs)
+		if err != nil {
+			return false
+		}
+
+		for _, tx := range loadedTxs.Tx {
+			w.processTransaction(tx, txblck[tx.GetTxHash()], false)
+		}
+		count = count + len(loadedTxs.Tx)
+		for _, tx := range mloadedTxs.Tx {
+			w.processTransaction(tx, txblck[tx.GetTxHash()], true)
+		}
+		mcount = mcount + len(mloadedTxs.Tx)
 	}
 
+	w.logger.Infof("[Chain] Number of minerTxs: %d", count)
+	w.logger.Infof("[Chain] Number of mloadedTxs: %d", mcount)
 	return true
 }
 
@@ -100,49 +95,70 @@ func (w *Wallet) seenOutput(outID string) bool {
 	return false
 }
 
-func (w *Wallet) LoadBalance() error {
+func (w *Wallet) countUnlockedOutput(outID string) error {
+	out, err := w.wallet.GetOutput(outID)
+	if err != nil {
+		return err
+	}
+	outType, err := w.wallet.GetOutputType(outID)
+	if err != nil {
+		return err
+	}
+	if outType == "Cash" {
+		w.balance.CashLocked -= out.GetAmount()
+		w.balance.CashUnlocked += out.GetAmount()
+	} else {
+		w.balance.TokenLocked -= out.GetTokenAmount()
+		w.balance.TokenUnlocked += out.GetTokenAmount()
+	}
+	return nil
+}
+
+func (w *Wallet) countOutput(outID string) error {
+
+	typ, err := w.wallet.GetOutputType(outID)
+	if err != nil {
+		return err
+	}
+	out, err := w.wallet.GetOutput(outID)
+	if err != nil {
+		return err
+	}
+	lock, err := w.wallet.GetOutputLock(outID)
+	if err != nil {
+		return err
+	}
+
+	if lock == lockedStatus {
+		if typ == "Cash" {
+			w.balance.CashLocked += out.GetAmount()
+		} else {
+			w.balance.TokenLocked += out.GetTokenAmount()
+		}
+	} else {
+		if typ == "Cash" {
+			w.balance.CashUnlocked += out.GetAmount()
+		} else {
+			w.balance.TokenUnlocked += out.GetTokenAmount()
+		}
+	}
+	return nil
+}
+
+func (w *Wallet) countOutputs(outIDs []string) error {
+	var err error
+	for _, el := range outIDs {
+		//Not the best way to save errors, should improve
+		err = w.countOutput(el)
+	}
+	return err
+}
+
+func (w *Wallet) loadBalance() error {
 	w.resetBalance()
 	height := w.wallet.GetLatestBlockHeight()
-
-	for _, el := range w.wallet.GetUnspentOutputs() {
-		if w.seenOutput(el) {
-			continue
-		}
-		age, _ := w.wallet.GetOutputAge(el)
-		txtyp, _ := w.wallet.GetOutputTransactionType(el)
-		typ, _ := w.wallet.GetOutputType(el)
-		out, _ := w.wallet.GetOutput(el)
-		if height-age > 60 {
-			if txtyp == "miner" {
-				if typ == "Cash" {
-					w.balance.CashUnlocked += out.GetAmount()
-				} else {
-					w.balance.TokenUnlocked += out.GetTokenAmount()
-				}
-			} else {
-				if typ == "Cash" {
-					w.balance.CashLocked += out.GetAmount()
-				} else {
-					w.balance.TokenLocked += out.GetTokenAmount()
-				}
-			}
-			w.countedOutputs = append(w.countedOutputs)
-		} else if height-age > 10 {
-			if typ == "Cash" {
-				w.balance.CashUnlocked += out.GetAmount()
-			} else {
-				w.balance.TokenUnlocked += out.GetTokenAmount()
-			}
-		} else {
-			if typ == "Cash" {
-				w.balance.CashLocked += out.GetAmount()
-			} else {
-				w.balance.TokenLocked += out.GetTokenAmount()
-			}
-		}
-
-		w.countedOutputs = append(w.countedOutputs)
-	}
+	w.logger.Debugf("[Wallet] Loading balance up to: %d", height)
+	w.countOutputs(w.wallet.GetUnspentOutputs())
 	return nil
 }
 
@@ -153,81 +169,29 @@ func (w *Wallet) resetBalance() {
 	w.balance.TokenLocked = 0
 }
 
-func (w *Wallet) UnlockBalance(height uint64) error {
-	for _, el := range w.wallet.GetLockedOutputs() {
+func (w *Wallet) unlockBalance(height uint64) error {
+	lockedOuts := make([]string, len(w.wallet.GetLockedOutputs()))
+	copy(lockedOuts, w.wallet.GetLockedOutputs())
+	for _, el := range lockedOuts {
 		age, _ := w.wallet.GetOutputAge(el)
 		txtyp, _ := w.wallet.GetOutputTransactionType(el)
-		typ, _ := w.wallet.GetOutputType(el)
-		out, _ := w.wallet.GetOutput(el)
-		if txtyp == "miner" && height-age > 60 {
+		if txtyp == "miner" && age >= 59 {
+			w.logger.Infof("[Chain] Unlocking coinbase output %s aged %v", el, age)
 			if err := w.wallet.UnlockOutput(el); err != nil {
 				return err
 			}
-			if typ == "Cash" {
-				w.balance.CashLocked += out.GetAmount()
-				w.balance.CashUnlocked += out.GetAmount()
-			} else {
-				w.balance.TokenLocked += out.GetTokenAmount()
-				w.balance.TokenUnlocked += out.GetTokenAmount()
+			if err := w.countUnlockedOutput(el); err != nil {
+				return err
 			}
-		} else if height-age > 10 {
+		} else if txtyp == "normal" && age >= 9 {
+			w.logger.Infof("[Chain] Unlocking cash output %s aged %v", el, age)
 			if err := w.wallet.UnlockOutput(el); err != nil {
 				return err
 			}
-			if typ == "Cash" {
-				w.balance.CashLocked -= out.GetAmount()
-				w.balance.CashUnlocked += out.GetAmount()
-			} else {
-				w.balance.TokenLocked -= out.GetTokenAmount()
-				w.balance.TokenUnlocked += out.GetTokenAmount()
+			if err := w.countUnlockedOutput(el); err != nil {
+				return err
 			}
 		}
 	}
 	return nil
-}
-
-func (w *Wallet) UpdateBalance() (b balance.Balance, err error) {
-	w.outputs = make(map[crypto.Key]Transfer)
-	// Connect to node.
-	//w.client = safexdrpc.InitClient("127.0.0.1", 38001)
-
-	info, err := w.client.GetDaemonInfo()
-
-	if err != nil {
-		return b, errors.New("Cant get daemon info!")
-	}
-
-	bcHeight := info.Height
-
-	var curr uint64
-	curr = 0
-
-	var blocks safex.Blocks
-	var end uint64
-
-	// @todo Here exists some error during overlaping block ranges. Deal with it later.
-	for curr < (bcHeight - 1) {
-		// Calculate end of interval for loading
-		if curr+blockInterval > bcHeight {
-			end = bcHeight - 1
-		} else {
-			end = curr + blockInterval
-		}
-		start := time.Now()
-		blocks, err = w.client.GetBlocks(curr, end) // Load blocks from daemon
-		fmt.Println(time.Since(start))
-
-		// If there was error during loading of blocks return err.
-		if err != nil {
-			return b, err
-		}
-
-		// Process block
-		w.processBlockRange(blocks)
-
-		curr = end
-		w.UnlockBalance(curr)
-	}
-
-	return w.balance, nil
 }

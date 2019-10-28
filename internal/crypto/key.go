@@ -1,6 +1,8 @@
 package crypto
 
-import "github.com/safex/gosafex/internal/crypto/curve"
+import (
+	"github.com/safex/gosafex/internal/crypto/curve"
+)
 
 // Seed is the value used to generate the public/private keypair.
 type Seed = curve.Seed
@@ -33,4 +35,9 @@ func NewKeyFromSeed(seed *Seed) (pub, priv *Key) {
 // Returns ErrInvalidPubKey if the given public key is invalid.
 func DeriveKey(pub, priv *Key) (result *Key, err error) {
 	return curve.DeriveKey(pub, priv)
+}
+
+//FromBytes exposes curve NewFromBytes
+func FromBytes(data []byte) (result *Key, err error) {
+	return curve.NewFromBytes(data)
 }

@@ -5,8 +5,9 @@ package safex
 
 import (
 	fmt "fmt"
-	proto "github.com/golang/protobuf/proto"
 	math "math"
+
+	proto "github.com/golang/protobuf/proto"
 )
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -35,17 +36,16 @@ func (m *Histogram) Reset()         { *m = Histogram{} }
 func (m *Histogram) String() string { return proto.CompactTextString(m) }
 func (*Histogram) ProtoMessage()    {}
 func (*Histogram) Descriptor() ([]byte, []int) {
-	return fileDescriptor_23d5a7898cce8d9e, []int{0}
+	return fileDescriptor_output_histogram_927cbf93d7a0fad0, []int{0}
 }
-
 func (m *Histogram) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Histogram.Unmarshal(m, b)
 }
 func (m *Histogram) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_Histogram.Marshal(b, m, deterministic)
 }
-func (m *Histogram) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_Histogram.Merge(m, src)
+func (dst *Histogram) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Histogram.Merge(dst, src)
 }
 func (m *Histogram) XXX_Size() int {
 	return xxx_messageInfo_Histogram.Size(m)
@@ -103,17 +103,16 @@ func (m *Histograms) Reset()         { *m = Histograms{} }
 func (m *Histograms) String() string { return proto.CompactTextString(m) }
 func (*Histograms) ProtoMessage()    {}
 func (*Histograms) Descriptor() ([]byte, []int) {
-	return fileDescriptor_23d5a7898cce8d9e, []int{1}
+	return fileDescriptor_output_histogram_927cbf93d7a0fad0, []int{1}
 }
-
 func (m *Histograms) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Histograms.Unmarshal(m, b)
 }
 func (m *Histograms) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_Histograms.Marshal(b, m, deterministic)
 }
-func (m *Histograms) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_Histograms.Merge(m, src)
+func (dst *Histograms) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Histograms.Merge(dst, src)
 }
 func (m *Histograms) XXX_Size() int {
 	return xxx_messageInfo_Histograms.Size(m)
@@ -143,9 +142,11 @@ func init() {
 	proto.RegisterType((*Histograms)(nil), "safex.Histograms")
 }
 
-func init() { proto.RegisterFile("output_histogram.proto", fileDescriptor_23d5a7898cce8d9e) }
+func init() {
+	proto.RegisterFile("output_histogram.proto", fileDescriptor_output_histogram_927cbf93d7a0fad0)
+}
 
-var fileDescriptor_23d5a7898cce8d9e = []byte{
+var fileDescriptor_output_histogram_927cbf93d7a0fad0 = []byte{
 	// 219 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x4c, 0xd0, 0x3d, 0x4e, 0xc4, 0x30,
 	0x10, 0x05, 0x60, 0x99, 0xfd, 0x81, 0x1d, 0x24, 0x76, 0x71, 0xb1, 0x32, 0xdd, 0x2a, 0x0d, 0xa1,

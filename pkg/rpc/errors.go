@@ -35,4 +35,6 @@ const (
 	BadParseOrPassword         = 28
 	RemovingCurrentAccount     = 29
 	RemovingAccountError       = 30
+	FailedToCreateTransaction  = 31
+	FailedToSendTransaction    = 32
 )

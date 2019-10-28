@@ -1,18 +1,24 @@
 package main
- 
+
 import (
-    "fmt"
-    "log"
-	"net/http"
 	"flag"
+	"io"
+	"net/http"
+	"os"
 	"strconv"
+
 	"github.com/gorilla/mux"
-	"github.com/safex/gosafex/pkg/rpc"
+	SafexRPC "github.com/safex/gosafex/pkg/rpc"
+	log "github.com/sirupsen/logrus"
 )
 
-func loadRoutes(wallet *SafexRPC.WalletRPC, router *mux.Router){
+var logLevel = log.InfoLevel
+var logOutput io.Writer
+var logFile = "safexsdk.log"
+
+func loadRoutes(wallet *SafexRPC.WalletRPC, router *mux.Router) {
 	routes := wallet.GetRoutes()
-	for _, route := range(routes) {
+	for _, route := range routes {
 		router.Methods(route.Method).Path(route.Path).Name(route.Name).HandlerFunc(route.HandlerFunc)
 	}
 }
@@ -22,15 +28,22 @@ func main() {
 	portPtr := flag.Int("port", 17406, "Custom port for json_rpc")
 	passPtr := flag.String("password", "", "Password for decryption")
 
+	if logFile != "" {
+		logOutput, _ = os.OpenFile(logFile, os.O_APPEND|os.O_CREATE, os.ModeAppend)
+	}
+
+	logger := log.StandardLogger()
+	logger.SetLevel(log.InfoLevel)
+	logger.SetOutput(logOutput)
 	flag.Parse()
 
 	router := mux.NewRouter().StrictSlash(true)
 
-	var walletRPC SafexRPC.WalletRPC
-	loadRoutes(&walletRPC, router)
+	var walletRPC = SafexRPC.New(logger)
+	loadRoutes(walletRPC, router)
 
-	fmt.Println("Starting server on ", *portPtr)
-	fmt.Println("With password " + *passPtr)
-    log.Fatal(http.ListenAndServe(":"+strconv.Itoa(*portPtr), router))
- 
+	logger.Infof("[Main] Starting server on %s", *portPtr)
+	logger.Infof("[Main] With password " + *passPtr)
+	logger.Fatal(http.ListenAndServe(":"+strconv.Itoa(*portPtr), router))
+
 }

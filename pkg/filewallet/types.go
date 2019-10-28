@@ -1,5 +1,40 @@
 package filewallet
 
+import (
+	"github.com/safex/gosafex/internal/crypto"
+	"github.com/safex/gosafex/internal/filestore"
+	"github.com/safex/gosafex/pkg/account"
+	log "github.com/sirupsen/logrus"
+)
+
+type WalletInfo struct {
+	Name     string
+	Keystore *account.Store
+}
+
+//FileWallet is a wrapper for an EncryptedDB that includes wallet specific data and operations
+type FileWallet struct {
+	logger            *log.Logger
+	info              *WalletInfo
+	db                *filestore.EncryptedDB
+	knownOutputs      []string //REMEMBER TO INITIALIZE THIS
+	unspentOutputs    []string
+	lockedOutputs     []string
+	latestBlockNumber uint64
+	latestBlockHash   string
+}
+type TransferInfo struct {
+	Extra       []byte
+	LocalIndex  uint64
+	GlobalIndex uint64
+	Spent       bool
+	MinerTx     bool
+	Height      uint64
+	KImage      crypto.Key
+	EphPub      crypto.Key
+	EphPriv     crypto.Key
+}
+
 //OutputInfo is a syntesis of useful information to be stored concerning an output
 type OutputInfo struct {
 	OutputType    string
@@ -7,6 +42,7 @@ type OutputInfo struct {
 	TransactionID string
 	TxLocked      string
 	TxType        string
+	OutTransfer   TransferInfo
 }
 
 //TransactionInfo is a syntesis of useful information to be stored concerning a transaction

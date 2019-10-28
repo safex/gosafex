@@ -4,13 +4,12 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"io"
 	"io/ioutil"
-	"log"
 	"net/http"
-	"os"
 	"strconv"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/safex/gosafex/pkg/safex"
@@ -21,7 +20,10 @@ import (
 type JSONElement = map[string]interface{}
 type JSONArray = []interface{}
 
+var generalLogger *log.Logger
+
 type Client struct {
+	logger     *log.Logger
 	Port       uint
 	Host       string
 	ID         uint
@@ -39,20 +41,13 @@ func must(err error) {
 
 //InitClient creates and initializes RPC client and returns client object
 //takes host and port as arguments
-func InitClient(host string, port uint) (client *Client) {
-
-	file, e := os.OpenFile("rpc_dump_log.txt", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
-	if e != nil {
-		log.Fatalln("Failed to open rpc_dump_log.txt file")
-	}
-
-	wrtr := io.MultiWriter(file)
-	log.SetOutput(wrtr)
+func InitClient(host string, port uint, prevLogger *log.Logger) (client *Client) {
 
 	client = &Client{
-		Port: port,
-		Host: host,
-		ID:   0,
+		Port:   port,
+		Host:   host,
+		ID:     0,
+		logger: prevLogger,
 	}
 
 	// Create config
@@ -88,9 +83,7 @@ func (c Client) JSONSafexdCall(method string, params interface{}) ([]byte, error
 
 	jsonBuff, _ := json.Marshal(body)
 
-	log.Println("-----------------------------------------------------------------------------------------")
-	log.Println("endpoint: ", url, "body: ", string(jsonBuff))
-	log.Println("*****************************************************************************************")
+	c.logger.Debugf("[RPC] endpoint: %s", url, "body: ", string(jsonBuff))
 
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonBuff))
 	must(err)
@@ -110,9 +103,7 @@ func (c Client) JSONSafexdCall(method string, params interface{}) ([]byte, error
 		return nil, err
 	}
 
-	log.Println(" Response: -----------------------------------------------------------------------------------------")
-	log.Println(string(resBody))
-	log.Println("-----------------------------------------------------------------------------------------")
+	c.logger.Debugf("[RPC] Response: ", string(resBody))
 	return resBody, err
 }
 
@@ -128,9 +119,7 @@ func (c Client) SafexdCall(method string, params interface{}, httpMethod string)
 	must(err)
 	url := "http://" + c.Host + ":" + strconv.Itoa(int(c.Port)) + "/" + method
 
-	log.Println("-----------------------------------------------------------------------------------------")
-	log.Println("endpoint: ", url, "body: ", string(body))
-	log.Println("*****************************************************************************************")
+	c.logger.Debugf("[RPC] endpoint: %s", url)
 
 	req, err := http.NewRequest(httpMethod, url, bytes.NewBuffer(body))
 	must(err)
@@ -150,10 +139,6 @@ func (c Client) SafexdCall(method string, params interface{}, httpMethod string)
 		return nil, err
 	}
 
-	log.Println(" Response: -----------------------------------------------------------------------------------------")
-	log.Println(string(resBody))
-	log.Println("-----------------------------------------------------------------------------------------")
-
 	return resBody, err
 
 }
@@ -162,10 +147,7 @@ func (c Client) SafexdProtoCall(method string, body []byte, httpMethod string) (
 	var err error
 	url := "http://" + c.Host + ":" + strconv.Itoa(int(c.Port)) + "/" + method
 
-	log.Println("-----------------------------------------------------------------------------------------")
-	log.Println("endpoint: ", url, "body: ", string(body))
-	log.Println("*****************************************************************************************")
-
+	c.logger.Debugf("[RPC] endpoint: %s", url)
 	req, err := http.NewRequest(httpMethod, url, bytes.NewBuffer(body))
 	must(err)
 
@@ -178,9 +160,6 @@ func (c Client) SafexdProtoCall(method string, body []byte, httpMethod string) (
 	resBody, err := ioutil.ReadAll(resp.Body)
 	must(err)
 
-	log.Println(" Response: -----------------------------------------------------------------------------------------")
-	log.Println(string(resBody))
-	log.Println("-----------------------------------------------------------------------------------------")
 	return resBody, err
 
 }
@@ -268,7 +247,6 @@ func (c Client) GetOutputHistogram(amounts *[]uint64,
 }
 
 func (c Client) GetOutputs(out_entries []safex.GetOutputRq, txOutType safex.TxOutType) (outs safex.Outs, err error) {
-	log.Println("REQUEST: ", out_entries)
 	result, err := c.SafexdCall("proto/get_outputs", JSONElement{"outputs": out_entries,
 		"out_type": txOutType}, "POST")
 	must(err)
@@ -278,12 +256,16 @@ func (c Client) GetOutputs(out_entries []safex.GetOutputRq, txOutType safex.TxOu
 	return outs, err
 }
 
-func (c Client) SendTransaction(tx *safex.Transaction, doNotRelay bool) (res safex.SendTxRes, err error) {
+func (c Client) SendTransaction(tx *safex.Transaction, doNotRelay bool) (res *safex.SendTxRes, err error) {
 	data, err := proto.Marshal(tx)
 
 	result, err := c.SafexdProtoCall("proto/sendrawtransaction", data, "POST")
-	must(err)
+	if err != nil {
+		return nil, err
+	}
 	err = json.Unmarshal(result, &res)
-	must(err)
+	if err != nil {
+		return nil, err
+	}
 	return res, err
 }

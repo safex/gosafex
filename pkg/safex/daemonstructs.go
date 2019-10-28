@@ -74,16 +74,16 @@ func (a ByIndex) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a ByIndex) Less(i, j int) bool { return a[i].Index < a[j].Index }
 
 type SendTxRes struct {
-	DoubleSpend   bool   `json:"double_spend"`
-	FeeTooLow     bool   `"json:"fee_too_low"`
-	InvalidInput  bool   `json:"invalid_input"`
-	InvalidOutput bool   `json:"invalid_output"`
-	LowMixin      bool   `json:"low_mixin"`
-	NotRct        bool   `json:"not_rct"`
-	NotRelayed    bool   `json:"not_relayed"`
-	OverSpend     bool   `json:"overspend"`
-	Reason        string `json:"reason"`
-	Status        string `json:"status"`
-	TooBig        bool   `json:"too_big"`
-	Untrusted     bool   `json:"untrusted"`
+	DoubleSpend bool `json:"double_spend"`
+	FeeTooLow bool `"json:"fee_too_low"`
+	InvalidInput bool `json:"invalid_input"`
+	InvalidOutput bool `json:"invalid_output"`
+	LowMixin bool `json:"low_mixin"`
+	NotRct bool `json:"not_rct"`
+	NotRelayed bool `json:"not_relayed"`
+	OverSpend bool `json:"overspend"`
+	Reason string `json:"reason"`
+	Status string `json:"status"`
+	TooBig bool `json:"too_big"`
+	Untrusted bool `json:"untrusted"`
 }

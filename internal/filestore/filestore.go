@@ -9,6 +9,7 @@ import (
 
 	bolt "github.com/etcd-io/bbolt"
 	SafexCrypto "github.com/safex/gosafex/internal/crypto"
+	log "github.com/sirupsen/logrus"
 	"golang.org/x/crypto/hkdf"
 )
 
@@ -61,7 +62,7 @@ func (e *EncryptedDB) InitMaster() error {
 
 //CreateBucket Creates a new bucket and relative nonce
 func (e *EncryptedDB) CreateBucket(bucket string) error {
-
+	e.logger.Debugf("[Filestore] Creating bucket: %s", bucket)
 	if e.masternonce[:] == nil {
 		err := e.InitMaster()
 		if err != nil {
@@ -84,6 +85,7 @@ func (e *EncryptedDB) CreateBucket(bucket string) error {
 	e.stream.targetBucket = encrypt(pad([]byte(bucket), 32), key[:], e.masternonce[:])
 
 	if e.stream.BucketExists() {
+		e.logger.Debugf("[Filestore] %s", ErrBucketAlreadyExists)
 		return ErrBucketAlreadyExists
 	}
 
@@ -94,7 +96,7 @@ func (e *EncryptedDB) CreateBucket(bucket string) error {
 
 //SetBucket Changes the current bucket
 func (e *EncryptedDB) SetBucket(bucket string) error {
-
+	e.logger.Debugf("[Filestore] Setting bucket: %s", bucket)
 	if e.masternonce[:] == nil {
 		err := e.InitMaster()
 		if err != nil {
@@ -110,6 +112,7 @@ func (e *EncryptedDB) SetBucket(bucket string) error {
 	}
 	e.stream.targetBucket = encrypt(pad([]byte(bucket), 32), key[:], e.masternonce[:])
 	if !e.stream.BucketExists() {
+		e.logger.Debugf("[Filestore] %s", ErrBucketNotInit)
 		return ErrBucketNotInit
 	}
 
@@ -119,7 +122,6 @@ func (e *EncryptedDB) SetBucket(bucket string) error {
 
 //GetNonce Checks the current bucketnonce
 func (e *EncryptedDB) GetNonce() ([]byte, error) {
-
 	e.stream.targetKey = []byte(noncename)
 
 	nonce, err := e.stream.Read()
@@ -132,7 +134,9 @@ func (e *EncryptedDB) GetNonce() ([]byte, error) {
 //Write Writes data in the current bucket to the target key
 func (e *EncryptedDB) Write(key string, data []byte) error {
 
+	e.logger.Debugf("[Filestore] Writing key: %s", key)
 	if !e.stream.BucketExists() {
+		e.logger.Debugf("[Filestore] %s", ErrBucketNotInit)
 		return ErrBucketNotInit
 	}
 
@@ -157,8 +161,9 @@ func (e *EncryptedDB) Write(key string, data []byte) error {
 
 //Read reads in the current bucket at target string
 func (e *EncryptedDB) Read(key string) ([]byte, error) {
-
+	e.logger.Debugf("[Filestore] Reading key: %s", key)
 	if !e.stream.BucketExists() {
+		e.logger.Debugf("[Filestore] %s", ErrBucketNotInit)
 		return nil, ErrBucketNotInit
 	}
 
@@ -183,12 +188,15 @@ func (e *EncryptedDB) Read(key string) ([]byte, error) {
 		return nil, err
 	}
 	data = unpad(decrypt(data, encryptedKey[:]))
+	e.logger.Debugf("[Filestore] Read Data: %s", data)
 	return data, nil
 }
 
 func (e *EncryptedDB) Append(key string, newData []byte) error {
+	e.logger.Debugf("[Filestore] Appending to key: %s Data: %s", key, newData)
 
 	if !e.stream.BucketExists() {
+		e.logger.Debugf("[Filestore] %s", ErrBucketNotInit)
 		return ErrBucketNotInit
 	}
 
@@ -224,7 +232,10 @@ func (e *EncryptedDB) Append(key string, newData []byte) error {
 
 func (e *EncryptedDB) ReadAppended(key string) ([][]byte, error) {
 
+	e.logger.Debugf("[Filestore] Reading appended key : %s", key)
+
 	if !e.stream.BucketExists() {
+		e.logger.Debugf("[Filestore] %s", ErrBucketNotInit)
 		return nil, ErrBucketNotInit
 	}
 
@@ -239,6 +250,12 @@ func (e *EncryptedDB) ReadAppended(key string) ([][]byte, error) {
 	if _, err := io.ReadFull(kdf, encryptedKey[:]); err != nil {
 		return nil, err
 	}
+
+	defer func() {
+		if r := recover(); r != nil {
+			e.logger.Errorf("Panicked with parameters: key %v, encryptedKey: %v, nonce: %v", pad([]byte(key), 32), encryptedKey[:], nonce[:])
+		}
+	}()
 
 	tempKey := SafexCrypto.NewDigest(encrypt(pad([]byte(key), 32), encryptedKey[:], nonce[:]))
 	e.stream.targetKey = tempKey[:]
@@ -255,8 +272,10 @@ func (e *EncryptedDB) ReadAppended(key string) ([][]byte, error) {
 
 //Delete .
 func (e *EncryptedDB) Delete(key string) error {
+	e.logger.Debugf("[Filestore] Deleting key : %s", key)
 
 	if !e.stream.BucketExists() {
+		e.logger.Debugf("[Filestore] %s", ErrBucketNotInit)
 		return ErrBucketNotInit
 	}
 
@@ -280,6 +299,7 @@ func (e *EncryptedDB) Delete(key string) error {
 
 //DeleteAppendedKey Quite costly atm, could be improved a lot
 func (e *EncryptedDB) DeleteAppendedKey(key string, target int) error {
+	e.logger.Debugf("[Filestore] Deleting at key : %s Value number: %d", key, target)
 	data, err := e.ReadAppended(key)
 	if err != nil {
 		return err
@@ -301,8 +321,10 @@ func (e *EncryptedDB) DeleteAppendedKey(key string, target int) error {
 
 //DeleteBucket . s
 func (e *EncryptedDB) DeleteBucket() error {
+	e.logger.Debugf("[Filestore] Deleting current bucket")
 
 	if !e.stream.BucketExists() {
+		e.logger.Debugf("[Filestore] %s", ErrBucketNotInit)
 		return ErrBucketNotInit
 	}
 
@@ -313,6 +335,7 @@ func (e *EncryptedDB) DeleteBucket() error {
 //GetCurrentBucket .
 func (e *EncryptedDB) GetCurrentBucket() (string, error) {
 	if e.stream.targetBucket == nil {
+		e.logger.Debugf("[Filestore] %s", ErrNoBucketSet)
 		return "", ErrNoBucketSet
 	}
 	if e.masternonce[:] == nil {
@@ -352,11 +375,13 @@ func (e *EncryptedDB) Close() {
 }
 
 //NewEncryptedDB .
-func NewEncryptedDB(file string, masterkey string) (*EncryptedDB, error) {
+func NewEncryptedDB(file string, masterkey string, exists bool, prevLog *log.Logger) (*EncryptedDB, error) {
 
 	err := error(nil)
 	DB := new(EncryptedDB)
 	DB.stream = new(Stream)
+	DB.logger = prevLog
+	DB.stream.logger = prevLog
 	DB.stream.db, err = bolt.Open(file, 0600, nil)
 
 	if err != nil {
@@ -365,7 +390,6 @@ func NewEncryptedDB(file string, masterkey string) (*EncryptedDB, error) {
 
 	DB.stream.targetKey = nil
 	DB.stream.targetBucket = nil
-
 	DB.masterkey = SafexCrypto.NewDigest([]byte(masterkey))
 	DB.masternonce = [32]byte{}
 
