@@ -2,14 +2,14 @@ package SafexRPC
 
 import (
 	"os"
-	"strings"
-	"testing"
-
+	//"strings"
 	"bytes"
 	"encoding/json"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"testing"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -31,18 +31,19 @@ const wallet1pubview = "278ae1e6b5e7a272dcdca311e0362a222fa5ce98c975ccfff67e4075
 const wallet1pubspend = "a8e16a10c45be469b591bc1f1a5a514fd950d8536dd808cd40e30dd5015fd84c"
 const wallet1privview = "1ddc70c705ca023ccb08cf8d912f58d815b8e154a201902c0fc67cde52b61909"
 const wallet1privspend = "c55a2fa96b04b8f019afeaca883fdfd1e7ee775486eec32648579e9c0fab950c"
-
+const wallet1address = "SFXtzV7tt2KZqvpCWVWauC5Qf16o3dAwLKNd9hCNzoB21ELLNfFjAMjXRhsR3ohT1AeW8j3jL4gfRahR86x6aoiU5hm5ZJj7BSc"
 const mnemonic_seed = "shrugged january avatar fungal pawnshop thwart grunt yoga stunning honked befit already ungainly fancy camp liquid revamp evaluate height evolved bowling knife gasp gotten honked"
 const mnemonic_key = "ace8f0a434437935b01ca3d2aa7438f1ec27d7dc02a33b8d7a62dfda1fe13907"
 const mnemonic_address = "Safex5zgYGP2tyGNaqkrAoirRqrEw8Py79KPLRhwqEHbDcnPVvSwvCx2iTUbTR6PVMHR9qapyAq6Fj5TF9ATn5iq27YPrxCkJyD11"
 
 var testLogger = log.StandardLogger()
 var testLogFile = "test.log"
+var started = false
 
 type testResponse struct {
-	Result         []byte          `json:"result"`
-	Status         StatusCodeError `json:"status"`
-	JSONRpcVersion string          `json:"JSONRpcVersion"`
+	Result         map[string]interface{} `json:"result"`
+	Status         StatusCodeError        `json:"status"`
+	JSONRpcVersion string                 `json:"JSONRpcVersion"`
 }
 
 type testHandlers struct {
@@ -82,41 +83,41 @@ type testHandlers struct {
 	CloseHandler http.HandlerFunc
 }
 
-type testRequests struct {
-	ConnectRequest,
-	OpenExistingRequest,
-	CreateNewRequest,
-	RecoverWithSeedRequest,
-	RecoverWithKeysRequest,
-	RecoverWithKeysFileRequest,
-	GetStatusRequest,
-	BeginUpdatingRequest,
-	StopUpdatingRequest,
-	RescanRequest,
-	GetLatestBlockNumberRequest,
-	GetAccountInfoRequest,
-	GetAccountBalanceRequest,
-	SyncAccountRequest,
-	RemoveAccountRequest,
-	OpenAccountRequest,
-	GetAllAccountsInfoRequest,
-	CreateAccountFromKeysRequest,
-	CreateAccountFromKeysFileRequest,
-	CreateAccountFromMnemonicRequest,
-	CreateNewAccountRequest,
-	StoreDataRequest,
-	LoadDataRequest,
-	TransactionCashRequest,
-	TransactionTokenRequest,
-	GetTransactionInfoRequest,
-	GetHistoryRequest,
-	GetTransactionUpToBlockHeightRequest,
-	GetOutputInfoRequest,
-	GetOutputInfoFromTransactionRequest,
-	GetOutputInfoFromTypeRequest,
-	GetUnspentOutputsRequest,
-	GetOutputHistogramRequest,
-	CloseRequest *http.Request
+type testRoutes struct {
+	ConnectRoute,
+	OpenExistingRoute,
+	CreateNewRoute,
+	RecoverWithSeedRoute,
+	RecoverWithKeysRoute,
+	RecoverWithKeysFileRoute,
+	GetStatusRoute,
+	BeginUpdatingRoute,
+	StopUpdatingRoute,
+	RescanRoute,
+	GetLatestBlockNumberRoute,
+	GetAccountInfoRoute,
+	GetAccountBalanceRoute,
+	SyncAccountRoute,
+	RemoveAccountRoute,
+	OpenAccountRoute,
+	GetAllAccountsInfoRoute,
+	CreateAccountFromKeysRoute,
+	CreateAccountFromKeysFileRoute,
+	CreateAccountFromMnemonicRoute,
+	CreateNewAccountRoute,
+	StoreDataRoute,
+	LoadDataRoute,
+	TransactionCashRoute,
+	TransactionTokenRoute,
+	GetTransactionInfoRoute,
+	GetHistoryRoute,
+	GetTransactionUpToBlockHeightRoute,
+	GetOutputInfoRoute,
+	GetOutputInfoFromTransactionRoute,
+	GetOutputInfoFromTypeRoute,
+	GetUnspentOutputsRoute,
+	GetOutputHistogramRoute,
+	CloseRoute *http.Request
 }
 
 type testPayloads struct {
@@ -156,14 +157,58 @@ type testPayloads struct {
 	ClosePayload []byte
 }
 
+type testRequest struct {
+	route   *http.Request
+	handler http.HandlerFunc
+}
+
+type testRequests struct {
+	ConnectRequest,
+	OpenExistingRequest,
+	CreateNewRequest,
+	RecoverWithSeedRequest,
+	RecoverWithKeysRequest,
+	RecoverWithKeysFileRequest,
+	GetStatusRequest,
+	BeginUpdatingRequest,
+	StopUpdatingRequest,
+	RescanRequest,
+	GetLatestBlockNumberRequest,
+	GetAccountInfoRequest,
+	GetAccountBalanceRequest,
+	SyncAccountRequest,
+	RemoveAccountRequest,
+	OpenAccountRequest,
+	GetAllAccountsInfoRequest,
+	CreateAccountFromKeysRequest,
+	CreateAccountFromKeysFileRequest,
+	CreateAccountFromMnemonicRequest,
+	CreateNewAccountRequest,
+	StoreDataRequest,
+	LoadDataRequest,
+	TransactionCashRequest,
+	TransactionTokenRequest,
+	GetTransactionInfoRequest,
+	GetHistoryRequest,
+	GetTransactionUpToBlockHeightRequest,
+	GetOutputInfoRequest,
+	GetOutputInfoFromTransactionRequest,
+	GetOutputInfoFromTypeRequest,
+	GetUnspentOutputsRequest,
+	GetOutputHistogramRequest,
+	CloseRequest testRequest
+}
+
 var testh *testHandlers
-var testr *testRequests
+var testr *testRoutes
 var testp *testPayloads
+var testreq *testRequests
 
 func initParameters(t *testing.T, w *WalletRPC) {
 	testh = new(testHandlers)
-	testr = new(testRequests)
+	testr = new(testRoutes)
 	testp = new(testPayloads)
+	testreq = new(testRequests)
 
 	testh.ConnectHandler = http.HandlerFunc(w.Connect)
 	testh.OpenExistingHandler = http.HandlerFunc(w.OpenExisting)
@@ -211,6 +256,17 @@ func initParameters(t *testing.T, w *WalletRPC) {
 		"daemon_port": clientPort,
 		"nettype":     "mainnet",
 	})
+	testp.CreateNewPayload, _ = json.Marshal(map[string]interface{}{
+		"path":        filename,
+		"password":    masterPass,
+		"daemon_host": clientAddress,
+		"daemon_port": clientPort,
+		"nettype":     "mainnet",
+	})
+	testp.GetStatusPayload, _ = json.Marshal(map[string]interface{}{})
+	testp.BeginUpdatingPayload, _ = json.Marshal(map[string]interface{}{})
+	testp.StopUpdatingPayload, _ = json.Marshal(map[string]interface{}{})
+	testp.GetLatestBlockNumberPayload, _ = json.Marshal(map[string]interface{}{})
 	testp.GetAllAccountsInfoPayload, _ = json.Marshal(map[string]interface{}{})
 	testp.OpenAccountPayload, _ = json.Marshal(map[string]interface{}{
 		"name": accountName1,
@@ -222,72 +278,131 @@ func initParameters(t *testing.T, w *WalletRPC) {
 		"paymentID":       "c55a2fa96b04b8f019afeaca883fdfd1e7ee775486eec32648579e9c0fab950c",
 		"fake_outs_count": 3,
 	})
+	testp.CreateAccountFromKeysPayload, _ = json.Marshal(map[string]interface{}{
+		"name":     accountName1,
+		"address":  wallet1address,
+		"viewkey":  wallet1privview,
+		"spendkey": wallet1privspend,
+	})
+	testr.ConnectRoute, _ = http.NewRequest("POST", "localhost:17406/", ioutil.NopCloser(bytes.NewReader(testp.ConnectPayload)))
+	testreq.ConnectRequest = testRequest{testr.ConnectRoute, testh.ConnectHandler}
+	testr.OpenExistingRoute, _ = http.NewRequest("POST", "localhost:17406/", ioutil.NopCloser(bytes.NewReader(testp.OpenExistingPayload)))
+	testreq.OpenExistingRequest = testRequest{testr.OpenExistingRoute, testh.OpenExistingHandler}
+	testr.CreateNewRoute, _ = http.NewRequest("POST", "localhost:17406/", ioutil.NopCloser(bytes.NewReader(testp.CreateNewPayload)))
+	testreq.CreateNewRequest = testRequest{testr.CreateNewRoute, testh.CreateNewHandler}
+	testr.RecoverWithSeedRoute, _ = http.NewRequest("POST", "localhost:17406/", nil)
+	testr.RecoverWithKeysRoute, _ = http.NewRequest("POST", "localhost:17406/", nil)
+	testr.RecoverWithKeysFileRoute, _ = http.NewRequest("POST", "localhost:17406/", nil)
+	testr.GetStatusRoute, _ = http.NewRequest("POST", "localhost:17406/", ioutil.NopCloser(bytes.NewReader(testp.GetStatusPayload)))
+	testreq.GetStatusRequest = testRequest{testr.GetStatusRoute, testh.GetStatusHandler}
+	testr.BeginUpdatingRoute, _ = http.NewRequest("POST", "localhost:17406/", ioutil.NopCloser(bytes.NewReader(testp.BeginUpdatingPayload)))
+	testreq.BeginUpdatingRequest = testRequest{testr.BeginUpdatingRoute, testh.BeginUpdatingHandler}
+	testr.StopUpdatingRoute, _ = http.NewRequest("POST", "localhost:17406/", ioutil.NopCloser(bytes.NewReader(testp.StopUpdatingPayload)))
+	testreq.StopUpdatingRequest = testRequest{testr.StopUpdatingRoute, testh.StopUpdatingHandler}
+	testr.RescanRoute, _ = http.NewRequest("POST", "localhost:17406/", nil)
+	testr.GetLatestBlockNumberRoute, _ = http.NewRequest("GET", "localhost:17406/", ioutil.NopCloser(bytes.NewReader(testp.StopUpdatingPayload)))
+	testreq.GetLatestBlockNumberRequest = testRequest{testr.GetLatestBlockNumberRoute, testh.GetLatestBlockNumberHandler}
+	testr.GetAccountInfoRoute, _ = http.NewRequest("POST", "localhost:17406/", nil)
+	testreq.GetAllAccountsInfoRequest = testRequest{testr.GetAllAccountsInfoRoute, testh.GetAllAccountsInfoHandler}
+	testr.GetAccountBalanceRoute, _ = http.NewRequest("GET", "localhost:17406/", ioutil.NopCloser(bytes.NewReader(testp.GetAccountInfoPayload)))
+	testreq.GetAccountBalanceRequest = testRequest{testr.GetAccountBalanceRoute, testh.GetAccountBalanceHandler}
+	testr.SyncAccountRoute, _ = http.NewRequest("POST", "localhost:17406/", nil)
+	testr.RemoveAccountRoute, _ = http.NewRequest("POST", "localhost:17406/", nil)
+	testr.OpenAccountRoute, _ = http.NewRequest("POST", "localhost:17406/", ioutil.NopCloser(bytes.NewReader(testp.OpenAccountPayload)))
+	testreq.OpenAccountRequest = testRequest{testr.OpenAccountRoute, testh.OpenAccountHandler}
+	testr.GetAllAccountsInfoRoute, _ = http.NewRequest("Get", "localhost:17406/", ioutil.NopCloser(bytes.NewReader(testp.GetAllAccountsInfoPayload)))
+	testreq.GetAllAccountsInfoRequest = testRequest{testr.GetAllAccountsInfoRoute, testh.GetAllAccountsInfoHandler}
+	testr.CreateAccountFromKeysRoute, _ = http.NewRequest("POST", "localhost:17406/", ioutil.NopCloser(bytes.NewReader(testp.CreateAccountFromKeysPayload)))
+	testreq.CreateAccountFromKeysRequest = testRequest{testr.CreateAccountFromKeysRoute, testh.CreateAccountFromKeysHandler}
+	testr.CreateAccountFromKeysFileRoute, _ = http.NewRequest("POST", "localhost:17406/", nil)
+	testr.CreateAccountFromMnemonicRoute, _ = http.NewRequest("POST", "localhost:17406/", nil)
+	testr.CreateNewAccountRoute, _ = http.NewRequest("POST", "localhost:17406/", nil)
+	testr.StoreDataRoute, _ = http.NewRequest("POST", "localhost:17406/", nil)
+	testr.LoadDataRoute, _ = http.NewRequest("POST", "localhost:17406/", nil)
+	testr.TransactionCashRoute, _ = http.NewRequest("POST", "localhost:17406/", ioutil.NopCloser(bytes.NewReader(testp.TransactionCashPayload)))
+	testreq.TransactionCashRequest = testRequest{testr.TransactionCashRoute, testh.TransactionCashHandler}
+	testr.TransactionTokenRoute, _ = http.NewRequest("POST", "localhost:17406/", nil)
+	testr.GetTransactionInfoRoute, _ = http.NewRequest("POST", "localhost:17406/", nil)
+	testr.GetHistoryRoute, _ = http.NewRequest("POST", "localhost:17406/", nil)
+	testr.GetTransactionUpToBlockHeightRoute, _ = http.NewRequest("POST", "localhost:17406/", nil)
+	testr.GetOutputInfoRoute, _ = http.NewRequest("POST", "localhost:17406/", nil)
+	testr.GetOutputInfoFromTransactionRoute, _ = http.NewRequest("POST", "localhost:17406/", nil)
+	testr.GetOutputInfoFromTypeRoute, _ = http.NewRequest("POST", "localhost:17406/", nil)
+	testr.GetUnspentOutputsRoute, _ = http.NewRequest("POST", "localhost:17406/", nil)
+	testr.GetOutputHistogramRoute, _ = http.NewRequest("POST", "localhost:17406/", nil)
+	testr.CloseRoute, _ = http.NewRequest("POST", "localhost:17406/", nil)
+}
 
-	testr.ConnectRequest, _ = http.NewRequest("POST", "localhost:17406/", ioutil.NopCloser(bytes.NewReader(testp.ConnectPayload)))
-	testr.OpenExistingRequest, _ = http.NewRequest("POST", "localhost:17406/", ioutil.NopCloser(bytes.NewReader(testp.OpenExistingPayload)))
-	testr.CreateNewRequest, _ = http.NewRequest("POST", "localhost:17406/", nil)
-	testr.RecoverWithSeedRequest, _ = http.NewRequest("POST", "localhost:17406/", nil)
-	testr.RecoverWithKeysRequest, _ = http.NewRequest("POST", "localhost:17406/", nil)
-	testr.RecoverWithKeysFileRequest, _ = http.NewRequest("POST", "localhost:17406/", nil)
-	testr.GetStatusRequest, _ = http.NewRequest("POST", "localhost:17406/", nil)
-	testr.BeginUpdatingRequest, _ = http.NewRequest("POST", "localhost:17406/", nil)
-	testr.StopUpdatingRequest, _ = http.NewRequest("POST", "localhost:17406/", nil)
-	testr.RescanRequest, _ = http.NewRequest("POST", "localhost:17406/", nil)
-	testr.GetLatestBlockNumberRequest, _ = http.NewRequest("GET", "localhost:17406/", nil)
-	testr.GetAccountInfoRequest, _ = http.NewRequest("POST", "localhost:17406/", nil)
-	testr.GetAccountBalanceRequest, _ = http.NewRequest("GET", "localhost:17406/", ioutil.NopCloser(bytes.NewReader(testp.GetAccountInfoPayload)))
-	testr.SyncAccountRequest, _ = http.NewRequest("POST", "localhost:17406/", nil)
-	testr.RemoveAccountRequest, _ = http.NewRequest("POST", "localhost:17406/", nil)
-	testr.OpenAccountRequest, _ = http.NewRequest("POST", "localhost:17406/", ioutil.NopCloser(bytes.NewReader(testp.OpenAccountPayload)))
-	testr.GetAllAccountsInfoRequest, _ = http.NewRequest("Get", "localhost:17406/", ioutil.NopCloser(bytes.NewReader(testp.GetAllAccountsInfoPayload)))
-	testr.CreateAccountFromKeysRequest, _ = http.NewRequest("POST", "localhost:17406/", nil)
-	testr.CreateAccountFromKeysFileRequest, _ = http.NewRequest("POST", "localhost:17406/", nil)
-	testr.CreateAccountFromMnemonicRequest, _ = http.NewRequest("POST", "localhost:17406/", nil)
-	testr.CreateNewAccountRequest, _ = http.NewRequest("POST", "localhost:17406/", nil)
-	testr.StoreDataRequest, _ = http.NewRequest("POST", "localhost:17406/", nil)
-	testr.LoadDataRequest, _ = http.NewRequest("POST", "localhost:17406/", nil)
-	testr.TransactionCashRequest, _ = http.NewRequest("POST", "localhost:17406/", ioutil.NopCloser(bytes.NewReader(testp.TransactionCashPayload)))
-	testr.TransactionTokenRequest, _ = http.NewRequest("POST", "localhost:17406/", nil)
-	testr.GetTransactionInfoRequest, _ = http.NewRequest("POST", "localhost:17406/", nil)
-	testr.GetHistoryRequest, _ = http.NewRequest("POST", "localhost:17406/", nil)
-	testr.GetTransactionUpToBlockHeightRequest, _ = http.NewRequest("POST", "localhost:17406/", nil)
-	testr.GetOutputInfoRequest, _ = http.NewRequest("POST", "localhost:17406/", nil)
-	testr.GetOutputInfoFromTransactionRequest, _ = http.NewRequest("POST", "localhost:17406/", nil)
-	testr.GetOutputInfoFromTypeRequest, _ = http.NewRequest("POST", "localhost:17406/", nil)
-	testr.GetUnspentOutputsRequest, _ = http.NewRequest("POST", "localhost:17406/", nil)
-	testr.GetOutputHistogramRequest, _ = http.NewRequest("POST", "localhost:17406/", nil)
-	testr.CloseRequest, _ = http.NewRequest("POST", "localhost:17406/", nil)
-
+func sendReq(t *testing.T, request testRequest, canFail bool) (resp *testResponse) {
+	resp = new(testResponse)
+	rr := httptest.NewRecorder()
+	request.handler(rr, request.route)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("Response error, code: %v", rr.Code)
+	}
+	if err := json.Unmarshal(rr.Body.Bytes(), resp); err != nil {
+		t.Fatalf("Error while unmarshalling response: %s", err.Error())
+	}
+	if resp.Status != EverythingOK && !canFail {
+		t.Fatalf("Response status error, code %v", resp.Status)
+	}
+	return
 }
 
 func prepareStaticFolder(t *testing.T, w *WalletRPC) {
 
-	fullpath := strings.Join([]string{staticfoldername, staticfilename}, "/")
+	//fullpath := strings.Join([]string{staticfoldername, staticfilename}, "/")
 
-	if _, err := os.Stat(fullpath); !os.IsExist(err) {
+	if !started {
 		initParameters(t, w)
 		logFile, _ := os.OpenFile(testLogFile, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0755)
 		testLogger.SetOutput(logFile)
 		testLogger.SetLevel(log.DebugLevel)
+		w.SetLogger(testLogger)
 
-		rr := httptest.NewRecorder()
-
-		testh.OpenExistingHandler(rr, testr.OpenExistingRequest)
-
-		if rr.Code != http.StatusOK {
-			t.Fatalf("Error in initliazing db")
-		}
-		resp := new(testResponse)
-		if err := json.Unmarshal(rr.Body.Bytes(), resp); err != nil {
-			t.Fatal(err)
-		}
+		resp := sendReq(t, testreq.OpenExistingRequest, true)
 		if resp.Status != EverythingOK {
-			t.Fatalf("Got wrong response %s ")
+			sendReq(t, testreq.CreateNewRequest, false)
 		}
+		found := false
+		resp = sendReq(t, testreq.GetAllAccountsInfoRequest, true)
+
+		for _, el := range resp.Result["accounts"].([]interface{}) {
+			el := el.(map[string]interface{})
+			name := el["account_name"].(string)
+			if name == accountName1 {
+				found = true
+			}
+		}
+
+		if !found {
+			sendReq(t, testreq.CreateAccountFromKeysRequest, false)
+		}
+
+		resp = sendReq(t, testreq.OpenAccountRequest, false)
+
+		resp = sendReq(t, testreq.BeginUpdatingRequest, false)
+
+		resp = sendReq(t, testreq.GetStatusRequest, false)
+
+		for el := resp.Result["msg"].(string); el == "Syncing"; el = resp.Result["msg"].(string) {
+			time.Sleep(1 * time.Second)
+			resp = sendReq(t, testreq.GetStatusRequest, false)
+		}
+		started = true
 	}
 }
 
-func TestTest(t *testing.T) {
+func TestUpdater(t *testing.T) {
 	w := new(WalletRPC)
 	prepareStaticFolder(t, w)
+
+	resp := sendReq(t, testreq.GetLatestBlockNumberRequest, false)
+	if el, ok := resp.Result["msg"].(float64); ok {
+		if el < 126 {
+			t.Fatalf("Error in loading latest block")
+		}
+	} else {
+		t.Fatalf("Error unmarshalling request")
+	}
 }
