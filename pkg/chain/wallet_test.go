@@ -118,7 +118,7 @@ func TestRecoverFromMnemonic(t *testing.T) {
 func TestOpen(t *testing.T) {
 	prepareFolder()
 	testLogger.Infof("[Test] Testing wallet opening")
-	w := new(Wallet)
+	w := New(testLogger)
 	fullpath := strings.Join([]string{foldername, filename}, "/")
 
 	if w.IsOpen() != false {
@@ -133,7 +133,7 @@ func TestOpen(t *testing.T) {
 		t.Fatalf("No duplicate error")
 	}
 	if err := w.CreateAccount(accountName2, nil, false); err != nil {
-		t.Fatalf("%s", err)
+		t.Fatalf("%s", err.Error())
 	}
 	if err := w.OpenAccount(accountName1, false); err != nil {
 		t.Fatalf("%s", err)
@@ -149,7 +149,7 @@ func TestOpen(t *testing.T) {
 func TestOpenCreate(t *testing.T) {
 	prepareFolder()
 	testLogger.Infof("[Test] Testing wallet opening and creation")
-	w := new(Wallet)
+	w := New(testLogger)
 	fullpath := strings.Join([]string{foldername, filename}, "/")
 
 	if w.IsOpen() != false {
@@ -180,7 +180,7 @@ func TestOpenCreate(t *testing.T) {
 func TestColdOpen(t *testing.T) {
 	prepareFolder()
 	testLogger.Infof("[Test] Testing cold wallet opening")
-	w := new(Wallet)
+	w := New(testLogger)
 	fullpath := strings.Join([]string{foldername, filename}, "/")
 
 	if w.IsOpen() != false {
@@ -213,7 +213,7 @@ func TestRPC(t *testing.T) {
 	prepareFolder()
 	testLogger.Infof("[Test] Testing RPC connection")
 
-	w := new(Wallet)
+	w := New(testLogger)
 	fullpath := strings.Join([]string{foldername, filename}, "/")
 
 	if err := w.OpenAndCreate("wallet1", fullpath, masterPass, true, testLogger); err != nil {
@@ -236,7 +236,7 @@ func TestGetHistory(t *testing.T) {
 	prepareFolder()
 	testLogger.Infof("[Test] Testing history retrieval")
 
-	w := new(Wallet)
+	w := New(testLogger)
 	fullpath := strings.Join([]string{foldername, filename}, "/")
 
 	if err := w.OpenAndCreate("wallet1", fullpath, masterPass, true, testLogger); err != nil {
@@ -286,7 +286,7 @@ func TestGetTransaction(t *testing.T) {
 	prepareFolder()
 	testLogger.Infof("[Test] Testing transaction retrieval")
 
-	w := new(Wallet)
+	w := New(testLogger)
 	fullpath := strings.Join([]string{foldername, filename}, "/")
 
 	if err := w.OpenAndCreate("wallet1", fullpath, masterPass, true, testLogger); err != nil {
@@ -321,7 +321,7 @@ func TestGetTransactionByBlock(t *testing.T) {
 	prepareFolder()
 	testLogger.Infof("[Test] Testing transaction retrieval by block")
 
-	w := new(Wallet)
+	w := New(testLogger)
 	fullpath := strings.Join([]string{foldername, filename}, "/")
 
 	if err := w.OpenAndCreate("wallet1", fullpath, masterPass, true, testLogger); err != nil {

@@ -323,7 +323,7 @@ func (w *FileWallet) putOutput(out *safex.Txout, globalIndex uint64, amount uint
 		return "", err
 	}
 	if tempout, _ := w.GetOutput(outID); tempout != nil {
-		w.logger.Errorf("[FileWallet] %s with globalIndex: %v and amount %v", ErrOutputPresent)
+		w.logger.Errorf("[FileWallet] %s with globalIndex: %v and amount %v", ErrOutputPresent, globalIndex, amount)
 		return "", ErrOutputPresent
 	}
 	if err = w.writeKey(outputKeyPrefix+outID, data); err != nil {

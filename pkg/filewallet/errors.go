@@ -22,5 +22,6 @@ var (
 	ErrNoBlocks             = errors.New("No blocks available")
 	ErrMistmatchedBlock     = errors.New("Block mismatch")
 	ErrWrongFilewalletPass  = errors.New("Wrong wallet password")
+	ErrAccountExists        = errors.New("Account already exists")
 	ErrBucketNotInit        = filestore.ErrBucketNotInit
 )

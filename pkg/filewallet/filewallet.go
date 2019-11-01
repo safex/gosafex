@@ -182,6 +182,9 @@ func (w *FileWallet) GetAccount() string {
 }
 
 func (w *FileWallet) CreateAccount(accountInfo *WalletInfo, isTestnet bool) error {
+	if w.AccountExists(accountInfo.Name) {
+		return ErrAccountExists
+	}
 	if err := w.db.CreateBucket(accountInfo.Name); err != nil {
 		return err
 	}
@@ -213,6 +216,7 @@ func (w *FileWallet) CreateAccount(accountInfo *WalletInfo, isTestnet bool) erro
 	if err := w.initUnspentOutputs(); err != nil {
 		return err
 	}
+	w.knownAccounts = append(w.knownAccounts, accountInfo.Name)
 	return nil
 }
 
@@ -255,15 +259,14 @@ func (w *FileWallet) OpenAccount(accountInfo *WalletInfo, createOnFail bool, isT
 	return nil
 }
 
-func (w *FileWallet) GetAccounts() ([]string, error) {
-	w.logger.Debugf("[filewallet] Listing all accounts")
+func (w *FileWallet) loadAccounts() error {
 	if w.info != nil && w.db.BucketExists(w.info.Name) {
 		defer w.db.SetBucket(w.info.Name)
 	}
 	w.db.SetBucket(genericDataBucketName)
 	data, err := w.readAppendedKey(WalletListReferenceKey)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	ret := []string{}
 	for _, el := range data {
@@ -271,7 +274,18 @@ func (w *FileWallet) GetAccounts() ([]string, error) {
 			ret = append(ret, string(el))
 		}
 	}
-	return ret, nil
+	w.knownAccounts = ret
+	return nil
+}
+
+func (w *FileWallet) GetAccounts() ([]string, error) {
+	w.logger.Debugf("[filewallet] Listing all accounts")
+	if w.knownAccounts == nil {
+		if err := w.loadAccounts(); err != nil {
+			return nil, err
+		}
+	}
+	return w.knownAccounts, nil
 }
 
 func (w *FileWallet) AccountExists(accountName string) bool {
@@ -310,6 +324,12 @@ func (w *FileWallet) RemoveAccount(accountName string) error {
 		return err
 	} else if err := w.deleteAppendedKey(WalletListReferenceKey, i); err != nil {
 		return err
+	}
+	accs, _ := w.GetAccounts()
+	for i, el := range accs {
+		if el == accountName {
+			w.knownAccounts = append(w.knownAccounts[:i], w.knownAccounts[i+1:]...)
+		}
 	}
 	return nil
 }
@@ -372,6 +392,9 @@ func NewClean(file string, masterkey string, isTestnet bool, createOnFail bool, 
 		if s != passwordCheckField || (err != nil && err.Error() == ErrBucketNotInit.Error()) {
 			w.logger.Errorf("[FileWallet] %s", ErrWrongFilewalletPass)
 			return w, ErrWrongFilewalletPass
+		}
+		if err = w.loadAccounts(); err != nil {
+			return nil, err
 		}
 		err = w.loadLatestBlock()
 		if w.db.BucketExists(genericBlockBucketName) {

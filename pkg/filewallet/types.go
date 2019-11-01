@@ -17,6 +17,7 @@ type FileWallet struct {
 	logger            *log.Logger
 	info              *WalletInfo
 	db                *filestore.EncryptedDB
+	knownAccounts     []string
 	knownOutputs      []string //REMEMBER TO INITIALIZE THIS
 	unspentOutputs    []string
 	lockedOutputs     []string
