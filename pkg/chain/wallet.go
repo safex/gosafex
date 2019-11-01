@@ -76,6 +76,7 @@ func (w *Wallet) updateBlocks(nblocks uint64) error {
 	if err != nil {
 		return err
 	}
+	w.logger.Debugf("[Wallet] Fetched %d blocks", len(blocks))
 	if err := w.processBlockRange(blocks); err != nil {
 		return err
 	}
