@@ -48,6 +48,7 @@ func (w *Wallet) rescanBlocks(accountName string, start uint64, step uint64) (er
 }
 
 func (w *Wallet) updateBlocks(nblocks uint64) error {
+	w.logger.Debugf("[Wallet] Beginning updateBlocks")
 	if w.client == nil {
 		w.logger.Errorf("[Wallet] %s", ErrClientNotInit)
 		return ErrClientNotInit
@@ -55,6 +56,7 @@ func (w *Wallet) updateBlocks(nblocks uint64) error {
 	if w.latestInfo == nil {
 		return ErrDaemonInfo
 	}
+	w.logger.Debugf("[Wallet] Client ok")
 	info := w.latestInfo
 	var bcHeight uint64
 
