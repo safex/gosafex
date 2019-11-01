@@ -191,6 +191,7 @@ func (w *FileWallet) PutBlockHeader(blck *safex.BlockHeader) error {
 	if err = w.writeKey(blockKeyPrefix+blockHash, data); err != nil {
 		return err
 	}
+
 	b := make([]byte, 8)
 	binary.LittleEndian.PutUint64(b, blck.GetDepth())
 	if err = w.writeKey(lastBlockReferenceKey, append(b, []byte(blockHash)...)); err != nil {

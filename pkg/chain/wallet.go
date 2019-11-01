@@ -76,7 +76,9 @@ func (w *Wallet) updateBlocks(nblocks uint64) error {
 	if err != nil {
 		return err
 	}
-	w.processBlockRange(blocks)
+	if err := w.processBlockRange(blocks); err != nil {
+		return err
+	}
 	knownHeight = w.wallet.GetLatestBlockHeight()
 
 	w.logger.Debugf("[Wallet] Updating balance")

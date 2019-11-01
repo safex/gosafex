@@ -405,4 +405,5 @@ func TestUpdater(t *testing.T) {
 	} else {
 		t.Fatalf("Error unmarshalling request")
 	}
+
 }

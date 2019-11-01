@@ -41,7 +41,7 @@ func (w *Wallet) rescanBlockRange(blocks safex.Blocks, acc string) error {
 	return nil
 }
 
-func (w *Wallet) processBlockRange(blocks safex.Blocks) bool {
+func (w *Wallet) processBlockRange(blocks safex.Blocks) error {
 	// @todo Here handle block metadata.
 	var count int
 	var mcount int
@@ -53,6 +53,7 @@ func (w *Wallet) processBlockRange(blocks safex.Blocks) bool {
 		var minerTxs []string
 		w.logger.Debugf("[Chain] Processing block: %v", blck.GetHeader().GetDepth())
 		if err := w.wallet.PutBlockHeader(blck.GetHeader()); err != nil {
+			w.logger.Errorf("[Chain] Error pushing block header")
 			continue
 		}
 		for _, el := range blck.Txs {
@@ -64,11 +65,11 @@ func (w *Wallet) processBlockRange(blocks safex.Blocks) bool {
 		// Get transaction data and process.
 		loadedTxs, err := w.client.GetTransactions(txs)
 		if err != nil {
-			return false
+			return err
 		}
 		mloadedTxs, err := w.client.GetTransactions(minerTxs)
 		if err != nil {
-			return false
+			return err
 		}
 
 		for _, tx := range loadedTxs.Tx {
@@ -83,7 +84,7 @@ func (w *Wallet) processBlockRange(blocks safex.Blocks) bool {
 
 	w.logger.Infof("[Chain] Number of minerTxs: %d", count)
 	w.logger.Infof("[Chain] Number of mloadedTxs: %d", mcount)
-	return true
+	return nil
 }
 
 func (w *Wallet) seenOutput(outID string) bool {
