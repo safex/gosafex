@@ -67,6 +67,7 @@ func (w *Wallet) runUpdater() {
 				w.updating = true
 			}
 			if temp == false {
+				w.syncing = false
 				w.updating = false
 			}
 		case <-w.quit:
