@@ -74,7 +74,7 @@ func (w *FileWallet) readKey(key string) ([]byte, error) {
 }
 
 func (w *FileWallet) putInfo(info *WalletInfo) error {
-	w.logger.Debugf("[filewallet] Putting wallet info")
+	w.logger.Debugf("[Filewallet] Putting wallet info")
 	if err := w.deleteKey(WalletInfoKey); err != nil {
 		return err
 	}
@@ -100,7 +100,7 @@ func (w *FileWallet) putInfo(info *WalletInfo) error {
 }
 
 func (w *FileWallet) getInfo() (*WalletInfo, error) {
-	w.logger.Debugf("[filewallet] Getting wallet info")
+	w.logger.Debugf("[Filewallet] Getting wallet info")
 	ret := &WalletInfo{}
 
 	data, err := w.readAppendedKey(WalletInfoKey)
@@ -130,7 +130,7 @@ func (w *FileWallet) loadDefaults() {
 
 //PutData Writes data in a key in the generic data bucket
 func (w *FileWallet) PutData(key string, data []byte) error {
-	w.logger.Debugf("[filewallet] Writing generic data")
+	w.logger.Debugf("[Filewallet] Writing generic data")
 	if w.info != nil {
 		defer w.db.SetBucket(w.info.Name)
 	}
@@ -151,7 +151,7 @@ func (w *FileWallet) PutData(key string, data []byte) error {
 
 //GetData Reads data from a key in the generic data bucket
 func (w *FileWallet) GetData(key string) ([]byte, error) {
-	w.logger.Debugf("[filewallet] Getting generic data")
+	w.logger.Debugf("[Filewallet] Getting generic data")
 	if w.info != nil {
 		defer w.db.SetBucket(w.info.Name)
 	}
@@ -222,7 +222,7 @@ func (w *FileWallet) CreateAccount(accountInfo *WalletInfo, isTestnet bool) erro
 
 //OpenAccount Opens an account and all the connected data
 func (w *FileWallet) OpenAccount(accountInfo *WalletInfo, createOnFail bool, isTestnet bool) error {
-	w.logger.Debugf("[filewallet] Opening account: %s", accountInfo.Name)
+	w.logger.Debugf("[Filewallet] Opening account: %s", accountInfo.Name)
 	if w.GetAccount() == accountInfo.Name {
 		w.logger.Debugf("[Filewallet] Account already open")
 		return nil
@@ -279,7 +279,7 @@ func (w *FileWallet) loadAccounts() error {
 }
 
 func (w *FileWallet) GetAccounts() ([]string, error) {
-	w.logger.Debugf("[filewallet] Listing all accounts")
+	w.logger.Debugf("[Filewallet] Listing all accounts")
 	if w.knownAccounts == nil {
 		if err := w.loadAccounts(); err != nil {
 			return nil, err
@@ -289,7 +289,7 @@ func (w *FileWallet) GetAccounts() ([]string, error) {
 }
 
 func (w *FileWallet) AccountExists(accountName string) bool {
-	w.logger.Debugf("[filewallet] Checking account existence: %s ", accountName)
+	w.logger.Debugf("[Filewallet] Checking account existence: %s ", accountName)
 	if accs, err := w.GetAccounts(); err != nil {
 		return false
 	} else {
@@ -304,7 +304,7 @@ func (w *FileWallet) AccountExists(accountName string) bool {
 
 //RemoveAccount DUMMY FUNCTION for now
 func (w *FileWallet) RemoveAccount(accountName string) error {
-	w.logger.Warnf("[filewallet] Deleting account: %s", accountName)
+	w.logger.Warnf("[Filewallet] Deleting account: %s", accountName)
 	if !w.AccountExists(accountName) {
 		return nil
 	}
@@ -376,7 +376,7 @@ func New(file string, accountName string, masterkey string, createOnFail bool, i
 
 //NewClean Opens or creates a new wallet file without opening an account on creation
 func NewClean(file string, masterkey string, isTestnet bool, createOnFail bool, prevLog *log.Logger) (*FileWallet, error) {
-	prevLog.Infof("[filewallet] Creating new filewallet")
+	prevLog.Infof("[Filewallet] Creating new filewallet")
 	w := new(FileWallet)
 	w.logger = prevLog
 	var err error
