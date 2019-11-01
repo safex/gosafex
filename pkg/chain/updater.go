@@ -53,6 +53,10 @@ func (w *Wallet) UpdaterStatus() string {
 }
 
 func (w *Wallet) runUpdater() {
+	if state := w.UpdaterStatus(); state != "Up-to-date" {
+		w.logger.Infof("[Updater] Already: %s", state)
+		return
+	}
 	var bcHeight uint64
 	for true {
 		select {

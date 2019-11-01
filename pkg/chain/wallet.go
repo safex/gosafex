@@ -289,6 +289,10 @@ func (w *Wallet) GetAccounts() ([]string, error) {
 		w.logger.Errorf("[Wallet] %s", ErrSyncing)
 		return nil, ErrSyncing
 	}
+	if w.rescanning != "" {
+		w.logger.Errorf("[Wallet] %s", ErrRescanning)
+		return nil, ErrRescanning
+	}
 	w.working = true
 	defer func() { w.working = false }()
 
@@ -380,6 +384,10 @@ func (w *Wallet) GetBalance() (b *Balance, err error) {
 	if w.syncing {
 		w.logger.Errorf("[Wallet] %s", ErrSyncing)
 		return nil, ErrSyncing
+	}
+	if w.rescanning != "" {
+		w.logger.Errorf("[Wallet] %s", ErrRescanning)
+		return nil, ErrRescanning
 	}
 	w.working = true
 	defer func() { w.working = false }()

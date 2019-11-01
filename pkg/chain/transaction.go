@@ -5,7 +5,6 @@ import (
 	"math/rand"
 	"time"
 
-	//"math/rand"
 	"errors"
 	"sort"
 
@@ -271,7 +270,7 @@ func (w *Wallet) transferSelected(dsts *[]DestinationEntry, selectedTransfers []
 
 		src.TokenTx = MatchOutputWithType(val, safex.OutToken)
 
-		for n := 0; n < fakeOutsCount; n++ {
+		for n := 0; n < len((*outs)[outIndex]); n++ {
 			var oe TxOutputEntry
 			oe.Index = (*outs)[outIndex][n].Index
 			copy(oe.Key[:], (*outs)[outIndex][n].PubKey[:])
