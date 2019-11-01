@@ -176,6 +176,7 @@ func (w *FileWallet) PutBlockHeader(blck *safex.BlockHeader) error {
 			return err
 		}
 	}
+
 	blockHash := blck.GetHash()
 	a := blck.GetPrevHash()
 	if a != w.latestBlockHash && w.latestBlockHash != "" {
@@ -209,6 +210,64 @@ func (w *FileWallet) PutBlockHeader(blck *safex.BlockHeader) error {
 	w.latestBlockNumber = blck.GetDepth()
 	w.latestBlockHash = blck.GetHash()
 	return nil
+}
+
+func (w *FileWallet) PutMassBlockHeaders(blcks []*safex.BlockHeader) (uint64, error) {
+	prevBucket, err := w.db.GetCurrentBucket()
+
+	if err == nil && prevBucket != genericBlockBucketName {
+		defer w.db.SetBucket(prevBucket)
+	}
+	if prevBucket != genericBlockBucketName {
+		if err := w.db.SetBucket(genericBlockBucketName); err != nil {
+			return 0, err
+		}
+	}
+
+	blockHash := blcks[0].GetHash()
+	a := blcks[0].GetPrevHash()
+	if a != w.latestBlockHash && w.latestBlockHash != "" {
+		w.logger.Errorf("[FileWallet] %s at %s", ErrMistmatchedBlock, a)
+		return 0, ErrMistmatchedBlock
+	}
+
+	for i := 1; i < len(blcks); i++ {
+		prevHash := blockHash
+		blockHash = blcks[i].GetHash()
+		a := blcks[i].GetPrevHash()
+		if a != prevHash && prevHash != "" {
+			w.logger.Errorf("[FileWallet] %s at %s", ErrMistmatchedBlock, a)
+			return 0, ErrMistmatchedBlock
+		}
+	}
+
+	var totalData []byte
+	var lastErr error
+	var lastLoaded uint64
+	for i, el := range blcks {
+		blockHash := el.GetHash()
+		data, err := proto.Marshal(el)
+		if err != nil {
+			lastErr = err
+			break
+		}
+		if err = w.writeKey(blockKeyPrefix+blockHash, data); err != nil {
+			lastErr = err
+			break
+		}
+		lastLoaded = uint64(i)
+		totalData = w.db.VirtualAppend(totalData, []byte(blockHash))
+	}
+	if lastErr != nil && lastLoaded == 0 {
+		return 0, lastErr
+	}
+
+	b := make([]byte, 8)
+	binary.LittleEndian.PutUint64(b, blcks[lastLoaded].GetDepth())
+	w.writeKey(lastBlockReferenceKey, append(b, []byte(blcks[lastLoaded].GetHash())...))
+	w.appendKey(blockReferenceKey, totalData)
+
+	return lastLoaded, lastErr
 }
 
 //GetAllBlocks returns an array of blockHashes

@@ -192,6 +192,17 @@ func (e *EncryptedDB) Read(key string) ([]byte, error) {
 	return data, nil
 }
 
+//Used to massappend
+func (e *EncryptedDB) VirtualAppend(data []byte, newData []byte) []byte {
+	var ret []byte
+	if len(data) != 0 {
+		ret = append(ret, data...)
+		ret = append(ret, appendSeparator)
+	}
+	ret = append(ret, newData...)
+	return ret
+}
+
 func (e *EncryptedDB) Append(key string, newData []byte) error {
 	e.logger.Debugf("[Filestore] Appending to key: %s Data: %s", key, newData)
 

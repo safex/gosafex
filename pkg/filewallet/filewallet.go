@@ -23,6 +23,11 @@ func (w *FileWallet) findKeyInReference(targetReference string, targetKey string
 	return -1, nil
 }
 
+//Used to help in mass append
+func (w *FileWallet) virtualAppend(data []byte, newData []byte) []byte {
+	return w.db.VirtualAppend(data, newData)
+}
+
 //Appends a value to a key
 func (w *FileWallet) appendKey(key string, data []byte) error {
 	if err := w.db.Append(key, []byte(hex.EncodeToString(data))); err != nil {
