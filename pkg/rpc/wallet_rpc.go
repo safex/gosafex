@@ -25,6 +25,11 @@ func (w *WalletRPC) OpenCheck(rw *http.ResponseWriter) bool {
 }
 
 func (w *WalletRPC) BeginUpdating(rw http.ResponseWriter, r *http.Request) {
+	// Check if the wallet is open
+	if !w.OpenCheck(&rw) {
+		return
+	}
+
 	w.logger.Infof("[RPC] Getting start update request")
 	data := make(JSONElement)
 	w.wallet.BeginUpdating()
@@ -54,6 +59,10 @@ func (w *WalletRPC) GetStatus(rw http.ResponseWriter, r *http.Request) {
 }
 
 func (w *WalletRPC) GetLatestBlockNumber(rw http.ResponseWriter, r *http.Request) {
+	// Check if the wallet is open
+	if !w.OpenCheck(&rw) {
+		return
+	}
 	var data JSONElement
 	w.logger.Infof("[RPC] Getting latest loaded block number")
 	data = make(JSONElement)
@@ -65,6 +74,10 @@ func (w *WalletRPC) GetLatestBlockNumber(rw http.ResponseWriter, r *http.Request
 
 // Getting status of current wallet. If its open, syncing etc.
 func (w *WalletRPC) Close(rw http.ResponseWriter, r *http.Request) {
+	// Check if the wallet is open
+	if !w.OpenCheck(&rw) {
+		return
+	}
 	w.logger.Infof("[RPC] Closing wallet")
 	w.wallet.Close()
 	w.wallet = nil

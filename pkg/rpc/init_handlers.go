@@ -114,6 +114,9 @@ func (w *WalletRPC) OpenExisting(rw http.ResponseWriter, r *http.Request) {
 func (w *WalletRPC) CreateNew(rw http.ResponseWriter, r *http.Request) {
 	w.logger.Infof("[RPC] Create new wallet request")
 	var rqData WalletInitRq
+	var alreadyExist bool = false
+	var responseCode StatusCodeError
+
 	if !initGetData(&rw, r, &rqData) {
 		// Error response already handled
 		return
@@ -129,10 +132,9 @@ func (w *WalletRPC) CreateNew(rw http.ResponseWriter, r *http.Request) {
 	err := w.wallet.InitClient(rqData.DaemonHost, rqData.DaemonPort)
 	noConn := err != nil
 
-	/*if _, err := os.Stat(rqData.Path); err == nil {
-		FormJSONResponse(nil, FileAlreadyExists, &rw)
-		return
-	}*/
+	if _, err := os.Stat(rqData.Path); err == nil {
+		alreadyExist = true
+	}
 
 	err = w.wallet.OpenAndCreate("primary", rqData.Path, rqData.Password, w.mainnet, w.logger)
 
@@ -149,7 +151,13 @@ func (w *WalletRPC) CreateNew(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	FormJSONResponse(data, EverythingOK, &rw)
+	responseCode = EverythingOK
+
+	if alreadyExist {
+		responseCode = FileAlreadyExists
+	}
+
+	FormJSONResponse(data, responseCode, &rw)
 }
 
 func (w *WalletRPC) RecoverWithSeed(rw http.ResponseWriter, r *http.Request) {
