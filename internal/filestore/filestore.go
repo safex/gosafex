@@ -192,15 +192,48 @@ func (e *EncryptedDB) Read(key string) ([]byte, error) {
 	return data, nil
 }
 
-//Used to massappend
-func (e *EncryptedDB) VirtualAppend(data []byte, newData []byte) []byte {
-	var ret []byte
-	if len(data) != 0 {
-		ret = append(ret, data...)
-		ret = append(ret, appendSeparator)
+func (e *EncryptedDB) MassAppend(key string, newData [][]byte) error {
+	e.logger.Debugf("[Filestore] Appending to key: %s Data: %s", key, newData)
+
+	if !e.stream.BucketExists() {
+		e.logger.Debugf("[Filestore] %s", ErrBucketNotInit)
+		return ErrBucketNotInit
 	}
-	ret = append(ret, newData...)
-	return ret
+
+	nonce, err := e.GetNonce()
+	if err != nil {
+		return err
+	}
+
+	var encryptedKey [keylength]byte
+	kdf := hkdf.New(sha512.New, e.masterkey[:], nonce, nil)
+
+	if _, err := io.ReadFull(kdf, encryptedKey[:]); err != nil {
+		return err
+	}
+
+	tempKey := SafexCrypto.NewDigest(encrypt(pad([]byte(key), 32), encryptedKey[:], nonce[:]))
+	e.stream.targetKey = tempKey[:]
+
+	data, err := e.stream.Read()
+
+	if err != nil && err != ErrKeyNotFound {
+		return err
+	}
+	if data != nil {
+		data = unpad(decrypt(data, encryptedKey[:]))
+		data = append(data, appendSeparator)
+	}
+	for i, el := range newData {
+		if i == len(newData)-1 {
+			break
+		}
+		data = append(data, el...)
+		data = append(data, appendSeparator)
+	}
+
+	data = append(data, newData[len(newData)-1]...)
+	return e.Write(key, data)
 }
 
 func (e *EncryptedDB) Append(key string, newData []byte) error {

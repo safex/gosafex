@@ -23,14 +23,20 @@ func (w *FileWallet) findKeyInReference(targetReference string, targetKey string
 	return -1, nil
 }
 
-//Used to help in mass append
-func (w *FileWallet) virtualAppend(data []byte, newData []byte) []byte {
-	return w.db.VirtualAppend(data, newData)
-}
-
 //Appends a value to a key
 func (w *FileWallet) appendKey(key string, data []byte) error {
 	if err := w.db.Append(key, []byte(hex.EncodeToString(data))); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (w *FileWallet) massAppendKey(key string, data [][]byte) error {
+	var filteredData [][]byte
+	for _, el := range data {
+		filteredData = append(filteredData, []byte(hex.EncodeToString(el)))
+	}
+	if err := w.db.MassAppend(key, filteredData); err != nil {
 		return err
 	}
 	return nil

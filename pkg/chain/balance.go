@@ -1,6 +1,8 @@
 package chain
 
 import (
+	"fmt"
+
 	"github.com/safex/gosafex/pkg/safex"
 )
 
@@ -48,14 +50,17 @@ func (w *Wallet) processBlockRange(blocks safex.Blocks) error {
 	// @todo This must be refactored due new discoveries regarding get_tx_hash
 	// Get transaction hashes
 	txblck := make(map[string]string)
+	var headers []*safex.BlockHeader
+	w.logger.Debugf("[Chain] Processing blocks: %v - %v", blocks.Block[0].GetHeader().GetDepth(), blocks.Block[len(blocks.Block)-1].GetHeader().GetDepth())
+	for _, block := range blocks.Block {
+		headers = append(headers, block.GetHeader())
+	}
+	if i, err := w.wallet.PutMassBlockHeaders(headers); err != nil {
+		return fmt.Errorf("Loaded only to block %v due to error: %s", i, err.Error())
+	}
 	for _, blck := range blocks.Block {
 		var txs []string
 		var minerTxs []string
-		w.logger.Debugf("[Chain] Processing block: %v", blck.GetHeader().GetDepth())
-		if err := w.wallet.PutBlockHeader(blck.GetHeader()); err != nil {
-			w.logger.Errorf("[Chain] Error pushing block header")
-			continue
-		}
 		for _, el := range blck.Txs {
 			txblck[el] = blck.GetHeader().GetHash()
 			txs = append(txs, el)
@@ -71,7 +76,6 @@ func (w *Wallet) processBlockRange(blocks safex.Blocks) error {
 		if err != nil {
 			return err
 		}
-
 		for _, tx := range loadedTxs.Tx {
 			w.processTransaction(tx, txblck[tx.GetTxHash()], false)
 		}

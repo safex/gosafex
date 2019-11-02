@@ -712,6 +712,42 @@ func benchmarkBlockHeaderWrite(n int, b *testing.B) {
 	}
 }
 
+func benchmarkMassBlockHeaderWrite(n int, b *testing.B) {
+	prepareFolder()
+	testLogger.Infof("[Benchmark] Benchmarking multiple block writes")
+	fullpath := strings.Join([]string{foldername, filename}, "/")
+
+	var headers []*safex.BlockHeader
+	strbytes := make([]byte, 32)
+	dig := crypto.NewDigest([]byte{byte(0)})
+	copy(strbytes[:], dig[:])
+	finalstr := fmt.Sprintf("%x", strbytes[:])
+	head := &safex.BlockHeader{Depth: 0, Hash: finalstr, PrevHash: ""}
+	prevhash := finalstr
+	headers = append(headers, head)
+
+	for i := 1; i < b.N*n; i++ {
+		dig := crypto.NewDigest([]byte{byte(0)})
+		copy(strbytes[:], dig[:])
+		finalstr := fmt.Sprintf("%x", strbytes[:])
+		head := &safex.BlockHeader{Depth: 0, Hash: finalstr, PrevHash: prevhash}
+		prevhash = finalstr
+		headers = append(headers, head)
+	}
+	w, err := NewClean(fullpath, masterPass, false, true, testLogger)
+	defer CleanAfterTests(w, fullpath)
+	if err != nil {
+		b.Fatalf("%s", err)
+	}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, err = w.PutMassBlockHeaders(headers[i*n : (i+1)*n])
+		if err != nil {
+			b.Fatalf("%s", err)
+		}
+	}
+}
+
 func BenchmarkBlockHeaderWrite1(b *testing.B) {
 	benchmarkBlockHeaderWrite(1, b)
 }
@@ -730,4 +766,24 @@ func BenchmarkBlockHeaderWrite20(b *testing.B) {
 
 func BenchmarkBlockHeaderWrite50(b *testing.B) {
 	benchmarkBlockHeaderWrite(50, b)
+}
+
+func BenchmarkMassBlockHeaderWrite1(b *testing.B) {
+	benchmarkMassBlockHeaderWrite(1, b)
+}
+
+func BenchmarkMassBlockHeaderWrite5(b *testing.B) {
+	benchmarkMassBlockHeaderWrite(5, b)
+}
+
+func BenchmarkMassBlockHeaderWrite10(b *testing.B) {
+	benchmarkMassBlockHeaderWrite(10, b)
+}
+
+func BenchmarkMassBlockHeaderWrite20(b *testing.B) {
+	benchmarkMassBlockHeaderWrite(20, b)
+}
+
+func BenchmarkMassBlockHeaderWrite50(b *testing.B) {
+	benchmarkMassBlockHeaderWrite(50, b)
 }

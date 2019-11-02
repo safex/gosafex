@@ -241,7 +241,7 @@ func (w *FileWallet) PutMassBlockHeaders(blcks []*safex.BlockHeader) (uint64, er
 		}
 	}
 
-	var totalData []byte
+	var totalData [][]byte
 	var lastErr error
 	var lastLoaded uint64
 	for i, el := range blcks {
@@ -256,7 +256,7 @@ func (w *FileWallet) PutMassBlockHeaders(blcks []*safex.BlockHeader) (uint64, er
 			break
 		}
 		lastLoaded = uint64(i)
-		totalData = w.db.VirtualAppend(totalData, []byte(blockHash))
+		totalData = append(totalData, []byte(blockHash))
 	}
 	if lastErr != nil && lastLoaded == 0 {
 		return 0, lastErr
@@ -265,7 +265,9 @@ func (w *FileWallet) PutMassBlockHeaders(blcks []*safex.BlockHeader) (uint64, er
 	b := make([]byte, 8)
 	binary.LittleEndian.PutUint64(b, blcks[lastLoaded].GetDepth())
 	w.writeKey(lastBlockReferenceKey, append(b, []byte(blcks[lastLoaded].GetHash())...))
-	w.appendKey(blockReferenceKey, totalData)
+	w.massAppendKey(blockReferenceKey, totalData)
+	w.latestBlockNumber = blcks[lastLoaded].GetDepth()
+	w.latestBlockHash = blcks[lastLoaded].GetHash()
 
 	return lastLoaded, lastErr
 }
