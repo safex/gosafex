@@ -51,6 +51,8 @@ func (w *Wallet) processBlockRange(blocks safex.Blocks) error {
 	// Get transaction hashes
 	txblck := make(map[string]string)
 	var headers []*safex.BlockHeader
+	var txs []string
+	var minerTxs []string
 	w.logger.Debugf("[Chain] Processing blocks: %v - %v", blocks.Block[0].GetHeader().GetDepth(), blocks.Block[len(blocks.Block)-1].GetHeader().GetDepth())
 	for _, block := range blocks.Block {
 		headers = append(headers, block.GetHeader())
@@ -59,33 +61,41 @@ func (w *Wallet) processBlockRange(blocks safex.Blocks) error {
 		return fmt.Errorf("Loaded only to block %v due to error: %s", i, err.Error())
 	}
 	for _, blck := range blocks.Block {
-		var txs []string
-		var minerTxs []string
+
 		for _, el := range blck.Txs {
 			txblck[el] = blck.GetHeader().GetHash()
 			txs = append(txs, el)
 		}
 		minerTxs = append(minerTxs, blck.MinerTx)
 		txblck[blck.MinerTx] = blck.GetHeader().GetHash()
-		// Get transaction data and process.
-		loadedTxs, err := w.client.GetTransactions(txs)
-		if err != nil {
-			return err
-		}
-		mloadedTxs, err := w.client.GetTransactions(minerTxs)
-		if err != nil {
-			return err
-		}
-		for _, tx := range loadedTxs.Tx {
-			w.processTransaction(tx, txblck[tx.GetTxHash()], false)
-		}
-		count = count + len(loadedTxs.Tx)
-		for _, tx := range mloadedTxs.Tx {
-			w.processTransaction(tx, txblck[tx.GetTxHash()], true)
-		}
-		mcount = mcount + len(mloadedTxs.Tx)
 	}
 
+	loadedTxs, err := w.client.GetTransactions(txs)
+	if err != nil {
+		return err
+	}
+	count = count + len(loadedTxs.Tx)
+	mloadedTxs, err := w.client.GetTransactions(minerTxs)
+	if err != nil {
+		return err
+	}
+	mcount = mcount + len(mloadedTxs.Tx)
+
+	for _, blck := range blocks.Block {
+		blckHash := blck.GetHeader().GetHash()
+		//Could be iterated more gracefully
+		for _, tx := range loadedTxs.Tx {
+			if txblck[tx.GetTxHash()] == blckHash {
+				w.processTransaction(tx, blckHash, false)
+			}
+		}
+		for _, tx := range mloadedTxs.Tx {
+			if txblck[tx.GetTxHash()] == blckHash {
+				w.processTransaction(tx, blckHash, true)
+			}
+		}
+
+	}
 	w.logger.Infof("[Chain] Number of minerTxs: %d", count)
 	w.logger.Infof("[Chain] Number of mloadedTxs: %d", mcount)
 	return nil

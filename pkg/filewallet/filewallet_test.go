@@ -768,6 +768,10 @@ func BenchmarkBlockHeaderWrite50(b *testing.B) {
 	benchmarkBlockHeaderWrite(50, b)
 }
 
+func BenchmarkBlockHeaderWrite500(b *testing.B) {
+	benchmarkBlockHeaderWrite(500, b)
+}
+
 func BenchmarkMassBlockHeaderWrite1(b *testing.B) {
 	benchmarkMassBlockHeaderWrite(1, b)
 }
@@ -786,4 +790,8 @@ func BenchmarkMassBlockHeaderWrite20(b *testing.B) {
 
 func BenchmarkMassBlockHeaderWrite50(b *testing.B) {
 	benchmarkMassBlockHeaderWrite(50, b)
+}
+
+func BenchmarkMassBlockHeaderWrite500(b *testing.B) {
+	benchmarkMassBlockHeaderWrite(500, b)
 }

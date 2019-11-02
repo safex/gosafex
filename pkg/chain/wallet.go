@@ -72,6 +72,9 @@ func (w *Wallet) updateBlocks(nblocks uint64) error {
 		targetBlock = knownHeight + nblocks
 	}
 	targetBlock -= 1
+	if knownHeight != 0 {
+		knownHeight += 1
+	}
 
 	w.logger.Infof("[Wallet] Fetching blocks: %d to %d", knownHeight, targetBlock)
 	blocks, err := w.client.GetBlocks(knownHeight, targetBlock)

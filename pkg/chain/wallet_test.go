@@ -370,7 +370,7 @@ func TestGetTransactionByBlock(t *testing.T) {
 func TestUpdateBalance(t *testing.T) {
 	prepareStaticFolder()
 	testLogger.Infof("[Test] Testing balance update")
-	testLogger.SetLevel(log.DebugLevel)
+	testLogger.SetLevel(log.InfoLevel)
 	w := New(testLogger)
 	fullpath := strings.Join([]string{staticfoldername, staticfilename}, "/")
 
