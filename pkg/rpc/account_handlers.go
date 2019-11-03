@@ -21,6 +21,7 @@ type AccountRq struct {
 	SpendKey     string `json:"spendkey"`
 	KeysFilePath string `json:"keys_file_path"`
 	KeysFilePass string `json:"keys_file_password"`
+	RescanBegin  uint64 `json:"rescan_begin"`
 }
 
 func (w *WalletRPC) openAccountInner(name string, rw *http.ResponseWriter) bool {
@@ -478,7 +479,8 @@ func (w *WalletRPC) Rescan(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.logger.Infof("[RPC] Getting rescan request for account: %s", rqData.Name)
-	w.wallet.Rescan(rqData.Name)
+
+	w.wallet.Rescan(rqData.Name, rqData.RescanBegin)
 
 	data := make(JSONElement)
 	data["msg"] = w.wallet.UpdaterStatus()

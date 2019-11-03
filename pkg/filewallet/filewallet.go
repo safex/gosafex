@@ -290,7 +290,6 @@ func (w *FileWallet) loadAccounts() error {
 }
 
 func (w *FileWallet) GetAccounts() ([]string, error) {
-	w.logger.Debugf("[Filewallet] Listing all accounts")
 	if w.knownAccounts == nil {
 		if err := w.loadAccounts(); err != nil {
 			return nil, err

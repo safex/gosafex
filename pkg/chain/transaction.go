@@ -115,7 +115,6 @@ func (w *Wallet) processTransactionPerAccount(tx *safex.Transaction, blckHash st
 	}
 
 	if len(tx.Vin) != 0 {
-
 		err := w.openAccount(acc, w.testnet)
 		//Must defer to previous account
 		if err != nil {
@@ -170,7 +169,6 @@ func (w *Wallet) processTransactionPerAccount(tx *safex.Transaction, blckHash st
 			}
 		}
 	}
-	// Process inputs
 	return nil
 }
 

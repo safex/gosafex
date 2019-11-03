@@ -169,6 +169,7 @@ func (w *Wallet) countOutputs(outIDs []string) error {
 	return err
 }
 
+//TODO: Can be improved by hard saving balance
 func (w *Wallet) loadBalance() error {
 	w.resetBalance()
 	height := w.wallet.GetLatestBlockHeight()

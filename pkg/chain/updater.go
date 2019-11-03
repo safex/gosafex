@@ -9,10 +9,13 @@ const CheckCycleTime = 30000
 const DaemonErrorTime = 2000
 const BlocksPerCycle = 500
 
-func (w *Wallet) Rescan(accountName string) {
+func (w *Wallet) Rescan(accountName string, startBlock uint64) {
 	select {
 	case w.rescan <- accountName:
-		w.logger.Debugf("[Updater] Rescanning for: %s", accountName)
+		select {
+		case w.begin <- startBlock:
+			w.logger.Debugf("[Updater] Rescanning for: %s", accountName)
+		}
 	default:
 		w.logger.Infof("[Updater] Error communicating with updater for rescan")
 	}
@@ -62,6 +65,12 @@ func (w *Wallet) runUpdater() {
 		select {
 		case rscan := <-w.rescan:
 			w.rescanning = rscan
+			select {
+			case begin := <-w.begin:
+				w.rescanBegin = begin
+			default:
+				w.rescanBegin = uint64(0)
+			}
 		case temp := <-w.update:
 			if temp == true {
 				w.updating = true
@@ -79,7 +88,7 @@ func (w *Wallet) runUpdater() {
 		if w.updating && w.rescanning != "" {
 			var err error
 			loadedHeight := w.GetLatestLoadedBlockHeight()
-			scannedHeight := uint64(1)
+			scannedHeight := w.rescanBegin
 			if scannedHeight >= loadedHeight-1 {
 				w.logger.Infof("[Updater] There was no need to rescan!")
 			}

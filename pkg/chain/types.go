@@ -80,14 +80,16 @@ type Wallet struct {
 
 	latestInfo *safex.DaemonInfo
 
-	working    bool
-	updating   bool
-	syncing    bool
-	quitting   bool
-	rescanning string
-	rescan     chan string
-	update     chan bool
-	quit       chan bool
+	working     bool
+	updating    bool
+	syncing     bool
+	quitting    bool
+	rescanning  string
+	rescanBegin uint64
+	rescan      chan string
+	begin       chan uint64
+	update      chan bool
+	quit        chan bool
 }
 
 type Balance struct {
