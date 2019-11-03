@@ -4,6 +4,7 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
+	"fmt"
 	"io"
 
 	SafexCrypto "github.com/safex/gosafex/internal/crypto"
@@ -49,21 +50,26 @@ func encryptSafe(data []byte, secret []byte) []byte {
 	return gcm.Seal(nonce, nonce, data, nil)
 }
 
-func encrypt(data []byte, secret []byte, nonce []byte) []byte {
-
+func encrypt(data []byte, secret []byte, nonce []byte) (ret []byte, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("[Encrypt] Fatal error with data: %v\nsecret: %v\nnonce: %v", data, secret, nonce)
+		}
+	}()
 	tempHash := SafexCrypto.NewDigest(secret)
 	c, err := aes.NewCipher(tempHash[:])
 	if err != nil {
-		return nil
+		return nil, err
 	}
 
 	gcm, err := cipher.NewGCM(c)
-	nonce = nonce[:gcm.NonceSize()]
+	goodNonce := make([]byte, gcm.NonceSize())
+	copy(goodNonce, nonce[:gcm.NonceSize()])
 	if err != nil {
-		return nil
+		return nil, err
 	}
-
-	return gcm.Seal(nonce, nonce, data, nil)
+	ret = gcm.Seal(goodNonce, goodNonce, data, nil)
+	return
 }
 
 func decrypt(data []byte, secret []byte) []byte {
