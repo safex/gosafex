@@ -10,6 +10,10 @@ const DaemonErrorTime = 2000
 const BlocksPerCycle = 500
 
 func (w *Wallet) Rescan(accountName string, startBlock uint64) {
+	if state := w.UpdaterStatus(); state != "Up-to-date" {
+		w.logger.Infof("[Updater] Already: %s", state)
+		return
+	}
 	select {
 	case w.rescan <- accountName:
 		select {
@@ -31,7 +35,11 @@ func (w *Wallet) StopUpdating() {
 }
 
 func (w *Wallet) BeginUpdating() {
-	w.logger.Infof("[Updater] Starting the updater service")
+	if state := w.UpdaterStatus(); state != "Up-to-date" {
+		w.logger.Infof("[Updater] Already: %s", state)
+		return
+	}
+	w.logger.Infof("[Updater] Starting the updater service %v", w.UpdaterStatus())
 	w.updating = true
 	go w.runUpdater()
 	time.Sleep(1 * time.Second)
@@ -56,10 +64,6 @@ func (w *Wallet) UpdaterStatus() string {
 }
 
 func (w *Wallet) runUpdater() {
-	if state := w.UpdaterStatus(); state != "Up-to-date" {
-		w.logger.Infof("[Updater] Already: %s", state)
-		return
-	}
 	var bcHeight uint64
 	for true {
 		select {
