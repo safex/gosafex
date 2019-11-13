@@ -388,6 +388,7 @@ func New(file string, accountName string, masterkey string, createOnFail bool, i
 func NewClean(file string, masterkey string, isTestnet bool, createOnFail bool, prevLog *log.Logger) (*FileWallet, error) {
 	prevLog.Infof("[Filewallet] Creating new filewallet")
 	w := new(FileWallet)
+	w.memoryWallet = newMemoryWallet()
 	w.logger = prevLog
 	var err error
 	if fileExists(file) {

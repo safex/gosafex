@@ -109,12 +109,17 @@ func (w *FileWallet) CheckIfOutputTypeExists(outputType string) int {
 
 //GetOutput Returns the output associated with the given ID
 func (w *FileWallet) GetOutput(OutID string) (*safex.Txout, error) {
-	data, err := w.readKey(outputKeyPrefix + OutID)
-	if err != nil {
-		return nil, err
+	var data []byte
+	if data = w.memoryWallet.getOutput(OutID); data == nil {
+		var err error
+		data, err = w.readKey(outputKeyPrefix + OutID)
+		if err != nil {
+			return nil, err
+		}
+		w.memoryWallet.putOutput(OutID, data)
 	}
 	out := &safex.Txout{}
-	if err = proto.Unmarshal(data, out); err != nil {
+	if err := proto.Unmarshal(data, out); err != nil {
 		return nil, err
 	}
 	return out, nil
@@ -127,13 +132,18 @@ func (w *FileWallet) GetMassOutput(OutIDs []string) (map[string]*safex.Txout, er
 	var topErr error
 	read := false
 	for _, OutID := range OutIDs {
-		data, err := w.readKey(outputKeyPrefix + OutID)
-		if err != nil {
-			topErr = err
-			continue
+		var data []byte
+		if data = w.memoryWallet.getOutput(OutID); data == nil {
+			var err error
+			data, err = w.readKey(outputKeyPrefix + OutID)
+			if err != nil {
+				topErr = err
+				continue
+			}
+			w.memoryWallet.putOutput(OutID, data)
 		}
 		out := &safex.Txout{}
-		if err = proto.Unmarshal(data, out); err != nil {
+		if err := proto.Unmarshal(data, out); err != nil {
 			topErr = err
 			continue
 		}
@@ -261,6 +271,9 @@ func (w *FileWallet) putOutputInfo(outID string, outInfo *OutputInfo) error {
 
 //GetOutputInfo Returns the outputInfo associated with the given outputID
 func (w *FileWallet) GetOutputInfo(outID string) (*OutputInfo, error) {
+	if el := w.memoryWallet.getOutputInfo(outID); el != nil {
+		return el, nil
+	}
 	tempData, err := w.readAppendedKey(outputInfoPrefix + outID)
 	if err != nil {
 		return nil, err
@@ -272,6 +285,7 @@ func (w *FileWallet) GetOutputInfo(outID string) (*OutputInfo, error) {
 	if err != nil {
 		return nil, err
 	}
+	w.memoryWallet.putOutputInfo(outID, w.GetAccount(), &OutputInfo{string(tempData[0]), string(tempData[1]), string(tempData[2]), string(tempData[3]), string(tempData[4]), *TransferInfoData})
 	return &OutputInfo{string(tempData[0]), string(tempData[1]), string(tempData[2]), string(tempData[3]), string(tempData[4]), *TransferInfoData}, nil
 }
 
@@ -282,6 +296,11 @@ func (w *FileWallet) GetMassOutputInfo(OutIDs []string) (map[string]*OutputInfo,
 	var topErr error
 	read := false
 	for _, outID := range OutIDs {
+		if el := w.memoryWallet.getOutputInfo(outID); el != nil {
+			ret[outID] = el
+			read = true
+			continue
+		}
 		tempData, err := w.readAppendedKey(outputInfoPrefix + outID)
 		if err != nil {
 			topErr = err
@@ -296,6 +315,7 @@ func (w *FileWallet) GetMassOutputInfo(OutIDs []string) (map[string]*OutputInfo,
 			topErr = err
 			continue
 		}
+		w.memoryWallet.putOutputInfo(outID, w.GetAccount(), &OutputInfo{string(tempData[0]), string(tempData[1]), string(tempData[2]), string(tempData[3]), string(tempData[4]), *TransferInfoData})
 		ret[outID] = &OutputInfo{string(tempData[0]), string(tempData[1]), string(tempData[2]), string(tempData[3]), string(tempData[4]), *TransferInfoData}
 		read = true
 	}
@@ -307,6 +327,7 @@ func (w *FileWallet) GetMassOutputInfo(OutIDs []string) (map[string]*OutputInfo,
 
 //Removes the outputInfo associated with the given outputID
 func (w *FileWallet) removeOutputInfo(outID string) error {
+	w.memoryWallet.deleteOutput(outID)
 	return w.deleteKey(outputInfoPrefix + outID)
 }
 
