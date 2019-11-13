@@ -117,6 +117,14 @@ type testRoutes struct {
 	GetOutputInfoFromTypeRoute,
 	GetUnspentOutputsRoute,
 	GetOutputHistogramRoute,
+	// Wrong cash request route
+	TransactionCashRouteNoDest,
+	TransactionCashRouteNoAmount,
+	TransactionCashRouteWrongPID,
+	// Wrong token request route
+	TransactionTokenRouteNoDest,
+	TransactionTokenRouteNoAmount,
+	TransactionTokenRouteWrongPID,
 	CloseRoute *http.Request
 }
 
@@ -154,6 +162,14 @@ type testPayloads struct {
 	GetOutputInfoFromTypePayload,
 	GetUnspentOutputsPayload,
 	GetOutputHistogramPayload,
+	// Wrong cash payload
+	TransactionCashPayloadNoDest,
+	TransactionCashPayloadNoAmount,
+	TransactionCashPayloadWrongPID,
+	// Wrong cash payload
+	TransactionTokenPayloadNoDest,
+	TransactionTokenPayloadNoAmount,
+	TransactionTokenPayloadWrongPID,
 	ClosePayload []byte
 }
 
@@ -196,6 +212,14 @@ type testRequests struct {
 	GetOutputInfoFromTypeRequest,
 	GetUnspentOutputsRequest,
 	GetOutputHistogramRequest,
+	// Wrong cash request
+	TransactionCashRequestNoDest,
+	TransactionCashRequestNoAmount,
+	TransactionCashRequestWrongPID,
+	// Wrong token request
+	TransactionTokenRequestNoDest,
+	TransactionTokenRequestNoAmount,
+	TransactionTokenRequestWrongPID,
 	CloseRequest testRequest
 }
 
@@ -275,7 +299,13 @@ func initParameters(t *testing.T, w *WalletRPC) {
 	testp.TransactionCashPayload, _ = json.Marshal(map[string]interface{}{
 		"destination":     "SFXtzU6d8W7jHTjL54zYBdJBfpcskA2J7UwnL8xpyGxScmvZhLDmZuGGqq3s93EvAPGMNuDFXkMA1JZ5rmQfkbvKG35rXekEENh",
 		"amount":          180,
-		"paymentID":       "c55a2fa96b04b8f019afeaca883fdfd1e7ee775486eec32648579e9c0fab950c",
+		"paymentID":       "",
+		"fake_outs_count": 3,
+	})
+	testp.TransactionTokenPayload, _ = json.Marshal(map[string]interface{}{
+		"destination":     "SFXtzU6d8W7jHTjL54zYBdJBfpcskA2J7UwnL8xpyGxScmvZhLDmZuGGqq3s93EvAPGMNuDFXkMA1JZ5rmQfkbvKG35rXekEENh",
+		"amount":          1000000,
+		"paymentID":       "",
 		"fake_outs_count": 3,
 	})
 	testp.CreateAccountFromKeysPayload, _ = json.Marshal(map[string]interface{}{
@@ -321,7 +351,8 @@ func initParameters(t *testing.T, w *WalletRPC) {
 	testr.LoadDataRoute, _ = http.NewRequest("POST", "localhost:17406/", nil)
 	testr.TransactionCashRoute, _ = http.NewRequest("POST", "localhost:17406/", ioutil.NopCloser(bytes.NewReader(testp.TransactionCashPayload)))
 	testreq.TransactionCashRequest = testRequest{testr.TransactionCashRoute, testh.TransactionCashHandler}
-	testr.TransactionTokenRoute, _ = http.NewRequest("POST", "localhost:17406/", nil)
+	testr.TransactionTokenRoute, _ = http.NewRequest("POST", "localhost:17406/", ioutil.NopCloser(bytes.NewReader(testp.TransactionTokenPayload)))
+	testreq.TransactionTokenRequest = testRequest{testr.TransactionTokenRoute, testh.TransactionTokenHandler}
 	testr.GetTransactionInfoRoute, _ = http.NewRequest("POST", "localhost:17406/", nil)
 	testr.GetHistoryRoute, _ = http.NewRequest("POST", "localhost:17406/", nil)
 	testr.GetTransactionUpToBlockHeightRoute, _ = http.NewRequest("POST", "localhost:17406/", nil)
@@ -331,6 +362,71 @@ func initParameters(t *testing.T, w *WalletRPC) {
 	testr.GetUnspentOutputsRoute, _ = http.NewRequest("POST", "localhost:17406/", nil)
 	testr.GetOutputHistogramRoute, _ = http.NewRequest("POST", "localhost:17406/", nil)
 	testr.CloseRoute, _ = http.NewRequest("POST", "localhost:17406/", nil)
+
+	// TransactionCash bad request
+
+	// No destination
+	testp.TransactionCashPayloadNoDest, _ = json.Marshal(map[string]interface{}{
+		"destination":     "",
+		"amount":          180,
+		"paymentID":       "",
+		"fake_outs_count": 3,
+	})
+	testr.TransactionCashRouteNoDest, _ = http.NewRequest("POST", "localhost:17406/", ioutil.NopCloser(bytes.NewReader(testp.TransactionCashPayloadNoDest)))
+	testreq.TransactionCashRequestNoDest = testRequest{testr.TransactionCashRouteNoDest, testh.TransactionCashHandler}
+
+	// Zero amount
+	testp.TransactionCashPayloadNoAmount, _ = json.Marshal(map[string]interface{}{
+		"destination":     "SFXtzU6d8W7jHTjL54zYBdJBfpcskA2J7UwnL8xpyGxScmvZhLDmZuGGqq3s93EvAPGMNuDFXkMA1JZ5rmQfkbvKG35rXekEENh",
+		"amount":          0,
+		"paymentID":       "",
+		"fake_outs_count": 3,
+	})
+	testr.TransactionCashRouteNoAmount, _ = http.NewRequest("POST", "localhost:17406/", ioutil.NopCloser(bytes.NewReader(testp.TransactionCashPayloadNoAmount)))
+	testreq.TransactionCashRequestNoAmount = testRequest{testr.TransactionCashRouteNoAmount, testh.TransactionCashHandler}
+
+	// Wrong PID
+	testp.TransactionCashPayloadWrongPID, _ = json.Marshal(map[string]interface{}{
+		"destination":     "SFXtzU6d8W7jHTjL54zYBdJBfpcskA2J7UwnL8xpyGxScmvZhLDmZuGGqq3s93EvAPGMNuDFXkMA1JZ5rmQfkbvKG35rXekEENh",
+		"amount":          180,
+		"paymentID":       "abcd",
+		"fake_outs_count": 3,
+	})
+	testr.TransactionCashRouteWrongPID, _ = http.NewRequest("POST", "localhost:17406/", ioutil.NopCloser(bytes.NewReader(testp.TransactionCashPayloadWrongPID)))
+	testreq.TransactionCashRequestWrongPID = testRequest{testr.TransactionCashRouteWrongPID, testh.TransactionCashHandler}
+
+	// TransactionToken bad request
+
+	// No destination
+	testp.TransactionTokenPayloadNoDest, _ = json.Marshal(map[string]interface{}{
+		"destination":     "",
+		"amount":          1000000,
+		"paymentID":       "",
+		"fake_outs_count": 3,
+	})
+	testr.TransactionTokenRouteNoDest, _ = http.NewRequest("POST", "localhost:17406/", ioutil.NopCloser(bytes.NewReader(testp.TransactionTokenPayloadNoDest)))
+	testreq.TransactionTokenRequestNoDest = testRequest{testr.TransactionTokenRouteNoDest, testh.TransactionTokenHandler}
+
+	// Zero amount
+	testp.TransactionTokenPayloadNoAmount, _ = json.Marshal(map[string]interface{}{
+		"destination":     "SFXtzU6d8W7jHTjL54zYBdJBfpcskA2J7UwnL8xpyGxScmvZhLDmZuGGqq3s93EvAPGMNuDFXkMA1JZ5rmQfkbvKG35rXekEENh",
+		"amount":          0,
+		"paymentID":       "",
+		"fake_outs_count": 3,
+	})
+	testr.TransactionTokenRouteNoAmount, _ = http.NewRequest("POST", "localhost:17406/", ioutil.NopCloser(bytes.NewReader(testp.TransactionTokenPayloadNoAmount)))
+	testreq.TransactionTokenRequestNoAmount = testRequest{testr.TransactionTokenRouteNoAmount, testh.TransactionTokenHandler}
+
+	// Wrong PID
+	testp.TransactionTokenPayloadWrongPID, _ = json.Marshal(map[string]interface{}{
+		"destination":     "SFXtzU6d8W7jHTjL54zYBdJBfpcskA2J7UwnL8xpyGxScmvZhLDmZuGGqq3s93EvAPGMNuDFXkMA1JZ5rmQfkbvKG35rXekEENh",
+		"amount":          1000000,
+		"paymentID":       "abcd",
+		"fake_outs_count": 3,
+	})
+	testr.TransactionTokenRouteWrongPID, _ = http.NewRequest("POST", "localhost:17406/", ioutil.NopCloser(bytes.NewReader(testp.TransactionTokenPayloadWrongPID)))
+	testreq.TransactionTokenRequestWrongPID = testRequest{testr.TransactionTokenRouteWrongPID, testh.TransactionTokenHandler}
+
 }
 
 func sendReq(t *testing.T, request testRequest, canFail bool) (resp *testResponse) {
@@ -345,6 +441,19 @@ func sendReq(t *testing.T, request testRequest, canFail bool) (resp *testRespons
 	}
 	if resp.Status != EverythingOK && !canFail {
 		t.Fatalf("Response status error, code %v", resp.Status)
+	}
+	return
+}
+
+func sendBadReq(t *testing.T, request testRequest, canFail bool) (resp *testResponse) {
+	resp = new(testResponse)
+	rr := httptest.NewRecorder()
+	request.handler(rr, request.route)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("Response error, code: %v", rr.Code)
+	}
+	if err := json.Unmarshal(rr.Body.Bytes(), resp); err != nil {
+		t.Fatalf("Error while unmarshalling response: %s", err.Error())
 	}
 	return
 }
@@ -406,4 +515,144 @@ func TestUpdater(t *testing.T) {
 		t.Fatalf("Error unmarshalling request")
 	}
 
+}
+
+func TestTransactionCash(t *testing.T) {
+	w := new(WalletRPC)
+	prepareStaticFolder(t, w)
+
+	// Bad request
+	// No destination
+	resp := sendBadReq(t, testreq.TransactionCashRequestNoDest, false)
+	if resp.Status != TransactionDestinationZero {
+		t.Fatalf("Error Destination Zero not reported, status: %d", resp.Status)
+	}
+
+	// No amount
+	resp = sendBadReq(t, testreq.TransactionCashRequestNoAmount, false)
+	if resp.Status != TransactionAmountZero {
+		t.Fatalf("Error Amount Zero not reported, status: %d", resp.Status)
+	}
+
+	// Wrong PID
+	resp = sendBadReq(t, testreq.TransactionCashRequestWrongPID, false)
+	if resp.Status != WrongPaymentIDFormat {
+		t.Fatalf("Error Wrong PID not reported, status: %d", resp.Status)
+	}
+
+	// Good request, check the balance
+	resp = sendReq(t, testreq.GetAccountBalanceRequest, false)
+	balance, ok := resp.Result["balance"].(map[string]interface{})
+
+	previousCash := float64(0)
+	if ok {
+		// Retrive Unlocked Cash
+		previousCash = balance["CashUnlocked"].(float64) + balance["CashLocked"].(float64)
+	} else {
+		t.Fatalf("Error unmarshalling GetBalance request")
+	}
+
+	// Generate a transaction
+	resp = sendReq(t, testreq.TransactionCashRequest, false)
+
+	if txsList, ok := resp.Result["txs"].([]interface{}); ok {
+
+		if txs, ok := txsList[0].(map[string]interface{}); ok {
+
+			if txs["status"] == "sent" {
+				// Check again the balance
+				resp = sendReq(t, testreq.GetAccountBalanceRequest, false)
+				balance, ok = resp.Result["balance"].(map[string]interface{})
+
+				actualCash := float64(0)
+				if ok {
+					// Retrive Unlocked Cash
+					actualCash = balance["CashUnlocked"].(float64) + balance["CashLocked"].(float64)
+
+					amount := float64(180)
+					if actualCash != previousCash-amount {
+						t.Fatalf("Error balance does not match\nPrev: %g\nActual: %g\nAmount: %g", previousCash, actualCash, amount)
+					}
+				} else {
+					t.Fatalf("Error unmarshalling GetBalance request")
+				}
+			} else {
+				t.Fatalf("Error generating the transaction cash")
+			}
+		} else {
+			t.Fatalf("Error unmarshalling TransactionCash request")
+		}
+	} else {
+		t.Fatalf("Error unmarshalling TransactionCash request")
+	}
+}
+
+func TestTransactionToken(t *testing.T) {
+	w := new(WalletRPC)
+	prepareStaticFolder(t, w)
+
+	// Bad request
+	// No destination
+	resp := sendBadReq(t, testreq.TransactionTokenRequestNoDest, false)
+	if resp.Status != TransactionDestinationZero {
+		t.Fatalf("Error Destination Zero not reported, status: %d", resp.Status)
+	}
+
+	// No amount
+	resp = sendBadReq(t, testreq.TransactionTokenRequestNoAmount, false)
+	if resp.Status != TransactionAmountZero {
+		t.Fatalf("Error Amount Zero not reported, status: %d", resp.Status)
+	}
+
+	// Wrong PID
+	resp = sendBadReq(t, testreq.TransactionTokenRequestWrongPID, false)
+	if resp.Status != WrongPaymentIDFormat {
+		t.Fatalf("Error Wrong PID not reported, status: %d", resp.Status)
+	}
+
+	// Good request, check the balance
+	resp = sendReq(t, testreq.GetAccountBalanceRequest, false)
+	balance, ok := resp.Result["balance"].(map[string]interface{})
+
+	previousToken := float64(0)
+	if ok {
+		// Retrive Unlocked Token
+		previousToken = balance["TokenUnlocked"].(float64) + balance["TokenLocked"].(float64)
+	} else {
+		t.Fatalf("Error unmarshalling GetBalance request")
+	}
+
+	// Generate a transaction
+	resp = sendReq(t, testreq.TransactionTokenRequest, false)
+
+	if txsList, ok := resp.Result["txs"].([]interface{}); ok {
+
+		if txs, ok := txsList[0].(map[string]interface{}); ok {
+
+			if txs["status"] == "sent" {
+				// Check again the balance
+				resp = sendReq(t, testreq.GetAccountBalanceRequest, false)
+				balance, ok = resp.Result["balance"].(map[string]interface{})
+
+				actualToken := float64(0)
+				if ok {
+					// Retrive Unlocked Token
+					actualToken = balance["TokenUnlocked"].(float64) + balance["TokenLocked"].(float64)
+
+					amount := float64(1000000)
+					if actualToken != previousToken-amount {
+						t.Fatalf("Error balance does not match\nPrev: %g\nActual: %g\nAmount: %g", previousToken, actualToken, amount)
+					}
+				} else {
+					t.Fatalf("Error unmarshalling GetBalance request")
+				}
+			} else {
+				t.Fatalf("Error generating the transaction Token")
+			}
+		} else {
+			t.Fatalf("Error unmarshalling TransactionToken request")
+		}
+	} else {
+		t.Fatalf("Error unmarshalling TransactionToken request")
+	}
 }

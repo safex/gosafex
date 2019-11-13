@@ -275,7 +275,6 @@ func (w *Wallet) transferSelected(dsts *[]DestinationEntry, selectedTransfers []
 			src.Outputs = append(src.Outputs, oe)
 		}
 
-		// ERROR
 		var realIndex int = -1
 		for i, v1 := range src.Outputs {
 			if v1.Index == selectedOutputInfos[index].OutTransfer.GlobalIndex {
@@ -288,7 +287,7 @@ func (w *Wallet) transferSelected(dsts *[]DestinationEntry, selectedTransfers []
 			fmt.Println("Exit")
 			return errors.New("No real output found")
 		}
-		// ERROR
+
 		realOE := TxOutputEntry{}
 		realOE.Index = selectedOutputInfos[index].OutTransfer.GlobalIndex
 
