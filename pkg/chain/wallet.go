@@ -605,6 +605,7 @@ func New(prevLog *log.Logger) *Wallet {
 	w.quit = make(chan bool)
 	w.rescan = make(chan string, 512)
 	w.begin = make(chan uint64, 1)
+
 	return w
 }
 

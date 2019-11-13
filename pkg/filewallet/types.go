@@ -17,6 +17,7 @@ type FileWallet struct {
 	logger            *log.Logger
 	info              *WalletInfo
 	db                *filestore.EncryptedDB
+	memoryWallet      *MemoryWallet
 	knownAccounts     []string
 	knownOutputs      []string //REMEMBER TO INITIALIZE THIS
 	unspentOutputs    []string
@@ -24,6 +25,15 @@ type FileWallet struct {
 	latestBlockNumber uint64
 	latestBlockHash   string
 }
+
+//MemoryWallet is used to store transient information about outputs to avoid un-necessary reads
+type MemoryWallet struct {
+	output         map[string][]byte
+	outputAccount  map[string]string
+	outputInfo     map[string]*OutputInfo
+	accountOutputs map[string][]string
+}
+
 type TransferInfo struct {
 	Extra       []byte
 	LocalIndex  uint64
