@@ -72,6 +72,18 @@ func (w *WalletRPC) GetLatestBlockNumber(rw http.ResponseWriter, r *http.Request
 
 }
 
+func (w *WalletRPC) GetTopBlock(rw http.ResponseWriter, r *http.Request) {
+	if !w.OpenCheck(&rw) {
+		return
+	}
+	var data JSONElement
+	w.logger.Infof("[RPC] Getting top block number")
+	data = make(JSONElement)
+	data["msg"] = w.wallet.GetTopBlock()
+
+	FormJSONResponse(data, EverythingOK, &rw)
+}
+
 // Getting status of current wallet. If its open, syncing etc.
 func (w *WalletRPC) Close(rw http.ResponseWriter, r *http.Request) {
 	// Check if the wallet is open

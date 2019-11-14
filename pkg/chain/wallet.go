@@ -584,6 +584,13 @@ func (w *Wallet) GetLatestLoadedBlockHeight() uint64 {
 	return w.wallet.GetLatestBlockHeight()
 }
 
+func (w *Wallet) GetTopBlock() uint64 {
+	if w.latestInfo == nil {
+		return 0
+	}
+	return w.latestInfo.Height
+}
+
 //GetUnspentOutputs .
 func (w *Wallet) GetUnspentOutputs() []string {
 	w.working = true
