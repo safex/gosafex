@@ -19,6 +19,7 @@ type WalletInitRq struct {
 	DaemonHost   string `json:"daemon_host" validate:"required"`
 	DaemonPort   uint   `json:"daemon_port" validate:"required"`
 	Nettype      string `json:"nettype" validate:"required"`
+	Name         string `json:"name,omitempty"`
 	Seed         string `json:"seed,omitempty"`
 	SeedPass     string `json:"seedpass,omitempty"`
 	Address      string `json:"address,omitempty"`
@@ -136,7 +137,12 @@ func (w *WalletRPC) CreateNew(rw http.ResponseWriter, r *http.Request) {
 		alreadyExist = true
 	}
 
-	err = w.wallet.OpenAndCreate("primary", rqData.Path, rqData.Password, w.mainnet, w.logger)
+	var accountName string
+	if accountName = rqData.Name; accountName == "" {
+		accountName = "primary"
+	}
+
+	err = w.wallet.OpenAndCreate(accountName, rqData.Path, rqData.Password, w.mainnet, w.logger)
 
 	if err != nil {
 		data["msg"] = err.Error()
@@ -145,7 +151,7 @@ func (w *WalletRPC) CreateNew(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	// Only one account
-	data["accounts"] = []string{"primary"}
+	data["accounts"] = []string{accountName}
 	if noConn {
 		FormJSONResponse(data, FailedToConnectToDeamon, &rw)
 		return
@@ -204,7 +210,12 @@ func (w *WalletRPC) RecoverWithSeed(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = w.wallet.Recover(mSeed, rqData.SeedPass, "primary", rqData.Nettype == "testnet")
+	var accountName string
+	if accountName = rqData.Name; accountName == "" {
+		accountName = "primary"
+	}
+
+	err = w.wallet.Recover(mSeed, rqData.SeedPass, accountName, rqData.Nettype == "testnet")
 	if err != nil {
 		w.wallet.Close()
 		os.Remove(rqData.Path)
@@ -280,13 +291,17 @@ func (w *WalletRPC) RecoverWithKeys(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	store := account.NewStore(address, *viewPriv, *spendPriv)
+	var accountName string
+	if accountName = rqData.Name; accountName == "" {
+		accountName = "primary"
+	}
 
-	err = w.wallet.CreateAccount("primary", store, !w.mainnet)
+	err = w.wallet.CreateAccount(accountName, store, !w.mainnet)
 	if FormErrorRes(err, FailedToOpenAccount, &rw) {
 		return
 	}
 
-	w.openAccountInner("primary", &rw)
+	w.openAccountInner(accountName, &rw)
 	data = make(JSONElement)
 	data["created_account"] = w.currentAccInfo(&rw)
 
