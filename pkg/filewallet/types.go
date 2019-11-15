@@ -32,6 +32,8 @@ type MemoryWallet struct {
 	outputAccount  map[string]string
 	outputInfo     map[string]*OutputInfo
 	accountOutputs map[string][]string
+
+	keys map[string][]byte
 }
 
 type TransferInfo struct {
@@ -67,6 +69,8 @@ type TransactionInfo struct {
 	InPool          bool
 	TxHash          string
 }
+
+const appendSeparator = byte('\n')
 
 //LockedStatus of a transaction
 const LockedStatus = "L"

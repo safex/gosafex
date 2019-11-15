@@ -11,10 +11,17 @@ import (
 
 //Finds a key in an appended list of keys in targetReference
 func (w *FileWallet) findKeyInReference(targetReference string, targetKey string) (int, error) {
-	data, err := w.readAppendedKey(targetReference)
-	if err != nil {
-		return -1, err
+	var err error
+	var data [][]byte
+	w.db.SetBucket(genericDataBucketName)
+	if data = w.memoryWallet.getInfo(targetReference); data == nil {
+		data, err = w.readAppendedKey(targetReference)
+		if err != nil {
+			return -1, err
+		}
+		w.memoryWallet.putInfo(targetReference, data)
 	}
+
 	for i, el := range data {
 		if string(el) == targetKey {
 			return i, nil
@@ -23,11 +30,12 @@ func (w *FileWallet) findKeyInReference(targetReference string, targetKey string
 	return -1, nil
 }
 
-//Appends a value to a key
+// Appends a value to a key
 func (w *FileWallet) appendKey(key string, data []byte) error {
 	if err := w.db.Append(key, []byte(hex.EncodeToString(data))); err != nil {
 		return err
 	}
+	w.memoryWallet.appendToKey(key, []byte(hex.EncodeToString(data)))
 	return nil
 }
 
@@ -39,21 +47,33 @@ func (w *FileWallet) massAppendKey(key string, data [][]byte) error {
 	if err := w.db.MassAppend(key, filteredData); err != nil {
 		return err
 	}
+	w.memoryWallet.massAppendToKey(key, filteredData)
 	return nil
 }
 
 //Reads a composite value and returns it split in different byte arrays
 func (w *FileWallet) readAppendedKey(key string) ([][]byte, error) {
-	data, err := w.db.ReadAppended(key)
-	if err != nil {
-		return nil, err
+
+	var err error
+	var data [][]byte
+
+	if data = w.memoryWallet.getInfo(WalletInfoKey); data == nil {
+
+		data, err = w.db.ReadAppended(key)
+		if err != nil {
+			return nil, err
+		}
+
+		retData := [][]byte{}
+		for _, el := range data {
+			temp, _ := hex.DecodeString(string(el))
+			retData = append(retData, temp)
+		}
+		w.memoryWallet.putInfo(WalletInfoKey, data)
+
+		return retData, nil
 	}
-	retData := [][]byte{}
-	for _, el := range data {
-		temp, _ := hex.DecodeString(string(el))
-		retData = append(retData, temp)
-	}
-	return retData, nil
+	return data, nil
 }
 
 //Deletes a specifc entry in an appended key
@@ -67,19 +87,27 @@ func (w *FileWallet) writeKey(key string, data []byte) error {
 	if err := w.db.Write(key, []byte(hex.EncodeToString(data))); err != nil {
 		return err
 	}
+	w.memoryWallet.putData(key, data)
 	return nil
 }
 
 //Deletes the contents of a key
 func (w *FileWallet) deleteKey(key string) error {
+	w.memoryWallet.deleteKey(key)
 	return w.db.Delete(key)
 }
 
 //Reads the value of a key
 func (w *FileWallet) readKey(key string) ([]byte, error) {
-	data, err := w.db.Read(key)
-	if err != nil {
-		return nil, err
+	var err error
+	var data []byte
+
+	if data = w.memoryWallet.getData(key); data == nil {
+		data, err = w.db.Read(key)
+		if err != nil {
+			return nil, err
+		}
+		w.memoryWallet.putData(key, data)
 	}
 	return hex.DecodeString(string(data))
 }
@@ -274,10 +302,16 @@ func (w *FileWallet) loadAccounts() error {
 	if w.info != nil && w.db.BucketExists(w.info.Name) {
 		defer w.db.SetBucket(w.info.Name)
 	}
+
+	var err error
+	var data [][]byte
 	w.db.SetBucket(genericDataBucketName)
-	data, err := w.readAppendedKey(WalletListReferenceKey)
-	if err != nil {
-		return err
+	if data = w.memoryWallet.getInfo(WalletListReferenceKey); data == nil {
+		data, err = w.readAppendedKey(WalletListReferenceKey)
+		if err != nil {
+			return err
+		}
+		w.memoryWallet.putInfo(WalletListReferenceKey, data)
 	}
 	ret := []string{}
 	for _, el := range data {
