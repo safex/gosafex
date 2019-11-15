@@ -1,0 +1,9 @@
+syntax = "proto3";
+
+package safex;
+
+message create_account_data{
+    string username = 1;
+    bytes key = 2;
+    string account_data = 3;
+}

@@ -4,7 +4,7 @@ import (
 	"time"
 )
 
-const UpdateCycleTime = 200
+const UpdateCycleTime = 1
 const CheckCycleTime = 30000
 const DaemonErrorTime = 2000
 const BlocksPerCycle = 500

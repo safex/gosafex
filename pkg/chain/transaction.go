@@ -1,12 +1,13 @@
 package chain
 
 import (
+	"errors"
 	"fmt"
 	"math/rand"
+	"sort"
 	"time"
 
-	"errors"
-	"sort"
+	"github.com/golang/protobuf/proto"
 
 	"github.com/safex/gosafex/internal/crypto"
 	"github.com/safex/gosafex/internal/crypto/curve"
@@ -751,6 +752,15 @@ func isTokenOutput(txout *safex.Txout) bool {
 	return txout.Target.TxoutTokenToKey != nil
 }
 
+func isAdvancedTransaction(input []*TxSourceEntry) bool {
+	for _, el := range input {
+		if el.CommandType != safex.TxinToScript_nop {
+			return true
+		}
+	}
+	return false
+}
+
 func IsDecomposedOutputValue(value uint64) bool {
 	i := sort.Search(len(decomposedValues), func(i int) bool { return decomposedValues[i] >= value })
 	if i < len(decomposedValues) && decomposedValues[i] == value {
@@ -1181,4 +1191,25 @@ func (w *Wallet) TxCreateCash(
 		ret = append(ret, tx.PendingTx)
 	}
 	return ret, nil
+}
+
+func (w *Wallet) TxAccountCreate(
+	accountData *safex.CreateAccountData,
+	fakeOutsCount int,
+	unlockTime uint64,
+	priority uint32,
+	extra []byte,
+	trustedDaemon bool) ([]PendingTx, error) {
+	store, err := w.wallet.GetKeys()
+	if err != nil {
+		return nil, err
+	}
+	accountDataBytes, err := proto.Marshal(accountData)
+	if err != nil {
+		return nil, err
+	}
+
+	addr := *store.Address()
+	dst := DestinationEntry{0, createAccountToken, addr, false, true, true, safex.OutSafexAccount, string(accountDataBytes)}
+	return nil, nil
 }
