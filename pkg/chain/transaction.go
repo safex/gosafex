@@ -1211,5 +1211,51 @@ func (w *Wallet) TxAccountCreate(
 
 	addr := *store.Address()
 	dst := DestinationEntry{0, createAccountToken, addr, false, true, true, safex.OutSafexAccount, string(accountDataBytes)}
+	if w.client == nil {
+		return nil, ErrClientNotInit
+	}
+	if w.syncing {
+		return nil, ErrSyncing
+	}
+	if w.latestInfo == nil {
+		return nil, ErrDaemonInfo
+	}
+	height := w.latestInfo.Height
+
+	upperTxSizeLimit := GetUpperTransactionSizeLimit(1, 10)
+	feePerKb := w.GetPerKBFee()
+	feeMultiplier := GetFeeMultiplier(priority, GetFeeAlgorithm())
+
+	var unusedOutputs []TransferInfo
+	var unusedOutputIDs []string
+	var dustOutputs []TransferInfo
+	var dustOutputIDs []string
+
+	for index, val := range w.outputs {
+		out, err := w.GetFilewallet().GetOutput(index)
+		if err != nil {
+			continue
+		}
+		if !val.OutTransfer.Spent && !isTokenOutput(out) && val.OutTransfer.IsUnlocked(height) {
+			if IsDecomposedOutputValue(out.Amount) {
+				unusedOutputs = append(unusedOutputs, val.OutTransfer)
+				unusedOutputIDs = append(unusedOutputIDs, index)
+			} else {
+				dustOutputs = append(dustOutputs, val.OutTransfer)
+				dustOutputIDs = append(dustOutputIDs, index)
+			}
+		}
+	}
+
+	if len(unusedOutputs) == 0 && len(dustOutputs) == 0 {
+		return []PendingTx{}, nil
+	}
+	if len(unusedOutputs) == 0 {
+		unusedOutputs = append(unusedOutputs, TransferInfo{})
+	}
+	if len(dustOutputs) == 0 {
+		dustOutputs = append(dustOutputs, TransferInfo{})
+	}
+
 	return nil, nil
 }
