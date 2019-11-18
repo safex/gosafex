@@ -33,7 +33,7 @@ type MemoryWallet struct {
 	outputInfo     map[string]*OutputInfo
 	accountOutputs map[string][]string
 
-	keys map[string][]byte
+	keys map[string]map[string][]byte
 }
 
 type TransferInfo struct {

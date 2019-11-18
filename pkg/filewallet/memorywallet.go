@@ -2,7 +2,6 @@ package filewallet
 
 import (
 	"bytes"
-	"encoding/hex"
 	"errors"
 )
 
@@ -14,7 +13,7 @@ func newMemoryWallet() *MemoryWallet {
 	ret.outputAccount = make(map[string]string)
 	ret.accountOutputs = make(map[string][]string)
 
-	ret.keys = make(map[string][]byte)
+	ret.keys = make(map[string]map[string][]byte)
 
 	return ret
 }
@@ -47,16 +46,21 @@ func (w *MemoryWallet) getOutputOwner(outID string) string {
 	return ""
 }
 
-func (w *MemoryWallet) getInfo(key string) [][]byte {
-	if ret, ok := w.keys[key]; ok {
-		return bytes.Split(ret, []byte{appendSeparator})
+func (w *MemoryWallet) getKey(key string, bucketRef string) []byte {
+	if data, ok := w.keys[bucketRef]; ok {
+		if ret, ok := data[key]; ok {
+			return ret
+		}
 	}
 	return nil
 }
 
-func (w *MemoryWallet) getData(key string) []byte {
-	if ret, ok := w.keys[key]; ok {
-		return ret
+func (w *MemoryWallet) getAppendedKey(key string, bucketRef string) [][]byte {
+	if data, ok := w.keys[bucketRef]; ok {
+		if ret, ok := data[key]; ok {
+			splitData := bytes.Split(ret, []byte{appendSeparator})
+			return splitData
+		}
 	}
 	return nil
 }
@@ -79,54 +83,36 @@ func (w *MemoryWallet) putOutputInfo(outID string, account string, outputInfo *O
 	return nil
 }
 
-func (w *MemoryWallet) putInfo(key string, data [][]byte) error {
-	if w.getInfo(key) != nil {
+func (w *MemoryWallet) putKey(key string, bucketRef string, data []byte) error {
+	if w.getKey(key, bucketRef) != nil {
 		return errors.New("Key already in memory")
 	}
 
-	var filteredData [][]byte
-	for _, el := range data {
-		filteredData = append(filteredData, []byte(hex.EncodeToString(el)))
+	if _, ok := w.keys[bucketRef]; !ok {
+		w.keys[bucketRef] = map[string][]byte{}
 	}
-	var newData []byte
-	for i, el := range filteredData {
-		if i == len(filteredData)-1 {
-			break
-		}
-		newData = append(newData, el...)
-		newData = append(newData, appendSeparator)
-	}
-
-	newData = append(newData, filteredData[len(filteredData)-1]...)
-
-	w.keys[key] = newData
+	w.keys[bucketRef][key] = data
 	return nil
 }
 
-func (w *MemoryWallet) putData(key string, data []byte) error {
-	if w.getData(key) != nil {
-		return errors.New("Key already in memory")
-	}
-
-	w.keys[key] = []byte(hex.EncodeToString(data))
-	return nil
-}
-
-func (w *MemoryWallet) appendToKey(key string, newData []byte) error {
-	data := w.getData(key)
-
+func (w *MemoryWallet) appendToKey(key string, bucketRef string, newData []byte) error {
+	data := w.getKey(key, bucketRef)
 	if data != nil {
 		data = append(data, appendSeparator)
 	}
 
 	data = append(data, newData...)
 
-	w.keys[key] = data
+	if _, ok := w.keys[bucketRef]; !ok {
+		w.keys[bucketRef] = map[string][]byte{}
+	}
+	w.keys[bucketRef][key] = data
 	return nil
 }
 
-func (w *MemoryWallet) massAppendToKey(key string, newData [][]byte) error {
-	data := w.getData(key)
+func (w *MemoryWallet) massAppendToKey(key string, bucketRef string, newData [][]byte) error {
+	data := w.getKey(key, bucketRef)
+
 	if data != nil {
 		data = append(data, appendSeparator)
 	}
@@ -140,7 +126,10 @@ func (w *MemoryWallet) massAppendToKey(key string, newData [][]byte) error {
 
 	data = append(data, newData[len(newData)-1]...)
 
-	w.keys[key] = data
+	if _, ok := w.keys[bucketRef]; !ok {
+		w.keys[bucketRef] = map[string][]byte{}
+	}
+	w.keys[bucketRef][key] = data
 	return nil
 }
 
@@ -161,10 +150,38 @@ func (w *MemoryWallet) deleteOutput(outID string) error {
 	return nil
 }
 
-func (w *MemoryWallet) deleteKey(key string) error {
-	if _, ok := w.keys[key]; !ok {
+func (w *MemoryWallet) deleteKey(key string, bucketRef string) error {
+	if _, ok := w.keys[bucketRef]; !ok {
 		return nil
 	}
-	delete(w.keys, key)
+	if _, ok := w.keys[bucketRef][key]; !ok {
+		return nil
+	}
+	delete(w.keys[bucketRef], key)
+	return nil
+}
+
+func (w *MemoryWallet) deleteAppendedKey(key string, bucketRef string, target int) error {
+	var data []byte
+	var ok bool
+
+	if _, ok = w.keys[bucketRef]; !ok {
+		return nil
+	}
+	if data, ok = w.keys[bucketRef][key]; !ok {
+		return nil
+	}
+	if len(data) < target {
+		return errors.New("Index out of bounds")
+	}
+
+	newData := []byte{}
+	for i, el := range data {
+		if i != target {
+			newData = append(newData, el)
+		}
+	}
+
+	w.keys[bucketRef][key] = newData
 	return nil
 }

@@ -110,7 +110,7 @@ func (w *FileWallet) CheckIfOutputTypeExists(outputType string) int {
 //GetOutput Returns the output associated with the given ID
 func (w *FileWallet) GetOutput(OutID string) (*safex.Txout, error) {
 	var data []byte
-	if data = w.memoryWallet.getOutput(OutID); data == nil {
+	if data = w.memoryWallet.getOutput(OutID); true {
 		var err error
 		data, err = w.readKey(outputKeyPrefix + OutID)
 		if err != nil {
@@ -133,7 +133,7 @@ func (w *FileWallet) GetMassOutput(OutIDs []string) (map[string]*safex.Txout, er
 	read := false
 	for _, OutID := range OutIDs {
 		var data []byte
-		if data = w.memoryWallet.getOutput(OutID); data == nil {
+		if data = w.memoryWallet.getOutput(OutID); true {
 			var err error
 			data, err = w.readKey(outputKeyPrefix + OutID)
 			if err != nil {
@@ -271,7 +271,7 @@ func (w *FileWallet) putOutputInfo(outID string, outInfo *OutputInfo) error {
 
 //GetOutputInfo Returns the outputInfo associated with the given outputID
 func (w *FileWallet) GetOutputInfo(outID string) (*OutputInfo, error) {
-	if el := w.memoryWallet.getOutputInfo(outID); el != nil {
+	if el := w.memoryWallet.getOutputInfo(outID); false {
 		return el, nil
 	}
 	tempData, err := w.readAppendedKey(outputInfoPrefix + outID)
@@ -296,7 +296,7 @@ func (w *FileWallet) GetMassOutputInfo(OutIDs []string) (map[string]*OutputInfo,
 	var topErr error
 	read := false
 	for _, outID := range OutIDs {
-		if el := w.memoryWallet.getOutputInfo(outID); el != nil {
+		if el := w.memoryWallet.getOutputInfo(outID); false {
 			ret[outID] = el
 			read = true
 			continue
