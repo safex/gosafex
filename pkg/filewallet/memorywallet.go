@@ -70,24 +70,6 @@ func (w *MemoryWallet) getAppendedKey(key string, bucketRef string) [][]byte {
 	return nil
 }
 
-func (w *MemoryWallet) putOutput(outID string, data []byte) error {
-	if w.getOutput(outID) != nil {
-		return errors.New("Output already in memory")
-	}
-	w.output[outID] = data
-	return nil
-}
-
-func (w *MemoryWallet) putOutputInfo(outID string, account string, outputInfo *OutputInfo) error {
-	if w.getOutputInfo(outID) != nil {
-		return errors.New("OutputInfo already in memory")
-	}
-	w.outputInfo[outID] = outputInfo
-	w.outputAccount[outID] = account
-	w.accountOutputs[account] = append(w.accountOutputs[account], outID)
-	return nil
-}
-
 func (w *MemoryWallet) putKey(key string, bucketRef string, data []byte) error {
 
 	//Questo non è un errore

@@ -386,9 +386,6 @@ func TestOutputRW(t *testing.T) {
 	if err != nil {
 		t.Fatalf("%s", err)
 	}
-	if err != nil {
-		t.Fatalf("%s", err)
-	}
 
 	err = w.PutTransactionInfo(tx1, head2.GetHash())
 	if err != nil {

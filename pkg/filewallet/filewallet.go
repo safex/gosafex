@@ -115,7 +115,8 @@ func (w *FileWallet) readKey(key string) ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
-		w.memoryWallet.putKey(key, reference, data)
+		decodedData, _ := hex.DecodeString(string(data))
+		w.memoryWallet.putKey(key, reference, decodedData)
 		return hex.DecodeString(string(data))
 	} else {
 		return data, nil
