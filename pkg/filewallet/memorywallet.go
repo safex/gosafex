@@ -37,6 +37,8 @@ func (w *MemoryWallet) getAppendedKey(key string, bucketRef string) [][]byte {
 				temp, _ := hex.DecodeString(string(el))
 				retData = append(retData, temp)
 			}
+
+			return retData
 		}
 	}
 	return nil
