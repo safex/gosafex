@@ -2,6 +2,7 @@ package filewallet
 
 import (
 	"bytes"
+	"encoding/hex"
 	"errors"
 )
 
@@ -56,10 +57,14 @@ func (w *MemoryWallet) getKey(key string, bucketRef string) []byte {
 }
 
 func (w *MemoryWallet) getAppendedKey(key string, bucketRef string) [][]byte {
-	if data, ok := w.keys[bucketRef]; ok {
-		if ret, ok := data[key]; ok {
-			splitData := bytes.Split(ret, []byte{appendSeparator})
-			return splitData
+	retData := [][]byte{}
+	if bucket, ok := w.keys[bucketRef]; ok {
+		if massData, ok := bucket[key]; ok {
+			data := bytes.Split(massData, []byte{appendSeparator})
+			for _, el := range data {
+				temp, _ := hex.DecodeString(string(el))
+				retData = append(retData, temp)
+			}
 		}
 	}
 	return nil
@@ -99,11 +104,9 @@ func (w *MemoryWallet) putKey(key string, bucketRef string, data []byte) error {
 
 func (w *MemoryWallet) appendToKey(key string, bucketRef string, newData []byte) error {
 	data := w.getKey(key, bucketRef)
-	if data != nil {
-		data = append(data, appendSeparator)
-	}
 
-	data = append(data, newData...)
+	data = append(data, []byte(hex.EncodeToString(newData))...)
+	data = append(data, appendSeparator)
 
 	if _, ok := w.keys[bucketRef]; !ok {
 		w.keys[bucketRef] = map[string][]byte{}
@@ -115,14 +118,11 @@ func (w *MemoryWallet) appendToKey(key string, bucketRef string, newData []byte)
 func (w *MemoryWallet) massAppendToKey(key string, bucketRef string, newData [][]byte) error {
 	data := w.getKey(key, bucketRef)
 
-	if data != nil {
-		data = append(data, appendSeparator)
-	}
 	for i, el := range newData {
 		if i == len(newData)-1 {
 			break
 		}
-		data = append(data, el...)
+		data = append(data, []byte(hex.EncodeToString(el))...)
 		data = append(data, appendSeparator)
 	}
 
