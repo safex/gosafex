@@ -84,9 +84,11 @@ func (w *MemoryWallet) putOutputInfo(outID string, account string, outputInfo *O
 }
 
 func (w *MemoryWallet) putKey(key string, bucketRef string, data []byte) error {
-	if w.getKey(key, bucketRef) != nil {
+
+	//Questo non è un errore
+	/*if w.getKey(key, bucketRef) != nil {
 		return errors.New("Key already in memory")
-	}
+	}*/
 
 	if _, ok := w.keys[bucketRef]; !ok {
 		w.keys[bucketRef] = map[string][]byte{}
@@ -168,18 +170,24 @@ func (w *MemoryWallet) deleteAppendedKey(key string, bucketRef string, target in
 	if _, ok = w.keys[bucketRef]; !ok {
 		return nil
 	}
+	splitData := [][]byte{}
 	if data, ok = w.keys[bucketRef][key]; !ok {
 		return nil
 	}
-	if len(data) < target {
+	splitData = bytes.Split(data, []byte{appendSeparator})
+	if len(splitData) < target {
 		return errors.New("Index out of bounds")
 	}
 
 	newData := []byte{}
-	for i, el := range data {
+	for i, el := range splitData {
 		if i != target {
-			newData = append(newData, el)
+			newData = append(newData, el...)
+			newData = append(newData, appendSeparator)
 		}
+	}
+	if len(newData) > 0 && newData[len(newData)-1] == appendSeparator {
+		newData = newData[:len(newData)-1]
 	}
 
 	w.keys[bucketRef][key] = newData

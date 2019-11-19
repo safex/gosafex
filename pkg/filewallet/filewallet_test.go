@@ -356,7 +356,7 @@ func TestTransactionRW(t *testing.T) {
 		t.Fatalf("%s", err)
 	}
 	transactionInfoArray, err = w.GetAllTransactionInfos()
-	if len(transactionInfoArray) != 0 {
+	if len(transactionInfoArray) != 1 && transactionInfoArray[0] != "" {
 		t.Fatalf("Error removing data")
 	}
 	testLogger.Infof("[Test] Passed transaction R/W")

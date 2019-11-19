@@ -90,7 +90,7 @@ const unspentOutputReferenceKey = "UnspentOutputReference"
 const transactionInfoReferenceKey = "TransactionInfoReference"
 
 const genericDataBucketName = "Generic"
-const genericBlockBucketName = "Blocks"
+const genericBlockBucketName = "Generic"
 
 const passwordCheckField = "Check"
 

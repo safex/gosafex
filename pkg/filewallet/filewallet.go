@@ -12,7 +12,7 @@ import (
 //Finds a key in an appended list of keys in targetReference
 func (w *FileWallet) findKeyInReference(targetReference string, targetKey string) (int, error) {
 
-	w.db.SetBucket(genericDataBucketName)
+	//w.db.SetBucket(genericDataBucketName)
 
 	data, err := w.readAppendedKey(targetReference)
 	if err != nil {
@@ -56,7 +56,7 @@ func (w *FileWallet) readAppendedKey(key string) ([][]byte, error) {
 
 	dataMemory := [][]byte{}
 
-	if dataMemory = w.memoryWallet.getAppendedKey(WalletInfoKey, reference); dataMemory == nil {
+	if dataMemory = w.memoryWallet.getAppendedKey(key, reference); dataMemory == nil {
 
 		data, err := w.db.ReadAppended(key)
 		if err != nil {
@@ -116,8 +116,10 @@ func (w *FileWallet) readKey(key string) ([]byte, error) {
 			return nil, err
 		}
 		w.memoryWallet.putKey(key, reference, data)
+		return hex.DecodeString(string(data))
+	} else {
+		return data, nil
 	}
-	return hex.DecodeString(string(data))
 }
 
 func (w *FileWallet) putInfo(info *WalletInfo) error {
@@ -269,6 +271,7 @@ func (w *FileWallet) CreateAccount(accountInfo *WalletInfo, isTestnet bool) erro
 
 //OpenAccount Opens an account and all the connected data
 func (w *FileWallet) OpenAccount(accountInfo *WalletInfo, createOnFail bool, isTestnet bool) error {
+	var loadTypes bool
 	w.logger.Debugf("[Filewallet] Opening account: %s", accountInfo.Name)
 	if w.GetAccount() == accountInfo.Name {
 		w.logger.Debugf("[Filewallet] Account already open")
@@ -276,7 +279,7 @@ func (w *FileWallet) OpenAccount(accountInfo *WalletInfo, createOnFail bool, isT
 	}
 	err := w.db.SetBucket(accountInfo.Name)
 	if err == filestore.ErrBucketNotInit && createOnFail {
-		w.CreateAccount(accountInfo, isTestnet)
+		loadTypes = w.CreateAccount(accountInfo, isTestnet) != nil
 	} else if err != nil {
 		w.logger.Errorf("[FileWallet] %s", ErrBucketNotInit)
 		return filestore.ErrBucketNotInit
@@ -287,8 +290,10 @@ func (w *FileWallet) OpenAccount(accountInfo *WalletInfo, createOnFail bool, isT
 		return err
 	}
 
-	if err = w.loadOutputTypes(createOnFail); err != nil {
-		return err
+	if loadTypes {
+		if err = w.loadOutputTypes(createOnFail); err != nil {
+			return err
+		}
 	}
 
 	err = w.loadLatestBlock()
