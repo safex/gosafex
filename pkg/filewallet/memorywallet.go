@@ -19,34 +19,6 @@ func newMemoryWallet() *MemoryWallet {
 	return ret
 }
 
-func (w *MemoryWallet) getOutput(outID string) []byte {
-	if ret, ok := w.output[outID]; ok {
-		return ret
-	}
-	return nil
-}
-
-func (w *MemoryWallet) getOutputInfo(outID string) *OutputInfo {
-	if ret, ok := w.outputInfo[outID]; ok {
-		return ret
-	}
-	return nil
-}
-
-func (w *MemoryWallet) getAccountOutputs(accountID string) []string {
-	if ret, ok := w.accountOutputs[accountID]; ok {
-		return ret
-	}
-	return nil
-}
-
-func (w *MemoryWallet) getOutputOwner(outID string) string {
-	if ret, ok := w.outputAccount[outID]; ok {
-		return ret
-	}
-	return ""
-}
-
 func (w *MemoryWallet) getKey(key string, bucketRef string) []byte {
 	if data, ok := w.keys[bucketRef]; ok {
 		if ret, ok := data[key]; ok {
@@ -114,23 +86,6 @@ func (w *MemoryWallet) massAppendToKey(key string, bucketRef string, newData [][
 		w.keys[bucketRef] = map[string][]byte{}
 	}
 	w.keys[bucketRef][key] = data
-	return nil
-}
-
-func (w *MemoryWallet) deleteOutput(outID string) error {
-	if _, ok := w.outputInfo[outID]; !ok {
-		return nil
-	}
-	delete(w.outputInfo, outID)
-	account := w.outputAccount[outID]
-	delete(w.outputAccount, outID)
-
-	for i, el := range w.accountOutputs[account] {
-		if el == outID {
-			w.accountOutputs[account] = append(w.accountOutputs[account][:i], w.accountOutputs[account][i+1:]...)
-			break
-		}
-	}
 	return nil
 }
 
