@@ -33,7 +33,7 @@ func (w *FileWallet) appendKey(key string, data []byte) error {
 		return err
 	}
 	reference, _ := w.db.GetCurrentBucket()
-	w.memoryWallet.appendToKey(key, reference, data)
+	w.memoryWallet.appendToKey(key, reference, []byte(hex.EncodeToString(data)))
 	return nil
 }
 
@@ -46,7 +46,7 @@ func (w *FileWallet) massAppendKey(key string, data [][]byte) error {
 		return err
 	}
 	reference, _ := w.db.GetCurrentBucket()
-	w.memoryWallet.massAppendToKey(key, reference, data)
+	w.memoryWallet.massAppendToKey(key, reference, filteredData)
 	return nil
 }
 
@@ -69,7 +69,7 @@ func (w *FileWallet) readAppendedKey(key string) ([][]byte, error) {
 			retData = append(retData, temp)
 		}
 
-		w.memoryWallet.massAppendToKey(key, reference, retData)
+		w.memoryWallet.massAppendToKey(key, reference, data)
 
 		return retData, nil
 	}

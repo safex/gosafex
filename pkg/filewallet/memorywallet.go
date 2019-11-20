@@ -61,8 +61,11 @@ func (w *MemoryWallet) putKey(key string, bucketRef string, data []byte) error {
 func (w *MemoryWallet) appendToKey(key string, bucketRef string, newData []byte) error {
 	data := w.getKey(key, bucketRef)
 
-	data = append(data, []byte(hex.EncodeToString(newData))...)
-	data = append(data, appendSeparator)
+	if data != nil {
+		data = append(data, appendSeparator)
+	}
+
+	data = append(data, newData...)
 
 	if _, ok := w.keys[bucketRef]; !ok {
 		w.keys[bucketRef] = map[string][]byte{}
@@ -74,11 +77,15 @@ func (w *MemoryWallet) appendToKey(key string, bucketRef string, newData []byte)
 func (w *MemoryWallet) massAppendToKey(key string, bucketRef string, newData [][]byte) error {
 	data := w.getKey(key, bucketRef)
 
+	if data != nil {
+		data = append(data, appendSeparator)
+	}
+
 	for i, el := range newData {
 		if i == len(newData)-1 {
 			break
 		}
-		data = append(data, []byte(hex.EncodeToString(el))...)
+		data = append(data, el...)
 		data = append(data, appendSeparator)
 	}
 
