@@ -43,7 +43,7 @@ func (w *Wallet) rescanBlockRange(blocks safex.Blocks, acc string) error {
 	return nil
 }
 
-func (w *Wallet) processBlockRange(blocks safex.Blocks) error {
+func (w *Wallet) processBlockRange(blocks safex.Blocks, bypass bool) error {
 	// @todo Here handle block metadata.
 	var count int
 	var mcount int
@@ -57,7 +57,7 @@ func (w *Wallet) processBlockRange(blocks safex.Blocks) error {
 	for _, block := range blocks.Block {
 		headers = append(headers, block.GetHeader())
 	}
-	if i, err := w.wallet.PutMassBlockHeaders(headers); err != nil {
+	if i, err := w.wallet.PutMassBlockHeaders(headers, bypass); err != nil {
 		return fmt.Errorf("Loaded only to block %v due to error: %s", i, err.Error())
 	}
 	for _, blck := range blocks.Block {

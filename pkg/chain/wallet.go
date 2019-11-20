@@ -61,7 +61,9 @@ func (w *Wallet) updateBlocks(nblocks uint64) error {
 	var bcHeight uint64
 
 	knownHeight := w.wallet.GetLatestBlockHeight()
-
+	if knownHeight < w.rescanBegin {
+		knownHeight = w.rescanBegin
+	}
 	bcHeight = info.Height
 
 	var targetBlock uint64
@@ -82,7 +84,7 @@ func (w *Wallet) updateBlocks(nblocks uint64) error {
 		return err
 	}
 	w.logger.Debugf("[Wallet] Fetched %d blocks", len(blocks.Block))
-	if err := w.processBlockRange(blocks); err != nil {
+	if err := w.processBlockRange(blocks, w.rescanBegin > 0); err != nil {
 		return err
 	}
 	knownHeight = w.wallet.GetLatestBlockHeight()

@@ -30,9 +30,15 @@ func (w *WalletRPC) BeginUpdating(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var rqData AccountRq
+	if !accountGetData(&rw, r, &rqData) {
+		// Error response already handled
+		return
+	}
+
 	w.logger.Infof("[RPC] Getting start update request")
 	data := make(JSONElement)
-	w.wallet.BeginUpdating()
+	w.wallet.BeginUpdating(rqData.RescanBegin)
 	data["msg"] = w.wallet.UpdaterStatus()
 
 	FormJSONResponse(data, EverythingOK, &rw)

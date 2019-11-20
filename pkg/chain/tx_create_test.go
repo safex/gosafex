@@ -63,7 +63,7 @@ func TestTxCreate(t *testing.T) {
 	}
 
 	var extra []byte
-	w.BeginUpdating()
+	w.BeginUpdating(0)
 	for w.syncing {
 		time.Sleep(100 * time.Millisecond)
 	}

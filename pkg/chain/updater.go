@@ -34,12 +34,15 @@ func (w *Wallet) StopUpdating() {
 	}
 }
 
-func (w *Wallet) BeginUpdating() {
+func (w *Wallet) BeginUpdating(startBlock uint64) {
 	if state := w.UpdaterStatus(); state != "Up-to-date" {
 		w.logger.Infof("[Updater] Already: %s", state)
 		return
 	}
 	w.logger.Infof("[Updater] Starting the updater service %v", w.UpdaterStatus())
+	select {
+	case w.begin <- startBlock:
+	}
 	w.updating = true
 	go w.runUpdater()
 	time.Sleep(1 * time.Second)
@@ -125,6 +128,12 @@ func (w *Wallet) runUpdater() {
 				time.Sleep(CheckCycleTime * time.Millisecond)
 			} else {
 				if !w.working {
+					select {
+					case begin := <-w.begin:
+						w.rescanBegin = begin
+					default:
+						w.rescanBegin = uint64(0)
+					}
 					if w.GetLatestLoadedBlockHeight() < bcHeight-1 {
 						prevHeight := w.GetLatestLoadedBlockHeight()
 						w.logger.Debugf("[Updater] Known block: %d , bcHeight: %d", w.GetLatestLoadedBlockHeight(), bcHeight)
