@@ -242,7 +242,7 @@ func (w *WalletRPC) TransactionCash(rw http.ResponseWriter, r *http.Request) {
 
 	// @todo Handle PID
 
-	/*var pid []byte
+	var pid []byte
 	if rqData.PaymentID != "" && (len(rqData.PaymentID) != 16 || len(rqData.PaymentID) != 64) {
 		FormJSONResponse(nil, WrongPaymentIDFormat, &rw)
 		return
@@ -251,23 +251,23 @@ func (w *WalletRPC) TransactionCash(rw http.ResponseWriter, r *http.Request) {
 	pid, err := hex.DecodeString(rqData.PaymentID)
 
 	extra := pid
-	fmt.Println("exttra: ", extra)
+	fmt.Println("extra: ", extra)
 
 	if err != nil {
 		data := make(JSONElement)
 		data["msg"] = err.Error()
 		FormJSONResponse(data, PaymentIDParseError, &rw)
 		return
-	}*/
+	}
 
 	// @todo Add here actual logic for creating txs.
-	/*if txSendMock%2 != 0 {
-		FormJSONResponse(nil, ErrorDuringSendingTx, &rw)
-		txSendMock++
-		return
-	}
-	txSendMock++
-	*/
+	// if txSendMock%2 != 0 {
+	// 	FormJSONResponse(nil, ErrorDuringSendingTx, &rw)
+	// 	txSendMock++
+	// 	return
+	// }
+	// txSendMock++
+
 	data := make(JSONElement)
 	destAddress, err := account.FromBase58(rqData.Destination)
 
@@ -320,7 +320,6 @@ func (w *WalletRPC) TransactionCash(rw http.ResponseWriter, r *http.Request) {
 			data["txs"] = append(data["txs"].([]interface{}), txJSON)
 		}
 	}
-
 	FormJSONResponse(data, retInt, &rw)
 }
 
@@ -356,7 +355,7 @@ func (w *WalletRPC) TransactionToken(rw http.ResponseWriter, r *http.Request) {
 
 	// @todo This should be encoded to extra
 	extra := pid
-	fmt.Println("exttra: ", extra)
+	fmt.Println("extra: ", extra)
 
 	if err != nil {
 		data := make(JSONElement)
@@ -366,13 +365,13 @@ func (w *WalletRPC) TransactionToken(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	// @todo Add here actual logic for creating txs.
-	/*if txSendMock%2 != 0 {
-		FormJSONResponse(nil, ErrorDuringSendingTx, &rw)
-		txSendMock++
-		return
-	}
-	txSendMock++
-	*/
+	// if txSendMock%2 != 0 {
+	// 	FormJSONResponse(nil, ErrorDuringSendingTx, &rw)
+	// 	txSendMock++
+	// 	return
+	// }
+	// txSendMock++
+
 	data := make(JSONElement)
 	destAddress, err := account.FromBase58(rqData.Destination)
 

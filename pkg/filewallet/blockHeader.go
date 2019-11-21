@@ -212,7 +212,7 @@ func (w *FileWallet) PutBlockHeader(blck *safex.BlockHeader) error {
 	return nil
 }
 
-func (w *FileWallet) PutMassBlockHeaders(blcks []*safex.BlockHeader) (uint64, error) {
+func (w *FileWallet) PutMassBlockHeaders(blcks []*safex.BlockHeader, bypass bool) (uint64, error) {
 	prevBucket, err := w.db.GetCurrentBucket()
 
 	if err == nil && prevBucket != genericBlockBucketName {
@@ -226,7 +226,7 @@ func (w *FileWallet) PutMassBlockHeaders(blcks []*safex.BlockHeader) (uint64, er
 
 	blockHash := blcks[0].GetHash()
 	a := blcks[0].GetPrevHash()
-	if a != w.latestBlockHash && w.latestBlockHash != "" {
+	if a != w.latestBlockHash && w.latestBlockHash != "" && !bypass {
 		w.logger.Errorf("[FileWallet] %s at %s", ErrMistmatchedBlock, a)
 		return 0, ErrMistmatchedBlock
 	}

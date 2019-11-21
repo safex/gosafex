@@ -30,9 +30,15 @@ func (w *WalletRPC) BeginUpdating(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var rqData AccountRq
+	if !accountGetData(&rw, r, &rqData) {
+		// Error response already handled
+		return
+	}
+
 	w.logger.Infof("[RPC] Getting start update request")
 	data := make(JSONElement)
-	w.wallet.BeginUpdating()
+	w.wallet.BeginUpdating(rqData.RescanBegin)
 	data["msg"] = w.wallet.UpdaterStatus()
 
 	FormJSONResponse(data, EverythingOK, &rw)
@@ -70,18 +76,6 @@ func (w *WalletRPC) GetLatestBlockNumber(rw http.ResponseWriter, r *http.Request
 
 	FormJSONResponse(data, EverythingOK, &rw)
 
-}
-
-func (w *WalletRPC) GetTopBlock(rw http.ResponseWriter, r *http.Request) {
-	if !w.OpenCheck(&rw) {
-		return
-	}
-	var data JSONElement
-	w.logger.Infof("[RPC] Getting top block number")
-	data = make(JSONElement)
-	data["msg"] = w.wallet.GetTopBlock()
-
-	FormJSONResponse(data, EverythingOK, &rw)
 }
 
 // Getting status of current wallet. If its open, syncing etc.

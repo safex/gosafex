@@ -408,7 +408,7 @@ func TestUpdateBalance(t *testing.T) {
 			t.Fatalf("%s", err)
 		}
 	}
-	w.BeginUpdating()
+	w.BeginUpdating(200)
 	for w.syncing {
 		testLogger.Infof("[Test] Waiting for sync")
 		time.Sleep(30 * time.Second)

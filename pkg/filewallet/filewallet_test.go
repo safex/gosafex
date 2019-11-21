@@ -270,7 +270,7 @@ func TestMassBlockRW(t *testing.T) {
 	head3 := &safex.BlockHeader{Depth: 12, Hash: "aaaad", PrevHash: "aaaac"}
 	head4 := &safex.BlockHeader{Depth: 13, Hash: "aaaae", PrevHash: "aaaad"}
 	arr := []*safex.BlockHeader{head1, head2, head3, head4}
-	if _, err = w.PutMassBlockHeaders(arr); err != nil {
+	if _, err = w.PutMassBlockHeaders(arr, false); err != nil {
 		t.Fatalf("%s", err)
 	}
 
@@ -383,9 +383,6 @@ func TestOutputRW(t *testing.T) {
 		t.Fatalf("%s", err)
 	}
 	err = w.PutBlockHeader(head2)
-	if err != nil {
-		t.Fatalf("%s", err)
-	}
 	if err != nil {
 		t.Fatalf("%s", err)
 	}
@@ -741,7 +738,7 @@ func benchmarkMassBlockHeaderWrite(n int, b *testing.B) {
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, err = w.PutMassBlockHeaders(headers[i*n : (i+1)*n])
+		_, err = w.PutMassBlockHeaders(headers[i*n:(i+1)*n], false)
 		if err != nil {
 			b.Fatalf("%s", err)
 		}

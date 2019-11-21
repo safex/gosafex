@@ -460,7 +460,7 @@ func NewEncryptedDB(file string, masterkey string, exists bool, prevLog *log.Log
 	DB.stream = new(Stream)
 	DB.logger = prevLog
 	DB.stream.logger = prevLog
-	DB.stream.db, err = bolt.Open(file, 0600, nil)
+	DB.stream.db, err = bolt.Open(file, 0755, nil)
 
 	if err != nil {
 		return nil, err

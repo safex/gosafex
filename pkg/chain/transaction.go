@@ -41,9 +41,8 @@ const TX_EXTRA_NONCE_ENCRYPTED_PAYMENT_ID = 0x01
 
 func extractTxPubKey(extra []byte) (pubTxKey [crypto.KeyLength]byte) {
 	// @todo Also if serialization is ok
-	if extra[0] == TX_EXTRA_TAG_PUBKEY {
-		copy(pubTxKey[:], extra[1:33])
-	}
+	copy(pubTxKey[:], extra[1:33])
+
 	return pubTxKey
 }
 func (w *Wallet) isOurKey(kImage [crypto.KeyLength]byte, keyOffsets []uint64, outType string, amount uint64) (string, bool) {
@@ -58,6 +57,10 @@ func (w *Wallet) isOurKey(kImage [crypto.KeyLength]byte, keyOffsets []uint64, ou
 	return "", false
 }
 func (w *Wallet) processTransactionPerAccount(tx *safex.Transaction, blckHash string, minerTx bool, acc string) error {
+	hash := tx.GetTxHash()
+	if hash == "ddd978af6a86223cee7c72cb2509e153a0e5e7ae51661113b1f112c8c5ac109e" {
+		hash = "b"
+	}
 	if len(tx.Vout) != 0 {
 		err := w.openAccount(acc, w.testnet)
 		//Must defer to previous account
@@ -176,7 +179,7 @@ func (w *Wallet) processTransactionPerAccount(tx *safex.Transaction, blckHash st
 func (w *Wallet) processTransaction(tx *safex.Transaction, blckHash string, minerTx bool) error {
 	// @todo Process Unconfirmed.
 	// Process outputs
-	w.logger.Debugf("[Chain] Processing transaction %s", tx.TxHash)
+	w.logger.Debugf("[Chain] Processing transaction: %s in block: %v", tx.TxHash, tx.GetBlockHeight())
 	if len(tx.Vout) != 0 || len(tx.Vin) != 0 {
 		accs, err := w.getAccounts()
 		if err != nil {
@@ -276,7 +279,6 @@ func (w *Wallet) transferSelected(dsts *[]DestinationEntry, selectedTransfers []
 			src.Outputs = append(src.Outputs, oe)
 		}
 
-		// ERROR
 		var realIndex int = -1
 		for i, v1 := range src.Outputs {
 			if v1.Index == selectedOutputInfos[index].OutTransfer.GlobalIndex {
@@ -289,7 +291,7 @@ func (w *Wallet) transferSelected(dsts *[]DestinationEntry, selectedTransfers []
 			fmt.Println("Exit")
 			return errors.New("No real output found")
 		}
-		// ERROR
+
 		realOE := TxOutputEntry{}
 		realOE.Index = selectedOutputInfos[index].OutTransfer.GlobalIndex
 

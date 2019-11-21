@@ -4,12 +4,16 @@ import (
 	"time"
 )
 
-const UpdateCycleTime = 1
+const UpdateCycleTime = 200
 const CheckCycleTime = 30000
 const DaemonErrorTime = 2000
 const BlocksPerCycle = 500
 
 func (w *Wallet) Rescan(accountName string, startBlock uint64) {
+	if state := w.UpdaterStatus(); state != "Up-to-date" {
+		w.logger.Infof("[Updater] Already: %s", state)
+		return
+	}
 	select {
 	case w.rescan <- accountName:
 		select {
@@ -30,8 +34,15 @@ func (w *Wallet) StopUpdating() {
 	}
 }
 
-func (w *Wallet) BeginUpdating() {
-	w.logger.Infof("[Updater] Starting the updater service")
+func (w *Wallet) BeginUpdating(startBlock uint64) {
+	if state := w.UpdaterStatus(); state != "Up-to-date" {
+		w.logger.Infof("[Updater] Already: %s", state)
+		return
+	}
+	w.logger.Infof("[Updater] Starting the updater service %v", w.UpdaterStatus())
+	select {
+	case w.begin <- startBlock:
+	}
 	w.updating = true
 	go w.runUpdater()
 	time.Sleep(1 * time.Second)
@@ -56,10 +67,6 @@ func (w *Wallet) UpdaterStatus() string {
 }
 
 func (w *Wallet) runUpdater() {
-	if state := w.UpdaterStatus(); state != "Up-to-date" {
-		w.logger.Infof("[Updater] Already: %s", state)
-		return
-	}
 	var bcHeight uint64
 	for true {
 		select {
@@ -121,6 +128,12 @@ func (w *Wallet) runUpdater() {
 				time.Sleep(CheckCycleTime * time.Millisecond)
 			} else {
 				if !w.working {
+					select {
+					case begin := <-w.begin:
+						w.rescanBegin = begin
+					default:
+						w.rescanBegin = uint64(0)
+					}
 					if w.GetLatestLoadedBlockHeight() < bcHeight-1 {
 						prevHeight := w.GetLatestLoadedBlockHeight()
 						w.logger.Debugf("[Updater] Known block: %d , bcHeight: %d", w.GetLatestLoadedBlockHeight(), bcHeight)

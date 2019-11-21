@@ -32,6 +32,8 @@ type MemoryWallet struct {
 	outputAccount  map[string]string
 	outputInfo     map[string]*OutputInfo
 	accountOutputs map[string][]string
+
+	keys map[string]map[string][]byte
 }
 
 type TransferInfo struct {
@@ -68,6 +70,8 @@ type TransactionInfo struct {
 	TxHash          string
 }
 
+const appendSeparator = byte('\n')
+
 //LockedStatus of a transaction
 const LockedStatus = "L"
 
@@ -86,7 +90,7 @@ const unspentOutputReferenceKey = "UnspentOutputReference"
 const transactionInfoReferenceKey = "TransactionInfoReference"
 
 const genericDataBucketName = "Generic"
-const genericBlockBucketName = "Blocks"
+const genericBlockBucketName = "Generic"
 
 const passwordCheckField = "Check"
 

@@ -11,10 +11,14 @@ import (
 
 //Finds a key in an appended list of keys in targetReference
 func (w *FileWallet) findKeyInReference(targetReference string, targetKey string) (int, error) {
+
+	//w.db.SetBucket(genericDataBucketName)
+
 	data, err := w.readAppendedKey(targetReference)
 	if err != nil {
 		return -1, err
 	}
+
 	for i, el := range data {
 		if string(el) == targetKey {
 			return i, nil
@@ -23,11 +27,13 @@ func (w *FileWallet) findKeyInReference(targetReference string, targetKey string
 	return -1, nil
 }
 
-//Appends a value to a key
+// Appends a value to a key
 func (w *FileWallet) appendKey(key string, data []byte) error {
 	if err := w.db.Append(key, []byte(hex.EncodeToString(data))); err != nil {
 		return err
 	}
+	reference, _ := w.db.GetCurrentBucket()
+	w.memoryWallet.appendToKey(key, reference, []byte(hex.EncodeToString(data)))
 	return nil
 }
 
@@ -39,25 +45,43 @@ func (w *FileWallet) massAppendKey(key string, data [][]byte) error {
 	if err := w.db.MassAppend(key, filteredData); err != nil {
 		return err
 	}
+	reference, _ := w.db.GetCurrentBucket()
+	w.memoryWallet.massAppendToKey(key, reference, filteredData)
 	return nil
 }
 
 //Reads a composite value and returns it split in different byte arrays
 func (w *FileWallet) readAppendedKey(key string) ([][]byte, error) {
-	data, err := w.db.ReadAppended(key)
-	if err != nil {
-		return nil, err
+	reference, _ := w.db.GetCurrentBucket()
+
+	dataMemory := [][]byte{}
+
+	if dataMemory = w.memoryWallet.getAppendedKey(key, reference); dataMemory == nil {
+
+		data, err := w.db.ReadAppended(key)
+		if err != nil {
+			return nil, err
+		}
+
+		retData := [][]byte{}
+		for _, el := range data {
+			temp, _ := hex.DecodeString(string(el))
+			retData = append(retData, temp)
+		}
+
+		w.memoryWallet.massAppendToKey(key, reference, data)
+
+		return retData, nil
 	}
-	retData := [][]byte{}
-	for _, el := range data {
-		temp, _ := hex.DecodeString(string(el))
-		retData = append(retData, temp)
-	}
-	return retData, nil
+
+	return dataMemory, nil
+
 }
 
 //Deletes a specifc entry in an appended key
 func (w *FileWallet) deleteAppendedKey(key string, target int) error {
+	reference, _ := w.db.GetCurrentBucket()
+	w.memoryWallet.deleteAppendedKey(key, reference, target)
 	return w.db.DeleteAppendedKey(key, target)
 }
 
@@ -67,21 +91,36 @@ func (w *FileWallet) writeKey(key string, data []byte) error {
 	if err := w.db.Write(key, []byte(hex.EncodeToString(data))); err != nil {
 		return err
 	}
+	reference, _ := w.db.GetCurrentBucket()
+	w.memoryWallet.putKey(key, reference, data)
 	return nil
 }
 
 //Deletes the contents of a key
 func (w *FileWallet) deleteKey(key string) error {
+	reference, _ := w.db.GetCurrentBucket()
+	w.memoryWallet.deleteKey(key, reference)
 	return w.db.Delete(key)
 }
 
 //Reads the value of a key
 func (w *FileWallet) readKey(key string) ([]byte, error) {
-	data, err := w.db.Read(key)
-	if err != nil {
-		return nil, err
+	var err error
+	var data []byte
+
+	reference, _ := w.db.GetCurrentBucket()
+
+	if data = w.memoryWallet.getKey(key, reference); data == nil {
+		data, err = w.db.Read(key)
+		if err != nil {
+			return nil, err
+		}
+		decodedData, _ := hex.DecodeString(string(data))
+		w.memoryWallet.putKey(key, reference, decodedData)
+		return hex.DecodeString(string(data))
+	} else {
+		return data, nil
 	}
-	return hex.DecodeString(string(data))
 }
 
 func (w *FileWallet) putInfo(info *WalletInfo) error {
@@ -233,6 +272,7 @@ func (w *FileWallet) CreateAccount(accountInfo *WalletInfo, isTestnet bool) erro
 
 //OpenAccount Opens an account and all the connected data
 func (w *FileWallet) OpenAccount(accountInfo *WalletInfo, createOnFail bool, isTestnet bool) error {
+	var loadTypes bool
 	w.logger.Debugf("[Filewallet] Opening account: %s", accountInfo.Name)
 	if w.GetAccount() == accountInfo.Name {
 		w.logger.Debugf("[Filewallet] Account already open")
@@ -240,7 +280,7 @@ func (w *FileWallet) OpenAccount(accountInfo *WalletInfo, createOnFail bool, isT
 	}
 	err := w.db.SetBucket(accountInfo.Name)
 	if err == filestore.ErrBucketNotInit && createOnFail {
-		w.CreateAccount(accountInfo, isTestnet)
+		loadTypes = w.CreateAccount(accountInfo, isTestnet) != nil
 	} else if err != nil {
 		w.logger.Errorf("[FileWallet] %s", ErrBucketNotInit)
 		return filestore.ErrBucketNotInit
@@ -251,8 +291,10 @@ func (w *FileWallet) OpenAccount(accountInfo *WalletInfo, createOnFail bool, isT
 		return err
 	}
 
-	if err = w.loadOutputTypes(createOnFail); err != nil {
-		return err
+	if loadTypes {
+		if err = w.loadOutputTypes(createOnFail); err != nil {
+			return err
+		}
 	}
 
 	err = w.loadLatestBlock()
@@ -274,11 +316,16 @@ func (w *FileWallet) loadAccounts() error {
 	if w.info != nil && w.db.BucketExists(w.info.Name) {
 		defer w.db.SetBucket(w.info.Name)
 	}
+
+	var err error
+	var data [][]byte
 	w.db.SetBucket(genericDataBucketName)
-	data, err := w.readAppendedKey(WalletListReferenceKey)
+
+	data, err = w.readAppendedKey(WalletListReferenceKey)
 	if err != nil {
 		return err
 	}
+
 	ret := []string{}
 	for _, el := range data {
 		if el != nil {
