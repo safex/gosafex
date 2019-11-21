@@ -1,6 +1,8 @@
 package filewallet
 
 import (
+	"errors"
+
 	"github.com/golang/protobuf/proto"
 	"github.com/safex/gosafex/internal/filestore"
 	"github.com/safex/gosafex/pkg/safex"
@@ -591,6 +593,33 @@ func (w *FileWallet) GetOutputLock(outID string) (string, error) {
 		return "", err
 	}
 	return OutInf.TxLocked, nil
+}
+
+func (w *FileWallet) GetMultiOutInfo(outID string, multiField []string) (map[string]string, error) {
+	OutInf, err := w.GetOutputInfo(outID)
+	if err != nil {
+		return nil, err
+	}
+
+	ret := map[string]string{}
+	for _, outField := range multiField {
+		switch outField {
+		case "OutputType":
+			ret["OutputType"] = OutInf.OutputType
+		case "BlockHash":
+			ret["BlockHash"] = OutInf.BlockHash
+		case "TransactionID":
+			ret["TransactionID"] = OutInf.TransactionID
+		case "TxLocked":
+			ret["TxLocked"] = OutInf.TxLocked
+		case "TxType":
+			ret["TxType"] = OutInf.TxType
+		default:
+			return nil, errors.New("Field does not exist")
+		}
+	}
+
+	return ret, nil
 }
 
 //LockOutput Sets the lockStatus of the outputID as LockedStatus
