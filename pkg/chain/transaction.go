@@ -25,26 +25,6 @@ HINT: additional tx pub keys in extra and derivations.
 
 */
 
-// Must be implemented at some point.
-const TX_EXTRA_PADDING_MAX_COUNT = 255
-const TX_EXTRA_NONCE_MAX_COUNT = 255
-const TX_EXTRA_TAG_PADDING = 0x00
-const TX_EXTRA_TAG_PUBKEY = 0x01
-const TX_EXTRA_NONCE = 0x02
-const TX_EXTRA_MERGE_MINING_TAG = 0x03
-const TX_EXTRA_TAG_ADDITIONAL_PUBKEYS = 0x04
-const TX_EXTRA_MYSTERIOUS_MINERGATE_TAG = 0xDE
-const TX_EXTRA_BITCOIN_HASH = 0x10
-const TX_EXTRA_MIGRATION_PUBKEYS = 0x11
-const TX_EXTRA_NONCE_PAYMENT_ID = 0x00
-const TX_EXTRA_NONCE_ENCRYPTED_PAYMENT_ID = 0x01
-
-func extractTxPubKey(extra []byte) (pubTxKey [crypto.KeyLength]byte) {
-	// @todo Also if serialization is ok
-	copy(pubTxKey[:], extra[1:33])
-
-	return pubTxKey
-}
 func (w *Wallet) isOurKey(kImage [crypto.KeyLength]byte, keyOffsets []uint64, outType string, amount uint64) (string, bool) {
 	kImgCurve := crypto.Key(kImage)
 	w.logger.Debugf("[Chain] Checking ownership of input: %v ", kImgCurve)
@@ -67,7 +47,8 @@ func (w *Wallet) processTransactionPerAccount(tx *safex.Transaction, blckHash st
 		if err != nil && err != ErrSyncing {
 			return err
 		}
-		pubTxKey := extractTxPubKey(tx.Extra)
+		_, extraFields := ParseExtra(&tx.Extra)
+		pubTxKey := extraFields[TX_EXTRA_TAG_PUBKEY].(curve.Key)
 
 		// @todo uniform key structure.
 
@@ -298,8 +279,8 @@ func (w *Wallet) transferSelected(dsts *[]DestinationEntry, selectedTransfers []
 		keyTemp := GetOutputKey(val, outputType)
 		copy(realOE.Key[:], keyTemp)
 		src.Outputs[realIndex] = realOE
-
-		tempPub := ExtractTxPubKey(selectedOutputInfos[index].OutTransfer.Extra)
+		_, extraFields := ParseExtra(&selectedOutputInfos[index].OutTransfer.Extra)
+		tempPub := extraFields[TX_EXTRA_TAG_PUBKEY].([]byte)
 		copy(tempPub[:], src.RealOutTxKey[:])
 		src.RealOutput = uint64(realIndex)
 		src.RealOutputInTxIndex = int(selectedOutputInfos[index].OutTransfer.LocalIndex)
@@ -785,7 +766,7 @@ func (tx *TX) Add(acc account.Address, amount uint64, originalOutputIndex int, m
 	if mergeDestinations {
 		i := tx.findDst(acc)
 		if i == -1 {
-			tx.Dsts = append(tx.Dsts, DestinationEntry{0, 0, acc, false, outType == safex.OutToken})
+			tx.Dsts = append(tx.Dsts, DestinationEntry{0, 0, acc, false, outType == safex.OutToken, false, outType, ""})
 			i = 0
 		}
 		if outType == safex.OutCash {
@@ -798,7 +779,7 @@ func (tx *TX) Add(acc account.Address, amount uint64, originalOutputIndex int, m
 
 	} else {
 		if originalOutputIndex == len(tx.Dsts) {
-			tx.Dsts = append(tx.Dsts, DestinationEntry{0, 0, acc, false, outType == safex.OutToken})
+			tx.Dsts = append(tx.Dsts, DestinationEntry{0, 0, acc, false, outType == safex.OutToken, false, outType, ""})
 		}
 		if outType == safex.OutCash {
 			tx.Dsts[originalOutputIndex].Amount += amount

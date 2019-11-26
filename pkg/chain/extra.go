@@ -12,36 +12,21 @@ type ExtraTag byte
 
 type ExtraMap map[ExtraTag]interface{}
 
-const (
-	NonceMaxCount       ExtraTag = 255
-	Padding                      = 0x00
-	PubKey                       = 0x01
-	Nonce                        = 0x02
-	MergeMiningTag               = 0x03
-	AdditionalPubkeys            = 0x04 // Most probably not used
-	MysteriousMinergate          = 0xDE //
-	BitcoinHash                  = 0x10
-	MigrationPubkeys             = 0x11
-
-	NoncePaymentId          = 0xF0
-	NonceEncryptedPaymentId = 0xF1
-)
+const TX_EXTRA_PADDING_MAX_COUNT = 255
+const TX_EXTRA_NONCE_MAX_COUNT = 255
+const TX_EXTRA_TAG_PADDING = 0x00
+const TX_EXTRA_TAG_PUBKEY = 0x01
+const TX_EXTRA_NONCE = 0x02
+const TX_EXTRA_MERGE_MINING_TAG = 0x03
+const TX_EXTRA_TAG_ADDITIONAL_PUBKEYS = 0x04
+const TX_EXTRA_MYSTERIOUS_MINERGATE_TAG = 0xDE
+const TX_EXTRA_BITCOIN_HASH = 0x10
+const TX_EXTRA_MIGRATION_PUBKEYS = 0x11
+const TX_EXTRA_NONCE_PAYMENT_ID = 0x00
+const TX_EXTRA_NONCE_ENCRYPTED_PAYMENT_ID = 0x01
 
 func (ex Extra) matchTag(tag byte) bool {
 	return ex[0] == tag
-}
-
-func ExtractTxPubKey(extra []byte) (pubTxKey [32]byte) {
-	// @todo Also if serialization is ok
-	if extra[0] == PubKey {
-		copy(pubTxKey[:], extra[1:33])
-	}
-	return pubTxKey
-}
-
-func ExtractTxPubKeys(extra []byte) (pubTxKeys [][32]byte) {
-	// @warning @todo Not implemented yet
-	return [][32]byte{}
 }
 
 func checkForError(err error, msg string) (r bool) {
@@ -57,8 +42,8 @@ func getNonce(extraMap ExtraMap) []byte {
 
 	// if payment id are set, they replace nonce
 	// first place unencrypted payment id
-	if _, ok := extraMap[NoncePaymentId]; ok {
-		dataBytes := extraMap[NoncePaymentId].([]byte)
+	if _, ok := extraMap[TX_EXTRA_NONCE_PAYMENT_ID]; ok {
+		dataBytes := extraMap[TX_EXTRA_NONCE_PAYMENT_ID].([]byte)
 		if len(dataBytes) == 32 { // payment id is valid
 			buf.WriteByte(0x00)
 			buf.Write(dataBytes)
@@ -68,8 +53,8 @@ func getNonce(extraMap ExtraMap) []byte {
 	}
 
 	// if encrypted nonce is provide, it will overwrite 32 byte nonce
-	if _, ok := extraMap[NonceEncryptedPaymentId]; ok {
-		dataBytes := extraMap[NonceEncryptedPaymentId].([]byte)
+	if _, ok := extraMap[TX_EXTRA_NONCE_ENCRYPTED_PAYMENT_ID]; ok {
+		dataBytes := extraMap[TX_EXTRA_NONCE_ENCRYPTED_PAYMENT_ID].([]byte)
 		if len(dataBytes) == 8 { // payment id is valid
 			buf.WriteByte(0x01)
 			buf.Write(dataBytes)
@@ -97,7 +82,7 @@ func ParseExtra(extra *[]byte) (r bool, extraMap ExtraMap) {
 		readBytes, err := buf.Read(readPortion)
 
 		switch ExtraTag(readPortion[0]) {
-		case Padding:
+		case TX_EXTRA_TAG_PADDING:
 			readBytes, err = buf.Read(readPortion)
 			if checkForError(err, "Extra couldnt be parsed") {
 				return false, extraMap
@@ -111,7 +96,7 @@ func ParseExtra(extra *[]byte) (r bool, extraMap ExtraMap) {
 				return false, extraMap
 			}
 
-		case PubKey:
+		case TX_EXTRA_TAG_PUBKEY:
 			var pubKey [32]byte
 
 			readBytes, err = buf.Read(pubKey[:])
@@ -119,9 +104,9 @@ func ParseExtra(extra *[]byte) (r bool, extraMap ExtraMap) {
 				return false, extraMap
 			}
 
-			extraMap[PubKey] = pubKey
+			extraMap[TX_EXTRA_TAG_PUBKEY] = pubKey
 
-		case Nonce: // this is followed by 1 byte length, then length bytes of data
+		case TX_EXTRA_NONCE: // this is followed by 1 byte length, then length bytes of data
 			readBytes, err = buf.Read(readPortion)
 			if checkForError(err, "[Chain] Extra nonce could not be read!") {
 				return false, extraMap
@@ -140,7 +125,7 @@ func ParseExtra(extra *[]byte) (r bool, extraMap ExtraMap) {
 			switch length {
 			case 33:
 				if nonce[0] == byte(0x00) {
-					extraMap[NoncePaymentId] = nonce[1:]
+					extraMap[TX_EXTRA_NONCE_PAYMENT_ID] = nonce[1:]
 				} else {
 					checkForError(errors.New(""), "Invalid PaymentId")
 					return false, extraMap
@@ -149,7 +134,7 @@ func ParseExtra(extra *[]byte) (r bool, extraMap ExtraMap) {
 			case 9: // encrypted 9 byte payment id
 				generalLogger.Warning("[Chain] EXTRA 9 fuck")
 				if nonce[0] == byte(0x01) {
-					extraMap[NonceEncryptedPaymentId] = (*extra)[1:]
+					extraMap[TX_EXTRA_NONCE_ENCRYPTED_PAYMENT_ID] = (*extra)[1:]
 				} else {
 					checkForError(errors.New("Invalid PaymentId"), "Invalid PaymentId")
 					return false, extraMap
@@ -158,7 +143,7 @@ func ParseExtra(extra *[]byte) (r bool, extraMap ExtraMap) {
 			default:
 			}
 
-			extraMap[Nonce] = nonce
+			extraMap[TX_EXTRA_NONCE] = nonce
 
 		default: // any any other unknown tag or data, fails the parsing
 			generalLogger.Println("[Chain] Unhandled tag! ", readPortion[0])
@@ -173,9 +158,9 @@ func SerializeExtra(extraMap ExtraMap) (bool, []byte) {
 	buf := bytes.NewBuffer(nil)
 
 	// this is mandatory
-	if _, ok := extraMap[PubKey]; ok {
-		buf.WriteByte(PubKey)
-		key := extraMap[PubKey].([32]byte)
+	if _, ok := extraMap[TX_EXTRA_TAG_PUBKEY]; ok {
+		buf.WriteByte(TX_EXTRA_TAG_PUBKEY)
+		key := extraMap[TX_EXTRA_TAG_PUBKEY].([32]byte)
 		buf.Write(key[:])
 	} else {
 		generalLogger.Error("[Chain] There is no TX public key")
@@ -183,11 +168,11 @@ func SerializeExtra(extraMap ExtraMap) (bool, []byte) {
 	}
 
 	tempExtra := getNonce(extraMap)
-	dataExtra, additionalExtraNonce := extraMap[Nonce]
+	dataExtra, additionalExtraNonce := extraMap[TX_EXTRA_NONCE]
 	// TX_EXTRA_NONCE is optional
 	// if payment is present, it is packed as extra nonce
 	if additionalExtraNonce || len(tempExtra) > 0 {
-		buf.WriteByte(byte(Nonce)) // write marker
+		buf.WriteByte(byte(TX_EXTRA_NONCE)) // write marker
 		tempExtra = append(tempExtra, dataExtra.([]byte)...)
 		if len(tempExtra) > 255 {
 			generalLogger.Warning("[Chain] TX extra none is spilling, trimming the nonce to 254 bytes")
