@@ -134,13 +134,12 @@ func (w *Wallet) countOutput(outID string) error {
 	if err != nil {
 		return err
 	}
+	lock, typ := infoList["TxLocked"], infoList["OutputType"]
 
 	out, err := w.wallet.GetOutput(outID)
 	if err != nil {
 		return err
 	}
-
-	lock, typ := infoList["TxLocked"], infoList["OutputType"]
 
 	if lock == lockedStatus {
 		if typ == "Cash" {
