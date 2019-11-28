@@ -130,16 +130,13 @@ func (w *Wallet) countUnlockedOutput(outID string) error {
 }
 
 func (w *Wallet) countOutput(outID string) error {
+	infoList, err := w.wallet.GetMultiOutInfo(outID, []string{"OutputType", "TxLocked"})
+	if err != nil {
+		return err
+	}
+	lock, typ := infoList["TxLocked"], infoList["OutputType"]
 
-	typ, err := w.wallet.GetOutputType(outID)
-	if err != nil {
-		return err
-	}
 	out, err := w.wallet.GetOutput(outID)
-	if err != nil {
-		return err
-	}
-	lock, err := w.wallet.GetOutputLock(outID)
 	if err != nil {
 		return err
 	}

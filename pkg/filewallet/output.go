@@ -1,6 +1,8 @@
 package filewallet
 
 import (
+	"errors"
+
 	"github.com/golang/protobuf/proto"
 	"github.com/safex/gosafex/internal/filestore"
 	"github.com/safex/gosafex/pkg/safex"
@@ -223,32 +225,21 @@ func (w *FileWallet) putOutputInfo(outID string, outInfo *OutputInfo) error {
 	if err := w.deleteKey(outputInfoPrefix + outID); err != nil {
 		return err
 	}
-	if err := w.appendKey(outputInfoPrefix+outID, []byte(outInfo.OutputType)); err != nil {
-		return err
-	}
-	if err := w.appendKey(outputInfoPrefix+outID, []byte(outInfo.BlockHash)); err != nil {
-		w.deleteKey(outputInfoPrefix + outID)
-		return err
-	}
-	if err := w.appendKey(outputInfoPrefix+outID, []byte(outInfo.TransactionID)); err != nil {
-		w.deleteKey(outputInfoPrefix + outID)
-		return err
-	}
-	if err := w.appendKey(outputInfoPrefix+outID, []byte(outInfo.TxLocked)); err != nil {
-		w.deleteKey(outputInfoPrefix + outID)
-		return err
-	}
-	if err := w.appendKey(outputInfoPrefix+outID, []byte(outInfo.TxType)); err != nil {
-		w.deleteKey(outputInfoPrefix + outID)
-		return err
-	}
+
 	TransferInfoBytes, err := marshallTransferInfo(&outInfo.OutTransfer)
 	if err != nil {
-		w.deleteKey(outputInfoPrefix + outID)
 		return err
 	}
-	if err := w.appendKey(outputInfoPrefix+outID, TransferInfoBytes); err != nil {
-		w.deleteKey(outputInfoPrefix + outID)
+
+	newOutInfo := [][]byte{}
+	newOutInfo = append(newOutInfo, []byte(outInfo.OutputType))
+	newOutInfo = append(newOutInfo, []byte(outInfo.BlockHash))
+	newOutInfo = append(newOutInfo, []byte(outInfo.TransactionID))
+	newOutInfo = append(newOutInfo, []byte(outInfo.TxLocked))
+	newOutInfo = append(newOutInfo, []byte(outInfo.TxType))
+	newOutInfo = append(newOutInfo, TransferInfoBytes)
+
+	if err := w.massAppendKey(outputInfoPrefix+outID, newOutInfo); err != nil {
 		return err
 	}
 
@@ -593,6 +584,33 @@ func (w *FileWallet) GetOutputLock(outID string) (string, error) {
 	return OutInf.TxLocked, nil
 }
 
+func (w *FileWallet) GetMultiOutInfo(outID string, multiField []string) (map[string]string, error) {
+	OutInf, err := w.GetOutputInfo(outID)
+	if err != nil {
+		return nil, err
+	}
+
+	ret := map[string]string{}
+	for _, outField := range multiField {
+		switch outField {
+		case "OutputType":
+			ret["OutputType"] = OutInf.OutputType
+		case "BlockHash":
+			ret["BlockHash"] = OutInf.BlockHash
+		case "TransactionID":
+			ret["TransactionID"] = OutInf.TransactionID
+		case "TxLocked":
+			ret["TxLocked"] = OutInf.TxLocked
+		case "TxType":
+			ret["TxType"] = OutInf.TxType
+		default:
+			return nil, errors.New("Field does not exist")
+		}
+	}
+
+	return ret, nil
+}
+
 //LockOutput Sets the lockStatus of the outputID as LockedStatus
 func (w *FileWallet) LockOutput(outID string) error {
 	OutInf, err := w.GetOutputInfo(outID)
@@ -625,4 +643,11 @@ func (w *FileWallet) UnlockOutput(outID string) error {
 		return w.putOutputInfo(outID, OutInf)
 	}
 	return nil
+}
+
+func (w *FileWallet) IsUnlocked(outInfo *OutputInfo) bool {
+	if outInfo.TxLocked == UnlockedStatus {
+		return true
+	}
+	return false
 }

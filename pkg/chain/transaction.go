@@ -22,8 +22,8 @@ import (
 for more than one address. This is omitted in current implementation, to be added in the future.
 HINT: additional tx pub keys in extra and derivations.
 -
-
 */
+
 
 func (w *Wallet) isOurKey(kImage [crypto.KeyLength]byte, keyOffsets []uint64, outType string, amount uint64) (string, bool) {
 	kImgCurve := crypto.Key(kImage)
@@ -1177,6 +1177,7 @@ func (w *Wallet) TxCreateCash(
 }
 
 func (w *Wallet) TxAccountCreate(
+
 	accountData *safex.CreateAccountData,
 	fakeOutsCount int,
 	unlockTime uint64,
@@ -1194,6 +1195,7 @@ func (w *Wallet) TxAccountCreate(
 
 	addr := *store.Address()
 	dst := DestinationEntry{0, createAccountToken, addr, false, true, true, safex.OutSafexAccount, string(accountDataBytes)}
+
 	if w.client == nil {
 		return nil, ErrClientNotInit
 	}
@@ -1203,42 +1205,290 @@ func (w *Wallet) TxAccountCreate(
 	if w.latestInfo == nil {
 		return nil, ErrDaemonInfo
 	}
-	height := w.latestInfo.Height
 
-	upperTxSizeLimit := GetUpperTransactionSizeLimit(1, 10)
+
+	upperTxSizeLimit := GetUpperTransactionSizeLimit(2, 10)
 	feePerKb := w.GetPerKBFee()
 	feeMultiplier := GetFeeMultiplier(priority, GetFeeAlgorithm())
 
-	var unusedOutputs []TransferInfo
-	var unusedOutputIDs []string
-	var dustOutputs []TransferInfo
-	var dustOutputIDs []string
+	var unusedOutputsCash []TransferInfo
+	var unusedOutputIDsCash []string
+	var dustOutputsCash []TransferInfo
+	var dustOutputIDsCash []string
 
-	for index, val := range w.outputs {
-		out, err := w.GetFilewallet().GetOutput(index)
+	var unusedOutputsToken []TransferInfo
+	var unusedOutputIDsToken []string
+	var dustOutputsToken []TransferInfo
+	var dustOutputIDsToken []string
+
+	for _, val := range w.GetUnspentOutputs() {
+		out, err := w.GetOutput(val)
 		if err != nil {
 			continue
 		}
-		if !val.OutTransfer.Spent && !isTokenOutput(out) && val.OutTransfer.IsUnlocked(height) {
-			if IsDecomposedOutputValue(out.Amount) {
-				unusedOutputs = append(unusedOutputs, val.OutTransfer)
-				unusedOutputIDs = append(unusedOutputIDs, index)
+		output := out["out"].(safex.Txout)
+		info := out["info"].(OutputInfo)
+		if w.IsUnlocked(&info) {
+			if isTokenOutput(&output) {
+				if IsDecomposedOutputValue(output.TokenAmount) {
+					unusedOutputsToken = append(unusedOutputsToken, info.OutTransfer)
+					unusedOutputIDsToken = append(unusedOutputIDsToken, val)
+				} else {
+					dustOutputsToken = append(dustOutputsToken, info.OutTransfer)
+					dustOutputIDsToken = append(dustOutputIDsToken, val)
+				}
 			} else {
-				dustOutputs = append(dustOutputs, val.OutTransfer)
-				dustOutputIDs = append(dustOutputIDs, index)
+				if IsDecomposedOutputValue(output.Amount) {
+					unusedOutputsCash = append(unusedOutputsCash, info.OutTransfer)
+					unusedOutputIDsCash = append(unusedOutputIDsCash, val)
+				} else {
+					dustOutputsCash = append(dustOutputsCash, info.OutTransfer)
+					dustOutputIDsCash = append(dustOutputIDsCash, val)
+				}
+
 			}
 		}
 	}
 
-	if len(unusedOutputs) == 0 && len(dustOutputs) == 0 {
+
+	if (len(unusedOutputsToken) == 0 && len(dustOutputsToken) == 0) || (len(unusedOutputsCash) == 0 && len(dustOutputsCash) == 0) {
 		return []PendingTx{}, nil
 	}
-	if len(unusedOutputs) == 0 {
-		unusedOutputs = append(unusedOutputs, TransferInfo{})
+	if len(unusedOutputsCash) == 0 {
+		unusedOutputsCash = append(unusedOutputsCash, TransferInfo{})
 	}
-	if len(dustOutputs) == 0 {
-		dustOutputs = append(dustOutputs, TransferInfo{})
+	if len(unusedOutputsToken) == 0 {
+		unusedOutputsToken = append(unusedOutputsToken, TransferInfo{})
+	}
+	if len(dustOutputsCash) == 0 {
+		dustOutputsCash = append(dustOutputsCash, TransferInfo{})
+	}
+	if len(dustOutputsToken) == 0 {
+		dustOutputsToken = append(dustOutputsToken, TransferInfo{})
 	}
 
-	return nil, nil
+	// Extract amount needed for the transaction
+	neededToken := dst.TokenAmount
+
+	// Check if we have enough token
+	if neededToken > w.balance.TokenUnlocked {
+		return nil, errors.New("Not enough token!")
+	}
+
+	var txes []TX
+	txes = append(txes, TX{})
+	var accumulatedFee, accumulatedOutputs, availableForFee, neededFee uint64 = 0, 0, 0, 0
+	var accumulatedTokenOutputs uint64 = 0
+	outs := [][]OutsEntry{}
+	outsFee := [][]OutsEntry{}
+
+	var addingFee bool = false
+
+	var idx string
+	var txins []*safex.Txout
+	var txinsID []string
+	var txReference [][]string
+
+	for (neededToken > accumulatedTokenOutputs) || addingFee {
+		tx := &txes[len(txes)-1]
+
+		// Check if we have enough money, if needed
+		if addingFee {
+			if len(unusedOutputsToken) == 0 && len(dustOutputsToken) == 0 {
+				w.logger.Debugf("[Chain] Not enough tokens")
+				return nil, errors.New("Not enough tokens")
+			}
+		} else {
+			// Or check if we have enough Token
+			if len(unusedOutputsCash) == 0 && len(dustOutputsCash) == 0 {
+				w.logger.Debugf("[Chain] Not enough cash for fee")
+				return nil, errors.New("Not enough cash for fee")
+			}
+		}
+
+		if addingFee {
+			idx = w.popBestValueFrom(&unusedOutputIDsCash, (tx.SelectedTransfers), false, safex.OutCash)
+		} else {
+			idx = w.popBestValueFrom(&unusedOutputIDsToken, (tx.SelectedTransfers), true, safex.OutToken)
+		}
+
+		out, err := w.wallet.GetOutput(idx)
+		if err != nil {
+			return nil, err
+		}
+		info, err := w.wallet.GetOutputInfo(idx)
+		if err != nil {
+			return nil, err
+		}
+
+		if addingFee {
+			fmt.Printf("For fee Amount: %v - TokenAmount: %v - Spent: %v\n", out.Amount, out.TokenAmount, info.OutTransfer.Spent)
+		} else {
+			fmt.Printf("For account creation Amount: %v - TokenAmount: %v - Spent: %v\n", out.Amount, out.TokenAmount, info.OutTransfer.Spent)
+		}
+
+		txins = append(txins, out)
+		txinsID = append(txinsID, idx)
+		tx.SelectedTransfers = append(tx.SelectedTransfers, info.OutTransfer)
+
+		availableAmount := out.Amount
+		availableTokenAmount := out.TokenAmount
+		accumulatedOutputs += availableAmount
+		accumulatedTokenOutputs += availableTokenAmount
+
+		estimateSize := estimateTxSize(len(tx.SelectedTransfers), int(fakeOutsCount), len(tx.Dsts), len(extra))
+
+		outs = nil
+
+		if addingFee {
+			availableForFee += availableAmount
+		} else {
+			if estimateSize < txSizeTarget(upperTxSizeLimit) {
+				if neededToken <= availableTokenAmount {
+					tx.Add(dst.Address, dst.TokenAmount, 0, false, safex.OutToken)
+					availableTokenAmount -= neededToken
+					neededToken = 0
+				} else {
+					neededToken -= availableTokenAmount
+					availableTokenAmount = 0
+				}
+			}
+		}
+		var tryTx bool = false
+
+		if addingFee {
+			tryTx = availableForFee >= neededFee
+		} else {
+			tryTx = neededToken == 0 || estimateSize >= txSizeTarget(upperTxSizeLimit)
+		}
+
+		if tryTx {
+			if neededToken > 0 {
+				tx.Add(dst.Address, dst.TokenAmount-neededToken, 0, false, safex.OutToken)
+			}
+			var testTx safex.Transaction
+			var testPtx PendingTx
+
+			neededFee = CalculateFee(feePerKb, estimateSize, feeMultiplier)
+
+			fmt.Printf("For account creation Fee: %v\n", neededFee)
+
+			var inputs uint64 = 0
+			var outputs uint64 = neededFee
+
+			for _, val := range txins {
+				inputs += val.Amount
+			}
+
+			if inputs == 0 || outputs > inputs {
+				addingFee = true
+			} else {
+				// Transfer selected
+				w.logger.Debugf("[Chain] First output selected")
+				w.transferSelected(&tx.Dsts, txinsID, fakeOutsCount, &outs, &outsFee, unlockTime, neededFee, &extra, &testTx, &testPtx, safex.OutToken)
+
+				txBlob := serialization.SerializeTransaction(testPtx.Tx, true)
+				neededFee = CalculateFee(feePerKb, len(txBlob), feeMultiplier)
+				availableForFee := testPtx.Fee + testPtx.ChangeDts.Amount
+
+				if neededFee > availableForFee && neededToken > 0 {
+					var i *DestinationEntry = nil
+					for index, val := range tx.Dsts {
+						if val.Address.Equals(&(dst.Address)) {
+							i = &tx.Dsts[index]
+							break
+						}
+					}
+
+					if i == nil {
+						w.logger.Debugf("[Chain] Paid Address not found in outputs")
+						return nil, errors.New("Paid Address not found in outputs")
+					}
+
+					if i.Amount > neededFee {
+						newPaidAmount := i.Amount - neededFee
+						neededToken += i.Amount - newPaidAmount
+						i.Amount = newPaidAmount
+						testPtx.Fee = neededFee
+						availableForFee = neededFee
+					}
+				}
+
+				if neededFee > availableForFee {
+					w.logger.Debugf("[Chain] Couldn't make a tx, switching to fee accumulation")
+					addingFee = true
+				} else {
+					w.logger.Debugf("[Chain] Made a tx, adjusting fee and saving it, need %v; have %v", neededFee, testPtx.Fee)
+					for neededFee > testPtx.Fee {
+						w.logger.Debugf("[Chain] neddedFee: %v", neededFee)
+						w.logger.Debugf("[Chain] testPtx.fee: %v", testPtx.Fee)
+						w.transferSelected(&tx.Dsts, txinsID, fakeOutsCount, &outs, &outsFee, unlockTime, neededFee, &extra, &testTx, &testPtx, safex.OutToken)
+						txBlob = serialization.SerializeTransaction(testPtx.Tx, true)
+						neededFee = CalculateFee(feePerKb, len(txBlob), feeMultiplier)
+						w.logger.Debugf("[Chain] Made an attempt at a final tx, with %v; fee and %v change", testPtx.Fee, testPtx.ChangeDts.Amount)
+					}
+
+					tx.Tx = testTx
+					tx.PendingTx = testPtx
+
+					tx.Outs = make([][]OutsEntry, len(outs))
+					for index := range outs {
+						tx.Outs[index] = make([]OutsEntry, len(outs[index]))
+						copy(tx.Outs[index], outs[index])
+					}
+
+					tx.OutsFee = make([][]OutsEntry, len(outsFee))
+					for index := range outsFee {
+						tx.OutsFee[index] = make([]OutsEntry, len(outsFee[index]))
+						copy(tx.OutsFee[index], outsFee[index])
+					}
+
+					accumulatedFee += testPtx.Fee
+					addingFee = false
+					txReference = append(txReference, txinsID)
+				}
+			}
+		}
+	}
+
+	if addingFee {
+		w.logger.Infof("[Chain] We ran out of outputs while trying to gather final fee")
+		w.logger.Infof("[Chain] Transactions is not possible")
+	}
+
+	w.logger.Infof("[Chain] Done creating transactions")
+	w.logger.Infof("[Chain] Size: %d", len(txes))
+
+	for index, tx := range txes {
+		testTx := new(safex.Transaction)
+		testPtx := new(PendingTx)
+		w.transferSelected(
+			&tx.Dsts,
+			txReference[index],
+			fakeOutsCount,
+			&tx.Outs,
+			&tx.OutsFee,
+			unlockTime,
+			tx.PendingTx.Fee,
+			&extra,
+			testTx,
+			testPtx,
+			safex.OutToken)
+		txBlob := serialization.SerializeTransaction(testPtx.Tx, true)
+		txes[index].Tx = *testTx
+		txes[index].PendingTx = *testPtx
+		tx.Bytes = uint64(len(txBlob))
+	}
+
+	ret := make([]PendingTx, 0)
+	for _, tx := range txes {
+		// @todo Add more log information!
+		// txMoney := uint64(0)
+		// for _, transfer := range tx.SelectedTransfers {
+		// 	tx_money += transfer.Amount
+		// }
+		ret = append(ret, tx.PendingTx)
+	}
+	return ret, nil
+
 }

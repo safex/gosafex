@@ -543,7 +543,7 @@ func (w *Wallet) GetOutput(outID string) (map[string]interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
-	return map[string]interface{}{"info": info, "out": out}, nil
+	return map[string]interface{}{"info": *info, "out": *out}, nil
 }
 
 //GetOutputsFromTransaction .
@@ -591,6 +591,13 @@ func (w *Wallet) GetUnspentOutputs() []string {
 	w.working = true
 	defer func() { w.working = false }()
 	return w.wallet.GetUnspentOutputs()
+}
+
+func (w *Wallet) IsUnlocked(outInfo *filewallet.OutputInfo) bool {
+	if outInfo.TxLocked == filewallet.UnlockedStatus {
+		return true
+	}
+	return false
 }
 
 func (w *Wallet) SetLogger(prevLog *log.Logger) {

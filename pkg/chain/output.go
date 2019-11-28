@@ -172,8 +172,16 @@ func (w *Wallet) GetOutputHistogram(selectedOutputs []string, outType string) (h
 			if err != nil {
 				continue
 			}
-			out := outStruct["out"].(*TxOut)
-			outputAmount := out.GetAmount()
+			var out safex.Txout
+			out = outStruct["out"].(TxOut)
+
+			outputAmount := uint64(0)
+			if typ == "Cash" {
+				outputAmount = out.GetAmount()
+			} else {
+				outputAmount = out.GetTokenAmount()
+			}
+
 			if encountered[outputAmount] != true {
 				encountered[outputAmount] = true
 				amounts = append(amounts, outputAmount)
@@ -308,6 +316,7 @@ func (w *Wallet) getOuts(outs *[][]OutsEntry, selectedTransfers []string, fakeOu
 				for i := numOuts; i < baseRequestedOutputsCount; i++ {
 					outsRq = append(outsRq, safex.GetOutputRq{valueAmount, numOuts - 1})
 				}
+
 			} else {
 				if numFound == 0 {
 					numFound = 1
