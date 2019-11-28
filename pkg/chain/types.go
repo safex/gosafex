@@ -64,6 +64,8 @@ const lockedStatus = filewallet.LockedStatus
 
 const blockInterval = 100
 
+const createAccountToken = 100
+
 var generalLogger *log.Logger
 
 type Wallet struct {
@@ -122,6 +124,9 @@ type DestinationEntry struct {
 	Address          account.Address
 	IsSubaddress     bool // Not used, maybe needed in the future
 	TokenTransaction bool
+	ScriptOutput     bool
+	TxOutType        safex.TxOutType
+	OutputData       string
 }
 
 type OutsEntry struct {
@@ -183,6 +188,9 @@ type TxSourceEntry struct {
 	TokenTx                 bool
 	Migration               bool
 	TransferPtr             *TransferInfo
+	ReferencedOutputType    safex.TxOutType
+	CommandType             safex.TxinToScriptCommandType
+	CommandSafexData        string
 }
 
 type TX struct {

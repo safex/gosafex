@@ -2,11 +2,6 @@ syntax = "proto3";
 
 package safex;
 
-/* Inputs 
- * -- @IMPORTANT txin_to_script and txin_to_scripthash are omitted on purpose. 
- *				 REASON: Its not used at the moment.
- */
-
 message txin_gen {
 	uint64 height = 1;
 }
@@ -29,6 +24,33 @@ message txin_token_migration {
 	bytes k_image = 3;
 }
 
+message txin_to_script{
+	uint64 amount = 1;
+	uint64 token_amount = 2;
+	bytes k_image = 3;
+	repeated uint64 key_offsets = 4;
+	enum command_type{
+		nop = 0;
+		token_stake = 1;
+		token_unstake = 2;
+		token_collect = 3;
+		donate_network_fee = 4;
+		distribute_network_fee = 5;
+		simple_purchase = 6;
+		create_account = 7;
+		edit_account = 8;
+		invalid_command = 9;
+	};
+	string script = 5;
+}
+
+message txin_to_scripthash{
+	bytes prev = 1;
+	uint64 prevout = 2;
+	txout_to_script script = 3;
+	string sigset = 4;
+}
+
 /* Variants are implemented with optional fields */
 message txin_v {
 	txin_gen txin_gen = 1;
@@ -48,6 +70,16 @@ message txout_to_key {
 
 message txout_token_to_key {
 	bytes key = 1;
+}
+
+message txout_to_script {
+	repeated bytes keys = 1;
+	string data = 2;
+	uint64 output_type = 3;
+}
+
+message txout_to_script_hash{
+	bytes hash = 1;
 }
 
 message txout_target_v {

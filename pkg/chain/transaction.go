@@ -1,12 +1,13 @@
 package chain
 
 import (
+	"errors"
 	"fmt"
 	"math/rand"
+	"sort"
 	"time"
 
-	"errors"
-	"sort"
+	"github.com/golang/protobuf/proto"
 
 	"github.com/safex/gosafex/internal/crypto"
 	"github.com/safex/gosafex/internal/crypto/curve"
@@ -23,28 +24,7 @@ HINT: additional tx pub keys in extra and derivations.
 -
 */
 
-// Must be implemented at some point.
-const TX_EXTRA_PADDING_MAX_COUNT = 255
-const TX_EXTRA_NONCE_MAX_COUNT = 255
-const TX_EXTRA_TAG_PADDING = 0x00
-const TX_EXTRA_TAG_PUBKEY = 0x01
-const TX_EXTRA_NONCE = 0x02
-const TX_EXTRA_MERGE_MINING_TAG = 0x03
-const TX_EXTRA_TAG_ADDITIONAL_PUBKEYS = 0x04
-const TX_EXTRA_MYSTERIOUS_MINERGATE_TAG = 0xDE
-const TX_EXTRA_BITCOIN_HASH = 0x10
-const TX_EXTRA_MIGRATION_PUBKEYS = 0x11
-const TX_EXTRA_NONCE_PAYMENT_ID = 0x00
-const TX_EXTRA_NONCE_ENCRYPTED_PAYMENT_ID = 0x01
 
-const createAccountToken = 100
-
-func extractTxPubKey(extra []byte) (pubTxKey [crypto.KeyLength]byte) {
-	// @todo Also if serialization is ok
-	copy(pubTxKey[:], extra[1:33])
-
-	return pubTxKey
-}
 func (w *Wallet) isOurKey(kImage [crypto.KeyLength]byte, keyOffsets []uint64, outType string, amount uint64) (string, bool) {
 	kImgCurve := crypto.Key(kImage)
 	w.logger.Debugf("[Chain] Checking ownership of input: %v ", kImgCurve)
@@ -67,7 +47,8 @@ func (w *Wallet) processTransactionPerAccount(tx *safex.Transaction, blckHash st
 		if err != nil && err != ErrSyncing {
 			return err
 		}
-		pubTxKey := extractTxPubKey(tx.Extra)
+		_, extraFields := ParseExtra(&tx.Extra)
+		pubTxKey := extraFields[TX_EXTRA_TAG_PUBKEY].(curve.Key)
 
 		// @todo uniform key structure.
 
@@ -298,8 +279,8 @@ func (w *Wallet) transferSelected(dsts *[]DestinationEntry, selectedTransfers []
 		keyTemp := GetOutputKey(val, outputType)
 		copy(realOE.Key[:], keyTemp)
 		src.Outputs[realIndex] = realOE
-
-		tempPub := ExtractTxPubKey(selectedOutputInfos[index].OutTransfer.Extra)
+		_, extraFields := ParseExtra(&selectedOutputInfos[index].OutTransfer.Extra)
+		tempPub := extraFields[TX_EXTRA_TAG_PUBKEY].([]byte)
 		copy(tempPub[:], src.RealOutTxKey[:])
 		src.RealOutput = uint64(realIndex)
 		src.RealOutputInTxIndex = int(selectedOutputInfos[index].OutTransfer.LocalIndex)
@@ -754,6 +735,15 @@ func isTokenOutput(txout *safex.Txout) bool {
 	return txout.Target.TxoutTokenToKey != nil
 }
 
+func isAdvancedTransaction(input []*TxSourceEntry) bool {
+	for _, el := range input {
+		if el.CommandType != safex.TxinToScript_nop {
+			return true
+		}
+	}
+	return false
+}
+
 func IsDecomposedOutputValue(value uint64) bool {
 	i := sort.Search(len(decomposedValues), func(i int) bool { return decomposedValues[i] >= value })
 	if i < len(decomposedValues) && decomposedValues[i] == value {
@@ -776,7 +766,7 @@ func (tx *TX) Add(acc account.Address, amount uint64, originalOutputIndex int, m
 	if mergeDestinations {
 		i := tx.findDst(acc)
 		if i == -1 {
-			tx.Dsts = append(tx.Dsts, DestinationEntry{0, 0, acc, false, outType == safex.OutToken})
+			tx.Dsts = append(tx.Dsts, DestinationEntry{0, 0, acc, false, outType == safex.OutToken, false, outType, ""})
 			i = 0
 		}
 		if outType == safex.OutCash {
@@ -789,7 +779,7 @@ func (tx *TX) Add(acc account.Address, amount uint64, originalOutputIndex int, m
 
 	} else {
 		if originalOutputIndex == len(tx.Dsts) {
-			tx.Dsts = append(tx.Dsts, DestinationEntry{0, 0, acc, false, outType == safex.OutToken})
+			tx.Dsts = append(tx.Dsts, DestinationEntry{0, 0, acc, false, outType == safex.OutToken, false, outType, ""})
 		}
 		if outType == safex.OutCash {
 			tx.Dsts[originalOutputIndex].Amount += amount
@@ -1187,6 +1177,8 @@ func (w *Wallet) TxCreateCash(
 }
 
 func (w *Wallet) TxAccountCreate(
+
+	accountData *safex.CreateAccountData,
 	fakeOutsCount int,
 	unlockTime uint64,
 	priority uint32,
@@ -1196,8 +1188,14 @@ func (w *Wallet) TxAccountCreate(
 	if err != nil {
 		return nil, err
 	}
+	accountDataBytes, err := proto.Marshal(accountData)
+	if err != nil {
+		return nil, err
+	}
+
 	addr := *store.Address()
-	dst := DestinationEntry{0, createAccountToken, addr, false, true}
+	dst := DestinationEntry{0, createAccountToken, addr, false, true, true, safex.OutSafexAccount, string(accountDataBytes)}
+
 	if w.client == nil {
 		return nil, ErrClientNotInit
 	}
@@ -1207,6 +1205,7 @@ func (w *Wallet) TxAccountCreate(
 	if w.latestInfo == nil {
 		return nil, ErrDaemonInfo
 	}
+
 
 	upperTxSizeLimit := GetUpperTransactionSizeLimit(2, 10)
 	feePerKb := w.GetPerKBFee()
@@ -1246,9 +1245,11 @@ func (w *Wallet) TxAccountCreate(
 					dustOutputsCash = append(dustOutputsCash, info.OutTransfer)
 					dustOutputIDsCash = append(dustOutputIDsCash, val)
 				}
+
 			}
 		}
 	}
+
 
 	if (len(unusedOutputsToken) == 0 && len(dustOutputsToken) == 0) || (len(unusedOutputsCash) == 0 && len(dustOutputsCash) == 0) {
 		return []PendingTx{}, nil
@@ -1309,7 +1310,6 @@ func (w *Wallet) TxAccountCreate(
 			idx = w.popBestValueFrom(&unusedOutputIDsCash, (tx.SelectedTransfers), false, safex.OutCash)
 		} else {
 			idx = w.popBestValueFrom(&unusedOutputIDsToken, (tx.SelectedTransfers), true, safex.OutToken)
-			idx = "00a0724e180900000100000000000000"
 		}
 
 		out, err := w.wallet.GetOutput(idx)
@@ -1490,4 +1490,5 @@ func (w *Wallet) TxAccountCreate(
 		ret = append(ret, tx.PendingTx)
 	}
 	return ret, nil
+
 }
