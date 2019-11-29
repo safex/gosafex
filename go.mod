@@ -9,7 +9,7 @@ require (
 	github.com/ebfe/keccak v0.0.0-20150115210727-5cc570678d1b
 	github.com/etcd-io/bbolt v1.3.3
 	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b
-	github.com/golang/protobuf v1.3.1
+	github.com/golang/protobuf v1.3.2
 	github.com/gorilla/mux v1.7.3
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
 	github.com/jinzhu/copier v0.0.0-20190625015134-976e0346caa8

@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"crypto/sha512"
 	"errors"
+	"fmt"
 	"io"
 
 	bolt "github.com/etcd-io/bbolt"
@@ -25,7 +26,11 @@ func (e *EncryptedDB) CreateMasterBucket() error {
 	err := e.stream.CreateBucket(nonce)
 
 	e.stream.targetKey = []byte(checkpassname)
-	e.stream.Write(encrypt([]byte(checkpassname), e.masterkey[:], e.masternonce[:]))
+	encr, err := encrypt([]byte(checkpassname), e.masterkey[:], e.masternonce[:])
+	if err != nil {
+		return err
+	}
+	e.stream.Write(encr)
 	return err
 }
 
@@ -61,7 +66,7 @@ func (e *EncryptedDB) InitMaster() error {
 }
 
 //CreateBucket Creates a new bucket and relative nonce
-func (e *EncryptedDB) CreateBucket(bucket string) error {
+func (e *EncryptedDB) CreateBucket(bucket string) (err error) {
 	e.logger.Debugf("[Filestore] Creating bucket: %s", bucket)
 	if e.masternonce[:] == nil {
 		err := e.InitMaster()
@@ -82,20 +87,22 @@ func (e *EncryptedDB) CreateBucket(bucket string) error {
 		return err
 	}
 
-	e.stream.targetBucket = encrypt(pad([]byte(bucket), 32), key[:], e.masternonce[:])
-
+	e.stream.targetBucket, err = encrypt(pad([]byte(bucket), 32), key[:], e.masternonce[:])
+	if err != nil {
+		return err
+	}
 	if e.stream.BucketExists() {
 		e.logger.Debugf("[Filestore] %s", ErrBucketAlreadyExists)
 		return ErrBucketAlreadyExists
 	}
 
-	err := e.stream.CreateBucket(nonce)
+	err = e.stream.CreateBucket(nonce)
 
 	return err
 }
 
 //SetBucket Changes the current bucket
-func (e *EncryptedDB) SetBucket(bucket string) error {
+func (e *EncryptedDB) SetBucket(bucket string) (err error) {
 	e.logger.Debugf("[Filestore] Setting bucket: %s", bucket)
 	if e.masternonce[:] == nil {
 		err := e.InitMaster()
@@ -110,7 +117,7 @@ func (e *EncryptedDB) SetBucket(bucket string) error {
 	if _, err := io.ReadFull(kdf, key[:]); err != nil {
 		return err
 	}
-	e.stream.targetBucket = encrypt(pad([]byte(bucket), 32), key[:], e.masternonce[:])
+	e.stream.targetBucket, err = encrypt(pad([]byte(bucket), 32), key[:], e.masternonce[:])
 	if !e.stream.BucketExists() {
 		e.logger.Debugf("[Filestore] %s", ErrBucketNotInit)
 		return ErrBucketNotInit
@@ -151,8 +158,11 @@ func (e *EncryptedDB) Write(key string, data []byte) error {
 	if _, err := io.ReadFull(kdf, encryptedKey[:]); err != nil {
 		return err
 	}
-
-	tempKey := SafexCrypto.NewDigest(encrypt(pad([]byte(key), 32), encryptedKey[:], nonce[:]))
+	encr, err := encrypt(pad([]byte(key), 32), encryptedKey[:], nonce[:])
+	if err != nil {
+		return err
+	}
+	tempKey := SafexCrypto.NewDigest(encr)
 	e.stream.targetKey = tempKey[:]
 	e.stream.Write(encryptSafe(pad(data, 32), encryptedKey[:]))
 
@@ -160,7 +170,12 @@ func (e *EncryptedDB) Write(key string, data []byte) error {
 }
 
 //Read reads in the current bucket at target string
-func (e *EncryptedDB) Read(key string) ([]byte, error) {
+func (e *EncryptedDB) Read(key string) (ret []byte, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("[Filestore] Critical error in reading %s", key)
+		}
+	}()
 	e.logger.Debugf("[Filestore] Reading key: %s", key)
 	if !e.stream.BucketExists() {
 		e.logger.Debugf("[Filestore] %s", ErrBucketNotInit)
@@ -178,8 +193,11 @@ func (e *EncryptedDB) Read(key string) ([]byte, error) {
 	if _, err := io.ReadFull(kdf, encryptedKey[:]); err != nil {
 		return nil, err
 	}
-
-	tempKey := SafexCrypto.NewDigest(encrypt(pad([]byte(key), 32), encryptedKey[:], nonce[:]))
+	encr, err := encrypt(pad([]byte(key), 32), encryptedKey[:], nonce[:])
+	if err != nil {
+		return nil, err
+	}
+	tempKey := SafexCrypto.NewDigest(encr)
 	e.stream.targetKey = tempKey[:]
 
 	data, err := e.stream.Read()
@@ -190,6 +208,54 @@ func (e *EncryptedDB) Read(key string) ([]byte, error) {
 	data = unpad(decrypt(data, encryptedKey[:]))
 	e.logger.Debugf("[Filestore] Read Data: %s", data)
 	return data, nil
+}
+
+func (e *EncryptedDB) MassAppend(key string, newData [][]byte) error {
+	e.logger.Debugf("[Filestore] Appending to key: %s Data: %s", key, newData)
+
+	if !e.stream.BucketExists() {
+		e.logger.Debugf("[Filestore] %s", ErrBucketNotInit)
+		return ErrBucketNotInit
+	}
+
+	nonce, err := e.GetNonce()
+	if err != nil {
+		return err
+	}
+
+	var encryptedKey [keylength]byte
+	kdf := hkdf.New(sha512.New, e.masterkey[:], nonce, nil)
+
+	if _, err := io.ReadFull(kdf, encryptedKey[:]); err != nil {
+		return err
+	}
+
+	encr, err := encrypt(pad([]byte(key), 32), encryptedKey[:], nonce[:])
+	if err != nil {
+		return err
+	}
+	tempKey := SafexCrypto.NewDigest(encr)
+	e.stream.targetKey = tempKey[:]
+
+	data, err := e.stream.Read()
+
+	if err != nil && err != ErrKeyNotFound {
+		return err
+	}
+	if data != nil {
+		data = unpad(decrypt(data, encryptedKey[:]))
+		data = append(data, appendSeparator)
+	}
+	for i, el := range newData {
+		if i == len(newData)-1 {
+			break
+		}
+		data = append(data, el...)
+		data = append(data, appendSeparator)
+	}
+
+	data = append(data, newData[len(newData)-1]...)
+	return e.Write(key, data)
 }
 
 func (e *EncryptedDB) Append(key string, newData []byte) error {
@@ -212,7 +278,11 @@ func (e *EncryptedDB) Append(key string, newData []byte) error {
 		return err
 	}
 
-	tempKey := SafexCrypto.NewDigest(encrypt(pad([]byte(key), 32), encryptedKey[:], nonce[:]))
+	encr, err := encrypt(pad([]byte(key), 32), encryptedKey[:], nonce[:])
+	if err != nil {
+		return err
+	}
+	tempKey := SafexCrypto.NewDigest(encr)
 	e.stream.targetKey = tempKey[:]
 
 	data, err := e.stream.Read()
@@ -257,7 +327,11 @@ func (e *EncryptedDB) ReadAppended(key string) ([][]byte, error) {
 		}
 	}()
 
-	tempKey := SafexCrypto.NewDigest(encrypt(pad([]byte(key), 32), encryptedKey[:], nonce[:]))
+	encr, err := encrypt(pad([]byte(key), 32), encryptedKey[:], nonce[:])
+	if err != nil {
+		return nil, err
+	}
+	tempKey := SafexCrypto.NewDigest(encr)
 	e.stream.targetKey = tempKey[:]
 
 	data, err := e.stream.Read()
@@ -291,7 +365,11 @@ func (e *EncryptedDB) Delete(key string) error {
 		return err
 	}
 
-	tempKey := SafexCrypto.NewDigest(encrypt(pad([]byte(key), 32), encryptedKey[:], nonce[:]))
+	encr, err := encrypt(pad([]byte(key), 32), encryptedKey[:], nonce[:])
+	if err != nil {
+		return err
+	}
+	tempKey := SafexCrypto.NewDigest(encr)
 	e.stream.targetKey = tempKey[:]
 	return e.stream.Delete()
 
@@ -382,7 +460,7 @@ func NewEncryptedDB(file string, masterkey string, exists bool, prevLog *log.Log
 	DB.stream = new(Stream)
 	DB.logger = prevLog
 	DB.stream.logger = prevLog
-	DB.stream.db, err = bolt.Open(file, 0600, nil)
+	DB.stream.db, err = bolt.Open(file, 0755, nil)
 
 	if err != nil {
 		return nil, err

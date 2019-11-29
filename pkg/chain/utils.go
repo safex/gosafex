@@ -217,9 +217,9 @@ func (w *Wallet) constructTxWithKey(
 	ok, extraMap := ParseExtra(extra)
 
 	if ok {
-		if _, isThere := extraMap[Nonce]; isThere {
+		if _, isThere := extraMap[TX_EXTRA_NONCE]; isThere {
 			var paymentId [8]byte
-			if val, isThere1 := extraMap[NonceEncryptedPaymentId]; isThere1 {
+			if val, isThere1 := extraMap[TX_EXTRA_NONCE_ENCRYPTED_PAYMENT_ID]; isThere1 {
 				viewKeyPub := GetDestinationViewKeyPub(destinations, changeAddr)
 				if viewKeyPub == nil {
 					generalLogger.Error("[Chain] Destinations have to have exactly one output to support encrypted payment ids")
@@ -227,7 +227,7 @@ func (w *Wallet) constructTxWithKey(
 				}
 				viewKeyPubBytes := viewKeyPub.ToBytes()
 				paymentId = EncryptPaymentId(val.([8]byte), viewKeyPubBytes, *txKey)
-				extraMap[NonceEncryptedPaymentId] = paymentId
+				extraMap[TX_EXTRA_NONCE_ENCRYPTED_PAYMENT_ID] = paymentId
 			}
 
 		}
@@ -295,7 +295,7 @@ func (w *Wallet) constructTxWithKey(
 	var tempPubTxKey [32]byte
 	copy(tempPubTxKey[:], pubTxKey[:])
 	// Write to extra
-	extraMap[PubKey] = tempPubTxKey
+	extraMap[TX_EXTRA_TAG_PUBKEY] = tempPubTxKey
 
 	// @todo At the moment serializing extra field is put at this place in code
 	//		 because there are no other field other pubkey and paymentID in current
@@ -485,16 +485,16 @@ func DigitSplitStrategy(
 		if val.TokenTransaction {
 			DecomposeAmountIntoDigits(val.TokenAmount, 0,
 				func(input uint64) {
-					*splittedDsts = append(*splittedDsts, DestinationEntry{0, input, val.Address, false, true})
+					*splittedDsts = append(*splittedDsts, DestinationEntry{0, input, val.Address, false, true, false, safex.OutToken, ""})
 				}, func(input uint64) {
-					*dustDsts = append(*dustDsts, DestinationEntry{0, input, val.Address, false, true})
+					*dustDsts = append(*dustDsts, DestinationEntry{0, input, val.Address, false, true, false, safex.OutToken, ""})
 				})
 		} else {
 			DecomposeAmountIntoDigits(val.Amount, 0,
 				func(input uint64) {
-					*splittedDsts = append(*splittedDsts, DestinationEntry{input, 0, val.Address, false, false})
+					*splittedDsts = append(*splittedDsts, DestinationEntry{input, 0, val.Address, false, false, false, safex.OutCash, ""})
 				}, func(input uint64) {
-					*dustDsts = append(*dustDsts, DestinationEntry{input, 0, val.Address, false, false})
+					*dustDsts = append(*dustDsts, DestinationEntry{input, 0, val.Address, false, false, false, safex.OutCash, ""})
 				})
 		}
 
@@ -508,10 +508,10 @@ func DigitSplitStrategy(
 			changeDst.Amount,
 			0,
 			func(input uint64) {
-				*splittedDsts = append(*splittedDsts, DestinationEntry{input, 0, changeDst.Address, false, false})
+				*splittedDsts = append(*splittedDsts, DestinationEntry{input, 0, changeDst.Address, false, false, false, safex.OutCash, ""})
 			},
 			func(input uint64) {
-				*dustDsts = append(*dustDsts, DestinationEntry{input, 0, changeDst.Address, false, false})
+				*dustDsts = append(*dustDsts, DestinationEntry{input, 0, changeDst.Address, false, false, false, safex.OutCash, ""})
 			})
 	}
 
@@ -521,10 +521,10 @@ func DigitSplitStrategy(
 			changeDstToken.TokenAmount,
 			0,
 			func(input uint64) {
-				*splittedDsts = append(*splittedDsts, DestinationEntry{0, input, changeDstToken.Address, false, true})
+				*splittedDsts = append(*splittedDsts, DestinationEntry{0, input, changeDstToken.Address, false, true, false, safex.OutToken, ""})
 			},
 			func(input uint64) {
-				*dustDsts = append(*dustDsts, DestinationEntry{0, input, changeDstToken.Address, false, true})
+				*dustDsts = append(*dustDsts, DestinationEntry{0, input, changeDstToken.Address, false, true, false, safex.OutToken, ""})
 			})
 	}
 }

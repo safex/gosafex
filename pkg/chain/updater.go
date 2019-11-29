@@ -9,10 +9,17 @@ const CheckCycleTime = 30000
 const DaemonErrorTime = 2000
 const BlocksPerCycle = 500
 
-func (w *Wallet) Rescan(accountName string) {
+func (w *Wallet) Rescan(accountName string, startBlock uint64) {
+	if state := w.UpdaterStatus(); state != "Up-to-date" {
+		w.logger.Infof("[Updater] Already: %s", state)
+		return
+	}
 	select {
 	case w.rescan <- accountName:
-		w.logger.Debugf("[Updater] Rescanning for: %s", accountName)
+		select {
+		case w.begin <- startBlock:
+			w.logger.Debugf("[Updater] Rescanning for: %s", accountName)
+		}
 	default:
 		w.logger.Infof("[Updater] Error communicating with updater for rescan")
 	}
@@ -27,8 +34,15 @@ func (w *Wallet) StopUpdating() {
 	}
 }
 
-func (w *Wallet) BeginUpdating() {
-	w.logger.Infof("[Updater] Starting the updater service")
+func (w *Wallet) BeginUpdating(startBlock uint64) {
+	if state := w.UpdaterStatus(); state != "Up-to-date" {
+		w.logger.Infof("[Updater] Already: %s", state)
+		return
+	}
+	w.logger.Infof("[Updater] Starting the updater service %v", w.UpdaterStatus())
+	select {
+	case w.begin <- startBlock:
+	}
 	w.updating = true
 	go w.runUpdater()
 	time.Sleep(1 * time.Second)
@@ -58,11 +72,18 @@ func (w *Wallet) runUpdater() {
 		select {
 		case rscan := <-w.rescan:
 			w.rescanning = rscan
+			select {
+			case begin := <-w.begin:
+				w.rescanBegin = begin
+			default:
+				w.rescanBegin = uint64(0)
+			}
 		case temp := <-w.update:
 			if temp == true {
 				w.updating = true
 			}
 			if temp == false {
+				w.syncing = false
 				w.updating = false
 			}
 		case <-w.quit:
@@ -74,7 +95,7 @@ func (w *Wallet) runUpdater() {
 		if w.updating && w.rescanning != "" {
 			var err error
 			loadedHeight := w.GetLatestLoadedBlockHeight()
-			scannedHeight := uint64(1)
+			scannedHeight := w.rescanBegin
 			if scannedHeight >= loadedHeight-1 {
 				w.logger.Infof("[Updater] There was no need to rescan!")
 			}
@@ -107,9 +128,22 @@ func (w *Wallet) runUpdater() {
 				time.Sleep(CheckCycleTime * time.Millisecond)
 			} else {
 				if !w.working {
+					select {
+					case begin := <-w.begin:
+						w.rescanBegin = begin
+					default:
+						w.rescanBegin = uint64(0)
+					}
 					if w.GetLatestLoadedBlockHeight() < bcHeight-1 {
+						prevHeight := w.GetLatestLoadedBlockHeight()
 						w.logger.Debugf("[Updater] Known block: %d , bcHeight: %d", w.GetLatestLoadedBlockHeight(), bcHeight)
-						w.updateBlocks(BlocksPerCycle)
+						if err := w.updateBlocks(BlocksPerCycle); err != nil {
+							w.logger.Errorf("[Updater] %s", err.Error())
+						}
+						if prevHeight == w.GetLatestLoadedBlockHeight() {
+							w.logger.Errorf("[Updater] Can't load blocks")
+							w.StopUpdating()
+						}
 					} else {
 						w.syncing = false
 					}

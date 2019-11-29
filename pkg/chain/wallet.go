@@ -48,6 +48,7 @@ func (w *Wallet) rescanBlocks(accountName string, start uint64, step uint64) (er
 }
 
 func (w *Wallet) updateBlocks(nblocks uint64) error {
+	w.logger.Debugf("[Wallet] Beginning updateBlocks")
 	if w.client == nil {
 		w.logger.Errorf("[Wallet] %s", ErrClientNotInit)
 		return ErrClientNotInit
@@ -55,11 +56,14 @@ func (w *Wallet) updateBlocks(nblocks uint64) error {
 	if w.latestInfo == nil {
 		return ErrDaemonInfo
 	}
+	w.logger.Debugf("[Wallet] Client ok")
 	info := w.latestInfo
 	var bcHeight uint64
 
 	knownHeight := w.wallet.GetLatestBlockHeight()
-
+	if knownHeight < w.rescanBegin {
+		knownHeight = w.rescanBegin
+	}
 	bcHeight = info.Height
 
 	var targetBlock uint64
@@ -70,13 +74,19 @@ func (w *Wallet) updateBlocks(nblocks uint64) error {
 		targetBlock = knownHeight + nblocks
 	}
 	targetBlock -= 1
+	if knownHeight != 0 {
+		knownHeight += 1
+	}
 
 	w.logger.Infof("[Wallet] Fetching blocks: %d to %d", knownHeight, targetBlock)
 	blocks, err := w.client.GetBlocks(knownHeight, targetBlock)
 	if err != nil {
 		return err
 	}
-	w.processBlockRange(blocks)
+	w.logger.Debugf("[Wallet] Fetched %d blocks", len(blocks.Block))
+	if err := w.processBlockRange(blocks, w.rescanBegin > 0); err != nil {
+		return err
+	}
 	knownHeight = w.wallet.GetLatestBlockHeight()
 
 	w.logger.Debugf("[Wallet] Updating balance")
@@ -287,6 +297,10 @@ func (w *Wallet) GetAccounts() ([]string, error) {
 		w.logger.Errorf("[Wallet] %s", ErrSyncing)
 		return nil, ErrSyncing
 	}
+	if w.rescanning != "" {
+		w.logger.Errorf("[Wallet] %s", ErrRescanning)
+		return nil, ErrRescanning
+	}
 	w.working = true
 	defer func() { w.working = false }()
 
@@ -378,6 +392,10 @@ func (w *Wallet) GetBalance() (b *Balance, err error) {
 	if w.syncing {
 		w.logger.Errorf("[Wallet] %s", ErrSyncing)
 		return nil, ErrSyncing
+	}
+	if w.rescanning != "" {
+		w.logger.Errorf("[Wallet] %s", ErrRescanning)
+		return nil, ErrRescanning
 	}
 	w.working = true
 	defer func() { w.working = false }()
@@ -525,7 +543,7 @@ func (w *Wallet) GetOutput(outID string) (map[string]interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
-	return map[string]interface{}{"info": info, "out": out}, nil
+	return map[string]interface{}{"info": *info, "out": *out}, nil
 }
 
 //GetOutputsFromTransaction .
@@ -575,6 +593,13 @@ func (w *Wallet) GetUnspentOutputs() []string {
 	return w.wallet.GetUnspentOutputs()
 }
 
+func (w *Wallet) IsUnlocked(outInfo *filewallet.OutputInfo) bool {
+	if outInfo.TxLocked == filewallet.UnlockedStatus {
+		return true
+	}
+	return false
+}
+
 func (w *Wallet) SetLogger(prevLog *log.Logger) {
 	w.logger = prevLog
 }
@@ -588,6 +613,8 @@ func New(prevLog *log.Logger) *Wallet {
 	w.update = make(chan bool, 8)
 	w.quit = make(chan bool)
 	w.rescan = make(chan string, 512)
+	w.begin = make(chan uint64, 1)
+
 	return w
 }
 

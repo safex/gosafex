@@ -1,6 +1,8 @@
 package chain
 
 import (
+	"fmt"
+
 	"github.com/safex/gosafex/pkg/safex"
 )
 
@@ -41,49 +43,62 @@ func (w *Wallet) rescanBlockRange(blocks safex.Blocks, acc string) error {
 	return nil
 }
 
-func (w *Wallet) processBlockRange(blocks safex.Blocks) bool {
+func (w *Wallet) processBlockRange(blocks safex.Blocks, bypass bool) error {
 	// @todo Here handle block metadata.
 	var count int
 	var mcount int
 	// @todo This must be refactored due new discoveries regarding get_tx_hash
 	// Get transaction hashes
 	txblck := make(map[string]string)
+	var headers []*safex.BlockHeader
+	var txs []string
+	var minerTxs []string
+	w.logger.Debugf("[Chain] Processing blocks: %v - %v", blocks.Block[0].GetHeader().GetDepth(), blocks.Block[len(blocks.Block)-1].GetHeader().GetDepth())
+	for _, block := range blocks.Block {
+		headers = append(headers, block.GetHeader())
+	}
+	if i, err := w.wallet.PutMassBlockHeaders(headers, bypass); err != nil {
+		return fmt.Errorf("Loaded only to block %v due to error: %s", i, err.Error())
+	}
 	for _, blck := range blocks.Block {
-		var txs []string
-		var minerTxs []string
-		w.logger.Debugf("[Chain] Processing block: %v", blck.GetHeader().GetDepth())
-		if err := w.wallet.PutBlockHeader(blck.GetHeader()); err != nil {
-			continue
-		}
+
 		for _, el := range blck.Txs {
 			txblck[el] = blck.GetHeader().GetHash()
 			txs = append(txs, el)
 		}
 		minerTxs = append(minerTxs, blck.MinerTx)
 		txblck[blck.MinerTx] = blck.GetHeader().GetHash()
-		// Get transaction data and process.
-		loadedTxs, err := w.client.GetTransactions(txs)
-		if err != nil {
-			return false
-		}
-		mloadedTxs, err := w.client.GetTransactions(minerTxs)
-		if err != nil {
-			return false
-		}
-
-		for _, tx := range loadedTxs.Tx {
-			w.processTransaction(tx, txblck[tx.GetTxHash()], false)
-		}
-		count = count + len(loadedTxs.Tx)
-		for _, tx := range mloadedTxs.Tx {
-			w.processTransaction(tx, txblck[tx.GetTxHash()], true)
-		}
-		mcount = mcount + len(mloadedTxs.Tx)
 	}
 
+	loadedTxs, err := w.client.GetTransactions(txs)
+	if err != nil {
+		return err
+	}
+	count = count + len(loadedTxs.Tx)
+	mloadedTxs, err := w.client.GetTransactions(minerTxs)
+	if err != nil {
+		return err
+	}
+	mcount = mcount + len(mloadedTxs.Tx)
+
+	for _, blck := range blocks.Block {
+		blckHash := blck.GetHeader().GetHash()
+		//Could be iterated more gracefully
+		for _, tx := range loadedTxs.Tx {
+			if txblck[tx.GetTxHash()] == blckHash {
+				w.processTransaction(tx, blckHash, false)
+			}
+		}
+		for _, tx := range mloadedTxs.Tx {
+			if txblck[tx.GetTxHash()] == blckHash {
+				w.processTransaction(tx, blckHash, true)
+			}
+		}
+
+	}
 	w.logger.Infof("[Chain] Number of minerTxs: %d", count)
 	w.logger.Infof("[Chain] Number of mloadedTxs: %d", mcount)
-	return true
+	return nil
 }
 
 func (w *Wallet) seenOutput(outID string) bool {
@@ -115,16 +130,13 @@ func (w *Wallet) countUnlockedOutput(outID string) error {
 }
 
 func (w *Wallet) countOutput(outID string) error {
+	infoList, err := w.wallet.GetMultiOutInfo(outID, []string{"OutputType", "TxLocked"})
+	if err != nil {
+		return err
+	}
+	lock, typ := infoList["TxLocked"], infoList["OutputType"]
 
-	typ, err := w.wallet.GetOutputType(outID)
-	if err != nil {
-		return err
-	}
 	out, err := w.wallet.GetOutput(outID)
-	if err != nil {
-		return err
-	}
-	lock, err := w.wallet.GetOutputLock(outID)
 	if err != nil {
 		return err
 	}
@@ -154,6 +166,7 @@ func (w *Wallet) countOutputs(outIDs []string) error {
 	return err
 }
 
+//TODO: Can be improved by hard saving balance
 func (w *Wallet) loadBalance() error {
 	w.resetBalance()
 	height := w.wallet.GetLatestBlockHeight()

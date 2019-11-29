@@ -255,6 +255,61 @@ func TestBlockRW(t *testing.T) {
 	testLogger.Infof("[Test] Passed block R/W")
 }
 
+func TestMassBlockRW(t *testing.T) {
+	prepareFolder()
+	testLogger.Infof("[Test] Testing block R/W")
+	fullpath := strings.Join([]string{foldername, filename}, "/")
+	store, _ := account.GenerateAccount(false)
+	w, err := New(fullpath, walletName, masterPass, true, false, store, testLogger)
+	if err != nil {
+		t.Fatalf("%s", err)
+	}
+	defer CleanAfterTests(w, fullpath)
+	head1 := &safex.BlockHeader{Depth: 10, Hash: "aaaab", PrevHash: ""}
+	head2 := &safex.BlockHeader{Depth: 11, Hash: "aaaac", PrevHash: "aaaab"}
+	head3 := &safex.BlockHeader{Depth: 12, Hash: "aaaad", PrevHash: "aaaac"}
+	head4 := &safex.BlockHeader{Depth: 13, Hash: "aaaae", PrevHash: "aaaad"}
+	arr := []*safex.BlockHeader{head1, head2, head3, head4}
+	if _, err = w.PutMassBlockHeaders(arr, false); err != nil {
+		t.Fatalf("%s", err)
+	}
+
+	if data, err := w.GetAllBlocks(); err != nil {
+		t.Fatalf("%s", err)
+	} else if len(data) != 4 {
+		t.Fatalf("Read BlockHeader total length mismatch %d", len(data))
+	} else {
+		for i, el := range data {
+			if head, err := w.GetBlockHeader(el); err != nil {
+				t.Fatalf("%s", err)
+			} else if head.GetHash() != arr[i].GetHash() {
+				t.Fatalf("Read BlockHeader data mismatch\nhash: %s\nread:%s", arr[i].GetHash(), head.GetHash())
+			}
+		}
+	}
+	if err := w.RewindBlockHeader("aaaab"); err != nil {
+		t.Fatalf("%s", err)
+	}
+	if data, err := w.GetAllBlocks(); err != nil {
+		t.Fatalf("%s", err)
+	} else if len(data) != 1 {
+		t.Fatalf("Read BlockHeader total length mismatch %d", len(data))
+	} else {
+		head, err := w.GetBlockHeader(head1.GetHash())
+		if err != nil {
+			t.Fatalf("%s", err)
+		}
+		if head.GetHash() != head1.GetHash() {
+			t.Fatalf("Error in block rewinding")
+		}
+		head, err = w.GetBlockHeader(head2.GetHash())
+		if err == nil {
+			t.Fatalf("Block not rewinded")
+		}
+	}
+	testLogger.Infof("[Test] Passed block R/W")
+}
+
 func TestTransactionRW(t *testing.T) {
 	prepareFolder()
 	testLogger.Infof("[Test] Testing transaction R/W")
@@ -328,9 +383,6 @@ func TestOutputRW(t *testing.T) {
 		t.Fatalf("%s", err)
 	}
 	err = w.PutBlockHeader(head2)
-	if err != nil {
-		t.Fatalf("%s", err)
-	}
 	if err != nil {
 		t.Fatalf("%s", err)
 	}
@@ -617,4 +669,126 @@ func TestMultipleAccounts(t *testing.T) {
 		t.Fatalf("Error retrieving accounts")
 	}
 	testLogger.Infof("[Test] Passed multiple account creation")
+}
+
+func benchmarkBlockHeaderWrite(n int, b *testing.B) {
+	prepareFolder()
+	testLogger.Infof("[Benchmark] Benchmarking multiple block writes")
+	fullpath := strings.Join([]string{foldername, filename}, "/")
+
+	var headers []safex.BlockHeader
+	strbytes := make([]byte, 32)
+	dig := crypto.NewDigest([]byte{byte(0)})
+	copy(strbytes[:], dig[:])
+	finalstr := fmt.Sprintf("%x", strbytes[:])
+	head := &safex.BlockHeader{Depth: 0, Hash: finalstr, PrevHash: ""}
+	prevhash := finalstr
+	headers = append(headers, *head)
+
+	for i := 1; i < b.N*n; i++ {
+		dig := crypto.NewDigest([]byte{byte(0)})
+		copy(strbytes[:], dig[:])
+		finalstr := fmt.Sprintf("%x", strbytes[:])
+		head := &safex.BlockHeader{Depth: 0, Hash: finalstr, PrevHash: prevhash}
+		prevhash = finalstr
+		headers = append(headers, *head)
+	}
+	w, err := NewClean(fullpath, masterPass, false, true, testLogger)
+	defer CleanAfterTests(w, fullpath)
+	if err != nil {
+		b.Fatalf("%s", err)
+	}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		for j := n * i; j < n*(i+1); j++ {
+			err = w.PutBlockHeader(&headers[j])
+			if err != nil {
+				b.Fatalf("%s", err)
+			}
+		}
+	}
+}
+
+func benchmarkMassBlockHeaderWrite(n int, b *testing.B) {
+	prepareFolder()
+	testLogger.Infof("[Benchmark] Benchmarking multiple block writes")
+	fullpath := strings.Join([]string{foldername, filename}, "/")
+
+	var headers []*safex.BlockHeader
+	strbytes := make([]byte, 32)
+	dig := crypto.NewDigest([]byte{byte(0)})
+	copy(strbytes[:], dig[:])
+	finalstr := fmt.Sprintf("%x", strbytes[:])
+	head := &safex.BlockHeader{Depth: 0, Hash: finalstr, PrevHash: ""}
+	prevhash := finalstr
+	headers = append(headers, head)
+
+	for i := 1; i < b.N*n; i++ {
+		dig := crypto.NewDigest([]byte{byte(0)})
+		copy(strbytes[:], dig[:])
+		finalstr := fmt.Sprintf("%x", strbytes[:])
+		head := &safex.BlockHeader{Depth: 0, Hash: finalstr, PrevHash: prevhash}
+		prevhash = finalstr
+		headers = append(headers, head)
+	}
+	w, err := NewClean(fullpath, masterPass, false, true, testLogger)
+	defer CleanAfterTests(w, fullpath)
+	if err != nil {
+		b.Fatalf("%s", err)
+	}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, err = w.PutMassBlockHeaders(headers[i*n:(i+1)*n], false)
+		if err != nil {
+			b.Fatalf("%s", err)
+		}
+	}
+}
+
+func BenchmarkBlockHeaderWrite1(b *testing.B) {
+	benchmarkBlockHeaderWrite(1, b)
+}
+
+func BenchmarkBlockHeaderWrite5(b *testing.B) {
+	benchmarkBlockHeaderWrite(5, b)
+}
+
+func BenchmarkBlockHeaderWrite10(b *testing.B) {
+	benchmarkBlockHeaderWrite(10, b)
+}
+
+func BenchmarkBlockHeaderWrite20(b *testing.B) {
+	benchmarkBlockHeaderWrite(20, b)
+}
+
+func BenchmarkBlockHeaderWrite50(b *testing.B) {
+	benchmarkBlockHeaderWrite(50, b)
+}
+
+func BenchmarkBlockHeaderWrite500(b *testing.B) {
+	benchmarkBlockHeaderWrite(500, b)
+}
+
+func BenchmarkMassBlockHeaderWrite1(b *testing.B) {
+	benchmarkMassBlockHeaderWrite(1, b)
+}
+
+func BenchmarkMassBlockHeaderWrite5(b *testing.B) {
+	benchmarkMassBlockHeaderWrite(5, b)
+}
+
+func BenchmarkMassBlockHeaderWrite10(b *testing.B) {
+	benchmarkMassBlockHeaderWrite(10, b)
+}
+
+func BenchmarkMassBlockHeaderWrite20(b *testing.B) {
+	benchmarkMassBlockHeaderWrite(20, b)
+}
+
+func BenchmarkMassBlockHeaderWrite50(b *testing.B) {
+	benchmarkMassBlockHeaderWrite(50, b)
+}
+
+func BenchmarkMassBlockHeaderWrite500(b *testing.B) {
+	benchmarkMassBlockHeaderWrite(500, b)
 }

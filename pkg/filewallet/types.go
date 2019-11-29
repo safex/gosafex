@@ -17,12 +17,25 @@ type FileWallet struct {
 	logger            *log.Logger
 	info              *WalletInfo
 	db                *filestore.EncryptedDB
+	memoryWallet      *MemoryWallet
+	knownAccounts     []string
 	knownOutputs      []string //REMEMBER TO INITIALIZE THIS
 	unspentOutputs    []string
 	lockedOutputs     []string
 	latestBlockNumber uint64
 	latestBlockHash   string
 }
+
+//MemoryWallet is used to store transient information about outputs to avoid un-necessary reads
+type MemoryWallet struct {
+	output         map[string][]byte
+	outputAccount  map[string]string
+	outputInfo     map[string]*OutputInfo
+	accountOutputs map[string][]string
+
+	keys map[string]map[string][]byte
+}
+
 type TransferInfo struct {
 	Extra       []byte
 	LocalIndex  uint64
@@ -57,6 +70,8 @@ type TransactionInfo struct {
 	TxHash          string
 }
 
+const appendSeparator = byte('\n')
+
 //LockedStatus of a transaction
 const LockedStatus = "L"
 
@@ -75,7 +90,7 @@ const unspentOutputReferenceKey = "UnspentOutputReference"
 const transactionInfoReferenceKey = "TransactionInfoReference"
 
 const genericDataBucketName = "Generic"
-const genericBlockBucketName = "Blocks"
+const genericBlockBucketName = "Generic"
 
 const passwordCheckField = "Check"
 
