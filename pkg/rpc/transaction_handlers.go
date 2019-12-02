@@ -244,14 +244,14 @@ func (w *WalletRPC) TransactionCash(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	pid, err := hex.DecodeString(rqData.PaymentID)
+	//pid, err := hex.DecodeString(rqData.PaymentID)
 
-	if err != nil {
+	/*if err != nil {
 		data := make(JSONElement)
 		data["msg"] = err.Error()
 		FormJSONResponse(data, PaymentIDParseError, &rw)
 		return
-	}
+	}*/
 
 	data := make(JSONElement)
 	destAddress, err := account.FromBase58(rqData.Destination)
