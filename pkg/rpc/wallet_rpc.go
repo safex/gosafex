@@ -64,6 +64,28 @@ func (w *WalletRPC) GetStatus(rw http.ResponseWriter, r *http.Request) {
 
 }
 
+func (w *WalletRPC) GetTopBlock(rw http.ResponseWriter, r *http.Request) {
+	// Check if the wallet is open
+	if !w.OpenCheck(&rw) {
+		return
+	}
+	var data JSONElement
+	w.logger.Infof("[RPC] Getting wallet status")
+	data = make(JSONElement)
+	info, err := w.wallet.DaemonInfo()
+	if err != nil {
+		data["err"] = err.Error()
+		FormJSONResponse(data, FailedToConnectToDeamon, &rw)
+		return
+	}
+	if info == nil {
+		FormJSONResponse(nil, FailedToConnectToDeamon, &rw)
+		return
+	}
+	data["msg"] = info.Height
+	FormJSONResponse(data, EverythingOK, &rw)
+}
+
 func (w *WalletRPC) GetLatestBlockNumber(rw http.ResponseWriter, r *http.Request) {
 	// Check if the wallet is open
 	if !w.OpenCheck(&rw) {
