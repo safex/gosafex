@@ -75,3 +75,43 @@ func TestCreateSignatures(t *testing.T) {
 	// c2, _ := hex.DecodeString("27c93cd9b8c53b561c58007173393a8b859bc0e4ac2ba110488c6501adf17508")
 	// r2, _ := hex.DecodeString("02f13377e9f2059c623393c2ab2ad3c8f500e87e97dd35b8b480d9aa7f839305")
 }
+
+func TestSignatures(t *testing.T) {
+
+	/*
+				In the file src/crypto/crypto.cpp of the safexcore repo, change add the following line of code:
+					"hash_to_scalar(&prefix_hash, 32, k);" after line 522 ( random_Scalar(k) )
+
+					"hash_to_scalar(&prefix_hash, 32, sig[i].c);" after line 533  ( random_Scalar(sig[i].c) )
+		        	"hash_to_scalar(&prefix_hash, 32, sig[i].r);" after line 533
+				Go in safexcore/build/debug/tests/core_tests and execute:
+					ctest -j <num of cores> -VV
+				Stop the execution after the first 3 results.
+
+				Copy the result in blue in the following viarable.
+				Notice: sec is named "in_ephemeral_key"
+
+	*/
+	prefixHash, _ := hex.DecodeString("414876f6ea9b08de7f6001d2bce0670fdb2bf64d3303a1c6571a31df3ffb3436")
+	kImage, _ := hex.DecodeString("fcf8878757248197f90fcb810378cf717c994441d7b03ae222c9bbfbf00c13a9")
+	pub1, _ := hex.DecodeString("37f8a895435212b6d303c5a0865d0f0e441959294506330e8685a52d89e22ae1")
+	pub2, _ := hex.DecodeString("cf453d43d43cff0d76718625dfb279c6fd617c09ac59e062d7f53ca92fce806b")
+	sec, _ := hex.DecodeString("0d2a7c523c4efcadc21bf1914edae7569edd434a921b7b23a15e4d96e9880e06")
+	realIndex := 0
+
+	var keyImage Key
+	copy(keyImage[:], kImage)
+
+	privKey := new(Key)
+	copy(privKey[:], sec)
+
+	mixins := make([]Key, 2)
+	copy(mixins[0][:], pub1)
+	copy(mixins[1][:], pub2)
+
+	sigs, _ := GenerateRingSignature(prefixHash, keyImage, mixins, privKey, realIndex)
+
+	fmt.Println("Sign:", sigs[0].C, " ", sigs[0].R)
+
+	t.Errorf("Locked balance mismatch ")
+}
