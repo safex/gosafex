@@ -142,7 +142,7 @@ func (w *WalletRPC) CreateNew(rw http.ResponseWriter, r *http.Request) {
 		accountName = "primary"
 	}
 
-	err = w.wallet.OpenAndCreate(accountName, rqData.Path, rqData.Password, w.mainnet, w.logger)
+	err = w.wallet.OpenAndCreate(accountName, rqData.Path, rqData.Password, !w.mainnet, w.logger)
 
 	if err != nil {
 		data["msg"] = err.Error()
