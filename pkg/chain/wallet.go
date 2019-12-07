@@ -94,7 +94,6 @@ func (w *Wallet) updateBlocks(nblocks uint64) error {
 }
 
 func (w *Wallet) IsOpen() bool {
-
 	if w.wallet == nil {
 		return false
 	}
@@ -619,4 +618,5 @@ func New(prevLog *log.Logger) *Wallet {
 func (w *Wallet) Close() {
 	w.KillUpdating()
 	w.wallet.Close()
+	w.wallet = nil
 }

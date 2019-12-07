@@ -37,7 +37,7 @@ func (w *Wallet) isOurKey(kImage [crypto.KeyLength]byte, keyOffsets []uint64, ou
 }
 func (w *Wallet) processTransactionPerAccount(tx *safex.Transaction, blckHash string, minerTx bool, acc string) error {
 	hash := tx.GetTxHash()
-	if hash == "ddd978af6a86223cee7c72cb2509e153a0e5e7ae51661113b1f112c8c5ac109e" {
+	if hash == "ddd978af6a86223cee7c72cb2509e153a0e5e7ae51661113b1f112c8c5ac109e" && acc == "testnet" {
 		hash = "b"
 	}
 	if len(tx.Vout) != 0 {

@@ -8,7 +8,6 @@ import (
 	"github.com/safex/gosafex/pkg/account"
 	keysFile "github.com/safex/gosafex/pkg/keys_file"
 
-	"fmt"
 	"net/http"
 )
 
@@ -156,7 +155,7 @@ func (w *WalletRPC) OpenAccount(rw http.ResponseWriter, r *http.Request) {
 	var data JSONElement
 	data = make(JSONElement)
 
-	fmt.Println("mainnet: ", w.mainnet)
+	//fmt.Println("mainnet: ", w.mainnet)
 	if !w.openAccountInner(rqData.Name, &rw) {
 		return
 	}
