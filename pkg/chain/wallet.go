@@ -323,10 +323,7 @@ func (w *Wallet) DaemonInfo() (*safex.DaemonInfo, error) {
 		w.logger.Errorf("[Wallet] %s", ErrFilewalletNotOpen)
 		return nil, ErrFilewalletNotOpen
 	}
-	if w.syncing {
-		w.logger.Errorf("[Wallet] %s", ErrSyncing)
-		return nil, ErrSyncing
-	}
+
 	w.working = true
 	defer func() { w.working = false }()
 
