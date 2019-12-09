@@ -79,17 +79,17 @@ func TestCreateSignatures(t *testing.T) {
 func TestSignatures(t *testing.T) {
 
 	/*
-				In the file src/crypto/crypto.cpp of the safexcore repo, change add the following line of code:
-					"hash_to_scalar(&prefix_hash, 32, k);" after line 522 ( random_Scalar(k) )
+		In the file src/crypto/crypto.cpp of the safexcore repo, change add the following line of code:
+			"hash_to_scalar(&prefix_hash, 32, k);" after line 522 ( random_Scalar(k) )
 
-					"hash_to_scalar(&prefix_hash, 32, sig[i].c);" after line 533  ( random_Scalar(sig[i].c) )
-		        	"hash_to_scalar(&prefix_hash, 32, sig[i].r);" after line 533
-				Go in safexcore/build/debug/tests/core_tests and execute:
-					ctest -j <num of cores> -VV
-				Stop the execution after the first 3 results.
+			"hash_to_scalar(&prefix_hash, 32, sig[i].c);" after line 533  ( random_Scalar(sig[i].c) )
+			"hash_to_scalar(&prefix_hash, 32, sig[i].r);" after line 533
+		Go in safexcore/build/debug/tests/core_tests and execute:
+			ctest -j <num of cores> -VV
+		Stop the execution after the first 3 results.
 
-				Copy the result in blue in the following viarable.
-				Notice: sec is named "in_ephemeral_key"
+		Copy the result in blue in the following viarable.
+		Notice: sec is named "in_ephemeral_key"
 
 	*/
 	prefixHash, _ := hex.DecodeString("414876f6ea9b08de7f6001d2bce0670fdb2bf64d3303a1c6571a31df3ffb3436")

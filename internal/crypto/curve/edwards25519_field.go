@@ -121,19 +121,13 @@ func fePow22523(out, z *FieldElement) {
 	var i int
 
 	FeSquare(&t0, z)
-	for i = 1; i < 1; i++ {
-		FeSquare(&t0, &t0)
-	}
 	FeSquare(&t1, &t0)
-	for i = 1; i < 2; i++ {
-		FeSquare(&t1, &t1)
-	}
+	FeSquare(&t1, &t1)
+
 	FeMul(&t1, z, &t1)
 	FeMul(&t0, &t0, &t1)
 	FeSquare(&t0, &t0)
-	for i = 1; i < 1; i++ {
-		FeSquare(&t0, &t0)
-	}
+
 	FeMul(&t0, &t1, &t0)
 	FeSquare(&t1, &t0)
 	for i = 1; i < 5; i++ {
@@ -150,8 +144,7 @@ func fePow22523(out, z *FieldElement) {
 		FeSquare(&t2, &t2)
 	}
 	FeMul(&t1, &t2, &t1)
-	FeSquare(&t1, &t1)
-	for i = 1; i < 10; i++ {
+	for i = 1; i < 11; i++ {
 		FeSquare(&t1, &t1)
 	}
 	FeMul(&t0, &t1, &t0)
@@ -165,14 +158,12 @@ func fePow22523(out, z *FieldElement) {
 		FeSquare(&t2, &t2)
 	}
 	FeMul(&t1, &t2, &t1)
-	FeSquare(&t1, &t1)
-	for i = 1; i < 50; i++ {
+	for i = 1; i < 51; i++ {
 		FeSquare(&t1, &t1)
 	}
 	FeMul(&t0, &t1, &t0)
 	FeSquare(&t0, &t0)
-	for i = 1; i < 2; i++ {
-		FeSquare(&t0, &t0)
-	}
+	FeSquare(&t0, &t0)
+
 	FeMul(out, &t0, z)
 }

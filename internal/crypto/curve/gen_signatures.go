@@ -38,7 +38,7 @@ func GenerateRingSignature(prefixHash []byte, keyImage Key, pubs []Key, priv *Ke
 		if i == realIndex {
 			k = NewRandomScalar()
 			// Over write k with a deterministic value
-			k, _ = NewFromBytes(toHash)
+			k, _ = NewFromBytes(prefixHash)
 
 			GeScalarMultBase(tmp3, k)
 			tmp3.toBytes(&tmpA)
@@ -51,7 +51,7 @@ func GenerateRingSignature(prefixHash []byte, keyImage Key, pubs []Key, priv *Ke
 		} else {
 			temp := NewRandomScalar()
 			// Over write temp with a deterministic value
-			temp, err = NewFromBytes(toHash)
+			temp, err = NewFromBytes(prefixHash)
 			if err != nil {
 				fmt.Println(err)
 			}
@@ -60,7 +60,7 @@ func GenerateRingSignature(prefixHash []byte, keyImage Key, pubs []Key, priv *Ke
 
 			temp = NewRandomScalar()
 			// Over write temp with a deterministic value
-			temp, _ = NewFromBytes(toHash)
+			temp, _ = NewFromBytes(prefixHash)
 			if err != nil {
 				fmt.Println(err)
 			}

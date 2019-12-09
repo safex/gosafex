@@ -128,53 +128,57 @@ func FeFromBytes(dst *FieldElement, src *Key) {
 //   Have q+2^(-255)x = 2^(-255)(h + 19 2^(-25) h9 + 2^(-1))
 //   so floor(2^(-255)(h + 19 2^(-25) h9 + 2^(-1))) = q.
 func FeToBytes(s *Key, h *FieldElement) {
+	var hLocal FieldElement
+	for i, value := range h {
+		hLocal[i] = value
+	}
 	var carry [10]int32
 
-	q := (19*h[9] + (1 << 24)) >> 25
-	q = (h[0] + q) >> 26
-	q = (h[1] + q) >> 25
-	q = (h[2] + q) >> 26
-	q = (h[3] + q) >> 25
-	q = (h[4] + q) >> 26
-	q = (h[5] + q) >> 25
-	q = (h[6] + q) >> 26
-	q = (h[7] + q) >> 25
-	q = (h[8] + q) >> 26
-	q = (h[9] + q) >> 25
+	q := (19*hLocal[9] + (1 << 24)) >> 25
+	q = (hLocal[0] + q) >> 26
+	q = (hLocal[1] + q) >> 25
+	q = (hLocal[2] + q) >> 26
+	q = (hLocal[3] + q) >> 25
+	q = (hLocal[4] + q) >> 26
+	q = (hLocal[5] + q) >> 25
+	q = (hLocal[6] + q) >> 26
+	q = (hLocal[7] + q) >> 25
+	q = (hLocal[8] + q) >> 26
+	q = (hLocal[9] + q) >> 25
 
 	// Goal: Output h-(2^255-19)q, which is between 0 and 2^255-20.
-	h[0] += 19 * q
+	hLocal[0] += 19 * q
 	// Goal: Output h-2^255 q, which is between 0 and 2^255-20.
 
-	carry[0] = h[0] >> 26
-	h[1] += carry[0]
-	h[0] -= carry[0] << 26
-	carry[1] = h[1] >> 25
-	h[2] += carry[1]
-	h[1] -= carry[1] << 25
-	carry[2] = h[2] >> 26
-	h[3] += carry[2]
-	h[2] -= carry[2] << 26
-	carry[3] = h[3] >> 25
-	h[4] += carry[3]
-	h[3] -= carry[3] << 25
-	carry[4] = h[4] >> 26
-	h[5] += carry[4]
-	h[4] -= carry[4] << 26
-	carry[5] = h[5] >> 25
-	h[6] += carry[5]
-	h[5] -= carry[5] << 25
-	carry[6] = h[6] >> 26
-	h[7] += carry[6]
-	h[6] -= carry[6] << 26
-	carry[7] = h[7] >> 25
-	h[8] += carry[7]
-	h[7] -= carry[7] << 25
-	carry[8] = h[8] >> 26
-	h[9] += carry[8]
-	h[8] -= carry[8] << 26
-	carry[9] = h[9] >> 25
-	h[9] -= carry[9] << 25
+	carry[0] = hLocal[0] >> 26
+	hLocal[1] += carry[0]
+	hLocal[0] -= carry[0] << 26
+	carry[1] = hLocal[1] >> 25
+	hLocal[2] += carry[1]
+	hLocal[1] -= carry[1] << 25
+	carry[2] = hLocal[2] >> 26
+	hLocal[3] += carry[2]
+	hLocal[2] -= carry[2] << 26
+	carry[3] = hLocal[3] >> 25
+	hLocal[4] += carry[3]
+	hLocal[3] -= carry[3] << 25
+	carry[4] = hLocal[4] >> 26
+	hLocal[5] += carry[4]
+	hLocal[4] -= carry[4] << 26
+	carry[5] = hLocal[5] >> 25
+	hLocal[6] += carry[5]
+	hLocal[5] -= carry[5] << 25
+	carry[6] = hLocal[6] >> 26
+	hLocal[7] += carry[6]
+	hLocal[6] -= carry[6] << 26
+	carry[7] = hLocal[7] >> 25
+	hLocal[8] += carry[7]
+	hLocal[7] -= carry[7] << 25
+	carry[8] = hLocal[8] >> 26
+	hLocal[9] += carry[8]
+	hLocal[8] -= carry[8] << 26
+	carry[9] = hLocal[9] >> 25
+	hLocal[9] -= carry[9] << 25
 	// h10 = carry9
 
 	// Goal: Output h[0]+...+2^255 h10-2^255 q, which is between 0 and 2^255-20.
@@ -182,38 +186,38 @@ func FeToBytes(s *Key, h *FieldElement) {
 	// evidently 2^255 h10-2^255 q = 0.
 	// Goal: Output h[0]+...+2^230 h[9].
 
-	s[0] = byte(h[0] >> 0)
-	s[1] = byte(h[0] >> 8)
-	s[2] = byte(h[0] >> 16)
-	s[3] = byte((h[0] >> 24) | (h[1] << 2))
-	s[4] = byte(h[1] >> 6)
-	s[5] = byte(h[1] >> 14)
-	s[6] = byte((h[1] >> 22) | (h[2] << 3))
-	s[7] = byte(h[2] >> 5)
-	s[8] = byte(h[2] >> 13)
-	s[9] = byte((h[2] >> 21) | (h[3] << 5))
-	s[10] = byte(h[3] >> 3)
-	s[11] = byte(h[3] >> 11)
-	s[12] = byte((h[3] >> 19) | (h[4] << 6))
-	s[13] = byte(h[4] >> 2)
-	s[14] = byte(h[4] >> 10)
-	s[15] = byte(h[4] >> 18)
-	s[16] = byte(h[5] >> 0)
-	s[17] = byte(h[5] >> 8)
-	s[18] = byte(h[5] >> 16)
-	s[19] = byte((h[5] >> 24) | (h[6] << 1))
-	s[20] = byte(h[6] >> 7)
-	s[21] = byte(h[6] >> 15)
-	s[22] = byte((h[6] >> 23) | (h[7] << 3))
-	s[23] = byte(h[7] >> 5)
-	s[24] = byte(h[7] >> 13)
-	s[25] = byte((h[7] >> 21) | (h[8] << 4))
-	s[26] = byte(h[8] >> 4)
-	s[27] = byte(h[8] >> 12)
-	s[28] = byte((h[8] >> 20) | (h[9] << 6))
-	s[29] = byte(h[9] >> 2)
-	s[30] = byte(h[9] >> 10)
-	s[31] = byte(h[9] >> 18)
+	s[0] = byte(hLocal[0] >> 0)
+	s[1] = byte(hLocal[0] >> 8)
+	s[2] = byte(hLocal[0] >> 16)
+	s[3] = byte((hLocal[0] >> 24) | (hLocal[1] << 2))
+	s[4] = byte(hLocal[1] >> 6)
+	s[5] = byte(hLocal[1] >> 14)
+	s[6] = byte((hLocal[1] >> 22) | (hLocal[2] << 3))
+	s[7] = byte(hLocal[2] >> 5)
+	s[8] = byte(hLocal[2] >> 13)
+	s[9] = byte((hLocal[2] >> 21) | (hLocal[3] << 5))
+	s[10] = byte(hLocal[3] >> 3)
+	s[11] = byte(hLocal[3] >> 11)
+	s[12] = byte((hLocal[3] >> 19) | (hLocal[4] << 6))
+	s[13] = byte(hLocal[4] >> 2)
+	s[14] = byte(hLocal[4] >> 10)
+	s[15] = byte(hLocal[4] >> 18)
+	s[16] = byte(hLocal[5] >> 0)
+	s[17] = byte(hLocal[5] >> 8)
+	s[18] = byte(hLocal[5] >> 16)
+	s[19] = byte((hLocal[5] >> 24) | (hLocal[6] << 1))
+	s[20] = byte(hLocal[6] >> 7)
+	s[21] = byte(hLocal[6] >> 15)
+	s[22] = byte((hLocal[6] >> 23) | (hLocal[7] << 3))
+	s[23] = byte(hLocal[7] >> 5)
+	s[24] = byte(hLocal[7] >> 13)
+	s[25] = byte((hLocal[7] >> 21) | (hLocal[8] << 4))
+	s[26] = byte(hLocal[8] >> 4)
+	s[27] = byte(hLocal[8] >> 12)
+	s[28] = byte((hLocal[8] >> 20) | (hLocal[9] << 6))
+	s[29] = byte(hLocal[9] >> 2)
+	s[30] = byte(hLocal[9] >> 10)
+	s[31] = byte(hLocal[9] >> 18)
 }
 
 // IsNegative returns true if the field element is negative.
@@ -245,6 +249,7 @@ func (f *FieldElement) IsNonZero() int32 {
 // Postconditions:
 //    |h| bounded by 1.1*2^25,1.1*2^24,1.1*2^25,1.1*2^24,etc.
 func FeNeg(h, f *FieldElement) {
+
 	h[0] = -f[0]
 	h[1] = -f[1]
 	h[2] = -f[2]
