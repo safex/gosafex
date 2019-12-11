@@ -1,6 +1,7 @@
 package chain
 
 import (
+	"encoding/hex"
 	"fmt"
 	"strings"
 	"testing"
@@ -9,6 +10,7 @@ import (
 	"github.com/safex/gosafex/internal/crypto/curve"
 	"github.com/safex/gosafex/pkg/account"
 	"github.com/safex/gosafex/pkg/key"
+	"github.com/safex/gosafex/pkg/safex"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -66,7 +68,7 @@ func TestTxCreate(t *testing.T) {
 	for w.syncing {
 		time.Sleep(100 * time.Millisecond)
 	}
-	ptxs, err := w.TxCreateCash([]DestinationEntry{DestinationEntry{1000, 0, *a.Address(), false, false}}, 2, 0, 1, extra, true)
+	ptxs, err := w.TxCreateCash([]DestinationEntry{DestinationEntry{1000, 0, *a.Address(), false, false, false, safex.OutCash, ""}}, 0, 0, 1, extra, true)
 	if err != nil {
 		testLogger.Debugf("[Test] Waiting ")
 		t.Fatalf("%s", err)
@@ -76,12 +78,24 @@ func TestTxCreate(t *testing.T) {
 
 	totalFee := uint64(0)
 	for _, ptx := range ptxs {
+		// var temp []byte
+		// temp = ptx.Tx.Signatures[0].Signature[0].C
+		// ptx.Tx.Signatures[0].Signature[0].C = ptx.Tx.Signatures[0].Signature[0].R
+		// ptx.Tx.Signatures[0].Signature[0].R = temp
+
 		totalFee += ptx.Fee
-		// res, err := w.CommitPtx(&ptx)
-		// fmt.Println("Res: ", res, " err: ", err)
+		res, err := w.CommitPtx(&ptx)
+		fmt.Println("Res: ", res, " err: ", err)
+		for _, signatures := range ptx.Tx.Signatures {
+			for _, sign := range signatures.Signature {
+				fmt.Println("Sign C:", hex.EncodeToString(sign.C))
+				fmt.Println("Sign R:", hex.EncodeToString(sign.R))
+			}
+		}
 	}
 	fmt.Println("TotalFee was: ", totalFee, ", MoneyPaid: ", 300000000000000)
-	// t.Errorf("Failing!")
+
+	t.Errorf("Failing!")
 }
 
 func TestTxCreateAccount(t *testing.T) {
@@ -132,7 +146,7 @@ func TestTxCreateAccount(t *testing.T) {
 		time.Sleep(100 * time.Millisecond)
 	}
 
-	ptxs, err := w.TxAccountCreate(2, 0, 1, extra, true)
+	ptxs, err := w.TxAccountCreate(nil, 2, 0, 1, extra, true)
 	if err != nil {
 		t.Fatalf("%s", err)
 	}

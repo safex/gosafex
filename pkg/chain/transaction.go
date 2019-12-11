@@ -282,7 +282,7 @@ func (w *Wallet) transferSelected(dsts *[]DestinationEntry, selectedTransfers []
 		copy(realOE.Key[:], keyTemp)
 		src.Outputs[realIndex] = realOE
 		_, extraFields := ParseExtra(&selectedOutputInfos[index].OutTransfer.Extra)
-		tempPub := extraFields[TX_EXTRA_TAG_PUBKEY].([]byte)
+		tempPub := extraFields[TX_EXTRA_TAG_PUBKEY].([32]byte)
 		copy(tempPub[:], src.RealOutTxKey[:])
 		src.RealOutput = uint64(realIndex)
 		src.RealOutputInTxIndex = int(selectedOutputInfos[index].OutTransfer.LocalIndex)
