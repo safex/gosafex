@@ -35,11 +35,8 @@ func (w *Wallet) isOurKey(kImage [crypto.KeyLength]byte, keyOffsets []uint64, ou
 	}
 	return "", false
 }
-func (w *Wallet) processTransactionPerAccount(tx *safex.Transaction, blckHash string, minerTx bool, acc string) error {
-	hash := tx.GetTxHash()
-	if hash == "ddd978af6a86223cee7c72cb2509e153a0e5e7ae51661113b1f112c8c5ac109e" && acc == "testnet" {
-		hash = "b"
-	}
+func (w *Wallet) processTransactionPerAccount(tx *safex.Transaction, blckHash string, minerTx bool, acc string, resyncing bool) error {
+
 	if len(tx.Vout) != 0 {
 		err := w.openAccount(acc, w.testnet)
 		//Must defer to previous account
@@ -70,8 +67,8 @@ func (w *Wallet) processTransactionPerAccount(tx *safex.Transaction, blckHash st
 			}
 			if !txPresent {
 				w.logger.Infof("[Chain] Adding new transaction to user: %s TxHash: %s", acc, tx.GetTxHash())
-				if inf, _ := w.wallet.GetTransactionInfo(tx.GetTxHash()); inf == nil {
-					if err := w.wallet.PutTransactionInfo(&filewallet.TransactionInfo{Version: tx.GetVersion(), UnlockTime: tx.GetUnlockTime(), Extra: tx.GetExtra(), BlockHeight: tx.GetBlockHeight(), BlockTimestamp: tx.GetBlockTimestamp(), DoubleSpendSeen: tx.GetDoubleSpendSeen(), InPool: tx.GetInPool(), TxHash: tx.GetTxHash()}, blckHash); err != nil {
+				if inf, _ := w.wallet.GetTransactionInfo(tx.GetTxHash()); inf == nil || resyncing {
+					if err := w.wallet.PutTransactionInfo(&filewallet.TransactionInfo{Version: tx.GetVersion(), UnlockTime: tx.GetUnlockTime(), Extra: tx.GetExtra(), BlockHeight: tx.GetBlockHeight(), BlockTimestamp: tx.GetBlockTimestamp(), DoubleSpendSeen: tx.GetDoubleSpendSeen(), InPool: tx.GetInPool(), TxHash: tx.GetTxHash()}, blckHash, resyncing); err != nil {
 						return err
 					}
 					txPresent = true
@@ -91,7 +88,7 @@ func (w *Wallet) processTransactionPerAccount(tx *safex.Transaction, blckHash st
 			globalIndex := tx.OutputIndices[index]
 			outID, _ := filewallet.PackOutputIndex(globalIndex, output.GetAmount())
 
-			if _, ok := w.outputs[outID]; !ok {
+			if _, ok := w.outputs[outID]; !ok || resyncing {
 				if err := w.addOutput(output, acc, uint64(index), globalIndex, minerTx, blckHash, tx.GetTxHash(), tx.BlockHeight, keyimage, tx.Extra, *ephemeralPublic, *ephemeralSecret); err != nil {
 					continue
 				}
@@ -104,7 +101,7 @@ func (w *Wallet) processTransactionPerAccount(tx *safex.Transaction, blckHash st
 	if len(tx.Vin) != 0 {
 		err := w.openAccount(acc, w.testnet)
 		//Must defer to previous account
-		if err != nil {
+		if err != nil && err != ErrSyncing {
 			return err
 		}
 		txPresent := false
@@ -134,8 +131,8 @@ func (w *Wallet) processTransactionPerAccount(tx *safex.Transaction, blckHash st
 			if isOurs {
 				if !txPresent {
 					w.logger.Infof("[Chain] Adding new transaction to user: %s TxHash: %s", acc, tx.GetTxHash())
-					if inf, _ := w.wallet.GetTransactionInfo(tx.GetTxHash()); inf == nil {
-						if err := w.wallet.PutTransactionInfo(&filewallet.TransactionInfo{Version: tx.GetVersion(), UnlockTime: tx.GetUnlockTime(), Extra: tx.GetExtra(), BlockHeight: tx.GetBlockHeight(), BlockTimestamp: tx.GetBlockTimestamp(), DoubleSpendSeen: tx.GetDoubleSpendSeen(), InPool: tx.GetInPool(), TxHash: tx.GetTxHash()}, blckHash); err != nil {
+					if inf, _ := w.wallet.GetTransactionInfo(tx.GetTxHash()); inf == nil || resyncing {
+						if err := w.wallet.PutTransactionInfo(&filewallet.TransactionInfo{Version: tx.GetVersion(), UnlockTime: tx.GetUnlockTime(), Extra: tx.GetExtra(), BlockHeight: tx.GetBlockHeight(), BlockTimestamp: tx.GetBlockTimestamp(), DoubleSpendSeen: tx.GetDoubleSpendSeen(), InPool: tx.GetInPool(), TxHash: tx.GetTxHash()}, blckHash, resyncing); err != nil {
 							return err
 						}
 						txPresent = true
@@ -169,7 +166,7 @@ func (w *Wallet) processTransaction(tx *safex.Transaction, blckHash string, mine
 			return err
 		}
 		for _, acc := range accs {
-			w.processTransactionPerAccount(tx, blckHash, minerTx, acc)
+			w.processTransactionPerAccount(tx, blckHash, minerTx, acc, false)
 		}
 	}
 	// Process inputs
