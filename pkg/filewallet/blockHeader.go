@@ -236,7 +236,7 @@ func (w *FileWallet) PutMassBlockHeaders(blcks []*safex.BlockHeader, bypass bool
 		blockHash = blcks[i].GetHash()
 		a := blcks[i].GetPrevHash()
 		if a != prevHash && prevHash != "" {
-			w.logger.Errorf("[FileWallet] %s at %s", ErrMistmatchedBlock, a)
+			w.logger.Errorf("[FileWallet] %s while deserializing at %s", ErrMistmatchedBlock, a)
 			return 0, ErrMistmatchedBlock
 		}
 	}

@@ -31,6 +31,7 @@ func (w *Wallet) rescanBlocks(accountName string, start uint64, step uint64) (er
 	if w.wallet.AccountExists(accountName) == false {
 		return errors.New("Account doesn't exist"), 0
 	}
+	w.resetBalance()
 	var target uint64
 	max := w.GetLatestLoadedBlockHeight()
 	if start+step < max {
