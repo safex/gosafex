@@ -92,11 +92,11 @@ func TestSignatures(t *testing.T) {
 		Notice: sec is named "in_ephemeral_key"
 
 	*/
-	prefixHash, _ := hex.DecodeString("414876f6ea9b08de7f6001d2bce0670fdb2bf64d3303a1c6571a31df3ffb3436")
-	kImage, _ := hex.DecodeString("fcf8878757248197f90fcb810378cf717c994441d7b03ae222c9bbfbf00c13a9")
-	pub1, _ := hex.DecodeString("37f8a895435212b6d303c5a0865d0f0e441959294506330e8685a52d89e22ae1")
-	pub2, _ := hex.DecodeString("cf453d43d43cff0d76718625dfb279c6fd617c09ac59e062d7f53ca92fce806b")
-	sec, _ := hex.DecodeString("0d2a7c523c4efcadc21bf1914edae7569edd434a921b7b23a15e4d96e9880e06")
+	prefixHash, _ := hex.DecodeString("4ec277b61d99f3c44578b171fbca1c28be4943bb9778b648addbd2e2a1677c0c")
+	kImage, _ := hex.DecodeString("3fb1909b7d44260a654dc9e4df7d145ef1e72f2c1af52c46b2dea4e4d3f1bd62")
+	pub1, _ := hex.DecodeString("c462de9e91f056bd14f8881f3afb5e365bf4b5f35664d5e9f4f064368bf2e790")
+	// pub2, _ := hex.DecodeString("cf453d43d43cff0d76718625dfb279c6fd617c09ac59e062d7f53ca92fce806b")
+	sec, _ := hex.DecodeString("54e1134d10b6e082b0f3af6372029e2ee11b3381a955d76c37c5c1a1e5911f02")
 	realIndex := 0
 
 	var keyImage Key
@@ -105,13 +105,28 @@ func TestSignatures(t *testing.T) {
 	privKey := new(Key)
 	copy(privKey[:], sec)
 
-	mixins := make([]Key, 2)
+	mixins := make([]Key, 1)
 	copy(mixins[0][:], pub1)
-	copy(mixins[1][:], pub2)
+	// copy(mixins[1][:], pub2)
 
 	sigs, _ := GenerateRingSignature(prefixHash, keyImage, mixins, privKey, realIndex)
 
-	fmt.Println("Sign:", sigs[0].C, " ", sigs[0].R)
+	fmt.Printf("Sign: %v %v\n", sigs[0].C, sigs[0].R)
 
 	t.Errorf("Locked balance mismatch ")
+}
+
+func sc_isnonzero(s []byte) int {
+	fmt.Printf("%v", s)
+	return (((int)(s[0]|s[1]|s[2]|s[3]|s[4]|s[5]|s[6]|s[7]|s[8]|
+		s[9]|s[10]|s[11]|s[12]|s[13]|s[14]|s[15]|s[16]|s[17]|
+		s[18]|s[19]|s[20]|s[21]|s[22]|s[23]|s[24]|s[25]|s[26]|
+		s[27]|s[28]|s[29]|s[30]|s[31]) - 1) >> 8) + 1
+}
+
+func TestScSub(t *testing.T) {
+	h, _ := NewFromString("ac11b5498bcf501cec095e926f96aaf62143553f1c05e249fb491b55c93ca40b")
+	sum, _ := NewFromString("ac11b5498bcf501cec095e926f96aaf62143553f1c05e249fb491b55c93ca40b")
+	ScSub(h, h, sum)
+	t.Fatalf("%v", sc_isnonzero(h[:]))
 }

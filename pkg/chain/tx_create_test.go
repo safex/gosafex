@@ -1,7 +1,6 @@
 package chain
 
 import (
-	"encoding/hex"
 	"fmt"
 	"strings"
 	"testing"
@@ -74,26 +73,18 @@ func TestTxCreate(t *testing.T) {
 		t.Fatalf("%s", err)
 	}
 
-	fmt.Println("Length of ptxs: ", len(ptxs))
-
 	totalFee := uint64(0)
+	totalAmount := uint64(0)
 	for _, ptx := range ptxs {
-		// var temp []byte
-		// temp = ptx.Tx.Signatures[0].Signature[0].C
-		// ptx.Tx.Signatures[0].Signature[0].C = ptx.Tx.Signatures[0].Signature[0].R
-		// ptx.Tx.Signatures[0].Signature[0].R = temp
-
 		totalFee += ptx.Fee
+		for _, vin := range ptx.Tx.Vin {
+			totalAmount += vin.TxinToKey.Amount
+		}
 		res, err := w.CommitPtx(&ptx)
 		fmt.Println("Res: ", res, " err: ", err)
-		for _, signatures := range ptx.Tx.Signatures {
-			for _, sign := range signatures.Signature {
-				fmt.Println("Sign C:", hex.EncodeToString(sign.C))
-				fmt.Println("Sign R:", hex.EncodeToString(sign.R))
-			}
-		}
+
 	}
-	fmt.Println("TotalFee was: ", totalFee, ", MoneyPaid: ", 300000000000000)
+	fmt.Println("TotalFee was: ", totalFee, ", MoneyPaid: ", totalAmount)
 
 	t.Errorf("Failing!")
 }

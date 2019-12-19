@@ -598,6 +598,7 @@ func GePrecompute(r *[8]CachedGroupElement, s *ExtendedGroupElement) {
 	s.toCached(&r[0])
 	s.double(&t)
 	t.toExtended(&s2)
+
 	for i := 0; i < 7; i++ {
 		geAdd(&t, &s2, &r[i])
 		t.toExtended(&u)
@@ -662,7 +663,6 @@ func cachedGroupElementCMove(t, u *CachedGroupElement, b int32) {
 	FeCMove(&t.Z, &u.Z, b)
 	FeCMove(&t.T2d, &u.T2d, b)
 }
-
 
 func (p *ExtendedGroupElement) ToBytes(s *Key) {
 	var recip, x, y FieldElement

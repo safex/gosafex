@@ -268,7 +268,6 @@ func (w *Wallet) transferSelected(dsts *[]DestinationEntry, selectedTransfers []
 		}
 
 		if realIndex == -1 {
-			fmt.Println("Exit")
 			return errors.New("No real output found")
 		}
 
@@ -276,11 +275,11 @@ func (w *Wallet) transferSelected(dsts *[]DestinationEntry, selectedTransfers []
 		realOE.Index = selectedOutputInfos[index].OutTransfer.GlobalIndex
 
 		keyTemp := GetOutputKey(val, outputType)
-		copy(realOE.Key[:], keyTemp)
+		copy(realOE.Key[:], keyTemp[:])
 		src.Outputs[realIndex] = realOE
 		_, extraFields := ParseExtra(&selectedOutputInfos[index].OutTransfer.Extra)
 		tempPub := extraFields[TX_EXTRA_TAG_PUBKEY].([32]byte)
-		copy(tempPub[:], src.RealOutTxKey[:])
+		copy(src.RealOutTxKey[:], tempPub[:])
 		src.RealOutput = uint64(realIndex)
 		src.RealOutputInTxIndex = int(selectedOutputInfos[index].OutTransfer.LocalIndex)
 		src.TransferPtr = &(selectedOutputInfos[index]).OutTransfer
@@ -312,7 +311,7 @@ func (w *Wallet) transferSelected(dsts *[]DestinationEntry, selectedTransfers []
 	var txKey [32]byte
 
 	// @todo consider here if we need to send dsts or splitted dsts
-	constructed := w.constructTxAndGetTxKey(&sources, &splittedDsts, &(changeDts.Address), extra, tx, unlockTime, &txKey)
+	constructed := w.constructTxAndGetTxKey(&sources, dsts, &(changeDts.Address), extra, tx, unlockTime, &txKey)
 	if !constructed {
 		errors.New("Transaction is not constructed")
 	}

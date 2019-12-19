@@ -2,7 +2,6 @@ package curve
 
 import (
 	"errors"
-	"fmt"
 )
 
 // @note Ready for merge
@@ -31,14 +30,13 @@ func GenerateRingSignature(prefixHash []byte, keyImage Key, pubs []Key, priv *Ke
 
 	imageUnp.fromBytes(&keyImage)
 	GePrecompute(&imagePre, imageUnp)
+
 	for i := 0; i < len(pubs); i++ {
 		tmp2 := new(ProjectiveGroupElement)
 		tmp3 := new(ExtendedGroupElement)
 		var tmpA, tmpB Key
 		if i == realIndex {
 			k = NewRandomScalar()
-			// Over write k with a deterministic value
-			k, _ = NewFromBytes(prefixHash)
 
 			GeScalarMultBase(tmp3, k)
 			tmp3.toBytes(&tmpA)
@@ -50,22 +48,9 @@ func GenerateRingSignature(prefixHash []byte, keyImage Key, pubs []Key, priv *Ke
 			toHash = append(toHash, tmpB[:]...)
 		} else {
 			temp := NewRandomScalar()
-			// Over write temp with a deterministic value
-			temp, err = NewFromBytes(prefixHash)
-			if err != nil {
-				fmt.Println(err)
-			}
-			ScReduce32(temp)
 			copy(sigs[i].C[:], temp[:])
 
 			temp = NewRandomScalar()
-			// Over write temp with a deterministic value
-			temp, _ = NewFromBytes(prefixHash)
-			if err != nil {
-				fmt.Println(err)
-			}
-			ScReduce32(temp)
-
 			copy(sigs[i].R[:], temp[:])
 			tmp3.fromBytes(&pubs[i])
 
