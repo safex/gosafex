@@ -112,7 +112,7 @@ func (dict *Dictionary) FindAll(words []string) (positions []int, err error) {
 			}
 		}
 		// If no match is found for any word, return error
-		if j == len(dict.Entries)-1 {
+		if j == len(dict.Entries) {
 			return nil, ErrWordNotFound
 		}
 	}

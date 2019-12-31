@@ -94,20 +94,26 @@ func (w *Wallet) runUpdater() {
 		}
 		if w.updating && w.rescanning != "" {
 			var err error
-			loadedHeight := w.GetLatestLoadedBlockHeight()
-			scannedHeight := w.rescanBegin
-			if scannedHeight >= loadedHeight-1 {
-				w.logger.Infof("[Updater] There was no need to rescan!")
-			}
-			for scannedHeight < loadedHeight-1 {
-				err, scannedHeight = w.rescanBlocks(w.rescanning, scannedHeight, BlocksPerCycle)
-				if err != nil {
-					w.logger.Errorf("[Updater] Error while rescanning: %s", err.Error())
-					break
+			info, err := w.client.GetDaemonInfo()
+			if err != nil {
+				w.logger.Errorf("[Updater] Can't connect to daemon")
+				time.Sleep(DaemonErrorTime * time.Millisecond)
+			} else {
+				bcHeight = info.Height
+				scannedHeight := w.rescanBegin
+				if scannedHeight >= bcHeight-1 {
+					w.logger.Infof("[Updater] There was no need to rescan!")
 				}
-				w.logger.Infof("[Updater] Rescanned up to block %v", scannedHeight)
+				for scannedHeight < bcHeight-1 {
+					err, scannedHeight = w.rescanBlocks(w.rescanning, scannedHeight, BlocksPerCycle)
+					if err != nil {
+						w.logger.Errorf("[Updater] Error while rescanning: %s", err.Error())
+						break
+					}
+					w.logger.Infof("[Updater] Rescanned up to block %v", scannedHeight)
+				}
+				w.unlockBalance(bcHeight)
 			}
-			w.unlockBalance(loadedHeight)
 			w.rescanning = ""
 		}
 		if w.updating {

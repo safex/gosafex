@@ -30,12 +30,14 @@ func GenerateRingSignature(prefixHash []byte, keyImage Key, pubs []Key, priv *Ke
 
 	imageUnp.fromBytes(&keyImage)
 	GePrecompute(&imagePre, imageUnp)
+
 	for i := 0; i < len(pubs); i++ {
 		tmp2 := new(ProjectiveGroupElement)
 		tmp3 := new(ExtendedGroupElement)
 		var tmpA, tmpB Key
 		if i == realIndex {
 			k = NewRandomScalar()
+
 			GeScalarMultBase(tmp3, k)
 			tmp3.toBytes(&tmpA)
 			toHash = append(toHash, tmpA[:]...)
@@ -47,6 +49,7 @@ func GenerateRingSignature(prefixHash []byte, keyImage Key, pubs []Key, priv *Ke
 		} else {
 			temp := NewRandomScalar()
 			copy(sigs[i].C[:], temp[:])
+
 			temp = NewRandomScalar()
 			copy(sigs[i].R[:], temp[:])
 			tmp3.fromBytes(&pubs[i])

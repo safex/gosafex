@@ -75,3 +75,58 @@ func TestCreateSignatures(t *testing.T) {
 	// c2, _ := hex.DecodeString("27c93cd9b8c53b561c58007173393a8b859bc0e4ac2ba110488c6501adf17508")
 	// r2, _ := hex.DecodeString("02f13377e9f2059c623393c2ab2ad3c8f500e87e97dd35b8b480d9aa7f839305")
 }
+
+func TestSignatures(t *testing.T) {
+
+	/*
+		In the file src/crypto/crypto.cpp of the safexcore repo, change add the following line of code:
+			"hash_to_scalar(&prefix_hash, 32, k);" after line 522 ( random_Scalar(k) )
+
+			"hash_to_scalar(&prefix_hash, 32, sig[i].c);" after line 533  ( random_Scalar(sig[i].c) )
+			"hash_to_scalar(&prefix_hash, 32, sig[i].r);" after line 533
+		Go in safexcore/build/debug/tests/core_tests and execute:
+			ctest -j <num of cores> -VV
+		Stop the execution after the first 3 results.
+
+		Copy the result in blue in the following viarable.
+		Notice: sec is named "in_ephemeral_key"
+
+	*/
+	prefixHash, _ := hex.DecodeString("4ec277b61d99f3c44578b171fbca1c28be4943bb9778b648addbd2e2a1677c0c")
+	kImage, _ := hex.DecodeString("3fb1909b7d44260a654dc9e4df7d145ef1e72f2c1af52c46b2dea4e4d3f1bd62")
+	pub1, _ := hex.DecodeString("c462de9e91f056bd14f8881f3afb5e365bf4b5f35664d5e9f4f064368bf2e790")
+	// pub2, _ := hex.DecodeString("cf453d43d43cff0d76718625dfb279c6fd617c09ac59e062d7f53ca92fce806b")
+	sec, _ := hex.DecodeString("54e1134d10b6e082b0f3af6372029e2ee11b3381a955d76c37c5c1a1e5911f02")
+	realIndex := 0
+
+	var keyImage Key
+	copy(keyImage[:], kImage)
+
+	privKey := new(Key)
+	copy(privKey[:], sec)
+
+	mixins := make([]Key, 1)
+	copy(mixins[0][:], pub1)
+	// copy(mixins[1][:], pub2)
+
+	sigs, _ := GenerateRingSignature(prefixHash, keyImage, mixins, privKey, realIndex)
+
+	fmt.Printf("Sign: %v %v\n", sigs[0].C, sigs[0].R)
+
+	t.Errorf("Locked balance mismatch ")
+}
+
+func sc_isnonzero(s []byte) int {
+	fmt.Printf("%v", s)
+	return (((int)(s[0]|s[1]|s[2]|s[3]|s[4]|s[5]|s[6]|s[7]|s[8]|
+		s[9]|s[10]|s[11]|s[12]|s[13]|s[14]|s[15]|s[16]|s[17]|
+		s[18]|s[19]|s[20]|s[21]|s[22]|s[23]|s[24]|s[25]|s[26]|
+		s[27]|s[28]|s[29]|s[30]|s[31]) - 1) >> 8) + 1
+}
+
+func TestScSub(t *testing.T) {
+	h, _ := NewFromString("ac11b5498bcf501cec095e926f96aaf62143553f1c05e249fb491b55c93ca40b")
+	sum, _ := NewFromString("ac11b5498bcf501cec095e926f96aaf62143553f1c05e249fb491b55c93ca40b")
+	ScSub(h, h, sum)
+	t.Fatalf("%v", sc_isnonzero(h[:]))
+}

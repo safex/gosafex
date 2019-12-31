@@ -257,16 +257,16 @@ func TestGetHistory(t *testing.T) {
 	if err := w.wallet.PutBlockHeader(head2); err != nil {
 		t.Fatalf("%s", err)
 	}
-	if err := w.wallet.PutTransactionInfo(tx1, head1.GetHash()); err != nil {
+	if err := w.wallet.PutTransactionInfo(tx1, head1.GetHash(), false); err != nil {
 		t.Fatalf("%s", err)
 	}
-	if err := w.wallet.PutTransactionInfo(tx2, head2.GetHash()); err != nil {
+	if err := w.wallet.PutTransactionInfo(tx2, head2.GetHash(), false); err != nil {
 		t.Fatalf("%s", err)
 	}
-	if err := w.wallet.PutTransactionInfo(tx3, head2.GetHash()); err != nil {
+	if err := w.wallet.PutTransactionInfo(tx3, head2.GetHash(), false); err != nil {
 		t.Fatalf("%s", err)
 	}
-	if err := w.wallet.PutTransactionInfo(tx4, head2.GetHash()); err != nil {
+	if err := w.wallet.PutTransactionInfo(tx4, head2.GetHash(), false); err != nil {
 		t.Fatalf("%s", err)
 	}
 
@@ -303,7 +303,7 @@ func TestGetTransaction(t *testing.T) {
 	if err := w.wallet.PutBlockHeader(head2); err != nil {
 		t.Fatalf("%s", err)
 	}
-	if err := w.wallet.PutTransactionInfo(tx1, head1.GetHash()); err != nil {
+	if err := w.wallet.PutTransactionInfo(tx1, head1.GetHash(), false); err != nil {
 		t.Fatalf("%s", err)
 	}
 
@@ -342,16 +342,16 @@ func TestGetTransactionByBlock(t *testing.T) {
 	if err := w.wallet.PutBlockHeader(head2); err != nil {
 		t.Fatalf("%s", err)
 	}
-	if err := w.wallet.PutTransactionInfo(tx1, head1.GetHash()); err != nil {
+	if err := w.wallet.PutTransactionInfo(tx1, head1.GetHash(), false); err != nil {
 		t.Fatalf("%s", err)
 	}
-	if err := w.wallet.PutTransactionInfo(tx2, head2.GetHash()); err != nil {
+	if err := w.wallet.PutTransactionInfo(tx2, head2.GetHash(), false); err != nil {
 		t.Fatalf("%s", err)
 	}
-	if err := w.wallet.PutTransactionInfo(tx3, head2.GetHash()); err != nil {
+	if err := w.wallet.PutTransactionInfo(tx3, head2.GetHash(), false); err != nil {
 		t.Fatalf("%s", err)
 	}
-	if err := w.wallet.PutTransactionInfo(tx4, head2.GetHash()); err != nil {
+	if err := w.wallet.PutTransactionInfo(tx4, head2.GetHash(), false); err != nil {
 		t.Fatalf("%s", err)
 	}
 

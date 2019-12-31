@@ -26,7 +26,7 @@ func (w *Wallet) rescanBlockRange(blocks safex.Blocks, acc string) error {
 	}
 
 	for _, tx := range loadedTxs.Tx {
-		w.processTransactionPerAccount(tx, txblck[tx.GetTxHash()], false, acc)
+		w.processTransactionPerAccount(tx, txblck[tx.GetTxHash()], false, acc, true)
 	}
 
 	mloadedTxs, err := w.client.GetTransactions(minerTxs)
@@ -38,7 +38,7 @@ func (w *Wallet) rescanBlockRange(blocks safex.Blocks, acc string) error {
 	w.logger.Infof("[Chain] Number of mloadedTxs: %d", len(mloadedTxs.Tx))
 
 	for _, tx := range mloadedTxs.Tx {
-		w.processTransactionPerAccount(tx, txblck[tx.GetTxHash()], true, acc)
+		w.processTransactionPerAccount(tx, txblck[tx.GetTxHash()], true, acc, true)
 	}
 	return nil
 }

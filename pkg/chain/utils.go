@@ -218,7 +218,7 @@ func (w *Wallet) constructTxWithKey(
 
 	if ok {
 		if _, isThere := extraMap[TX_EXTRA_NONCE]; isThere {
-			var paymentId [8]byte
+			var paymentID [8]byte
 			if val, isThere1 := extraMap[TX_EXTRA_NONCE_ENCRYPTED_PAYMENT_ID]; isThere1 {
 				viewKeyPub := GetDestinationViewKeyPub(destinations, changeAddr)
 				if viewKeyPub == nil {
@@ -226,8 +226,8 @@ func (w *Wallet) constructTxWithKey(
 					return false
 				}
 				viewKeyPubBytes := viewKeyPub.ToBytes()
-				paymentId = EncryptPaymentId(val.([8]byte), viewKeyPubBytes, *txKey)
-				extraMap[TX_EXTRA_NONCE_ENCRYPTED_PAYMENT_ID] = paymentId
+				paymentID = EncryptPaymentId(val.([8]byte), viewKeyPubBytes, *txKey)
+				extraMap[TX_EXTRA_NONCE_ENCRYPTED_PAYMENT_ID] = paymentID
 			}
 
 		}
@@ -240,6 +240,8 @@ func (w *Wallet) constructTxWithKey(
 	var summaryInputsMoney uint64 = 0
 	var summaryInputsToken uint64 = 0
 	var idx int = -1
+
+	var contextVar []*TransferInfo
 
 	for _, src := range *sources {
 		idx++
@@ -267,6 +269,7 @@ func (w *Wallet) constructTxWithKey(
 
 		inputToKey.KeyOffsets = AbsoluteOutputOffsetsToRelative(inputToKey.KeyOffsets)
 		tx.Vin = append(tx.Vin, getTxInVFromTxInToKey(inputToKey))
+		contextVar = append(contextVar, src.TransferPtr)
 	}
 
 	// shuffle destinations
@@ -284,6 +287,13 @@ func (w *Wallet) constructTxWithKey(
 	sort.Slice(*sources, func(i, j int) bool {
 		kI := (*sources)[i].KeyImage
 		kJ := (*sources)[j].KeyImage
+
+		return bytes.Compare(kI[:], kJ[:]) > 0
+	})
+
+	sort.Slice(contextVar, func(i, j int) bool {
+		kI := (*contextVar[i]).KImage
+		kJ := (*contextVar[j]).KImage
 
 		return bytes.Compare(kI[:], kJ[:]) > 0
 	})
@@ -351,12 +361,12 @@ func (w *Wallet) constructTxWithKey(
 		} else {
 			out.TokenAmount = 0
 			out.Amount = dst.Amount
-			ttk := new(safex.TxoutTargetV)
-			ttk1 := new(safex.TxoutToKey)
-			ttk.TxoutToKey = ttk1
-			ttk1.Key = make([]byte, 32)
-			copy(ttk1.Key, outEphemeral[:])
-			out.Target = ttk
+			tk := new(safex.TxoutTargetV)
+			tk1 := new(safex.TxoutToKey)
+			tk.TxoutToKey = tk1
+			tk1.Key = make([]byte, 32)
+			copy(tk1.Key, outEphemeral[:])
+			out.Target = tk
 		}
 		generalLogger.Info("[Chain] Added output to tx: ", *out)
 		tx.Vout = append(tx.Vout, out)
@@ -385,13 +395,12 @@ func (w *Wallet) constructTxWithKey(
 
 	if tx.Version == 1 {
 		tmpTxPrefixBytes := crypto.NewDigest(serialization.SerializeTransaction(tx, false))
-		// txPrefixHash := *((*[]byte)(unsafe.Pointer(&tmpTxPrefixBytes)))
 		txPrefixHash := make([]byte, 32)
 		for i := 0; i < 32; i++ {
 			txPrefixHash[i] = tmpTxPrefixBytes[i]
 		}
 
-		for _, src := range *sources {
+		for index, src := range *sources {
 			keys := make([]crypto.Key, len(src.Outputs))
 			ii := 0
 
@@ -400,7 +409,8 @@ func (w *Wallet) constructTxWithKey(
 				ii++
 			}
 			generalLogger.Info("[Chain] Output keys to be signed: ", keys)
-			sigs, _ := curve.GenerateRingSignature(txPrefixHash, src.KeyImage, keys, &src.TransferPtr.KImage, int(src.RealOutput))
+
+			sigs, _ := curve.GenerateRingSignature(txPrefixHash, src.KeyImage, keys, &(*contextVar[index]).EphPriv, int(src.RealOutput))
 			generalLogger.Info("[Chain] Formed signature: ", sigs)
 			addSigToTx(tx, &sigs)
 		}
@@ -420,11 +430,13 @@ func (w *Wallet) constructTxAndGetTxKey(
 	txKey *[32]byte) (r bool) {
 
 	secTxKey := curve.NewRandomScalar()
+
 	copy((*txKey)[:], secTxKey[:])
 	// src/cryptonote_core/cryptonote_tx_utils.cpp bool construct_tx_and_get_tx_key()
 	// There are no subaddresses involved, so no additional keys therefore we dont
 	// need to involve anything regarding suaddress hence
 	r = w.constructTxWithKey(sources, destinations, changeAddr, extra, tx, unlockTime, txKey, true)
+
 	return r
 }
 

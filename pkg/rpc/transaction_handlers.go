@@ -239,34 +239,19 @@ func (w *WalletRPC) TransactionCash(rw http.ResponseWriter, r *http.Request) {
 	if rqData.Mixin == uint32(0) {
 		rqData.Mixin = 6
 	}
-
-	// @todo Handle PID
-
-	var pid []byte
 	if rqData.PaymentID != "" && (len(rqData.PaymentID) != 16 || len(rqData.PaymentID) != 64) {
 		FormJSONResponse(nil, WrongPaymentIDFormat, &rw)
 		return
 	}
 
-	pid, err := hex.DecodeString(rqData.PaymentID)
+	//pid, err := hex.DecodeString(rqData.PaymentID)
 
-	extra := pid
-	fmt.Println("extra: ", extra)
-
-	if err != nil {
+	/*if err != nil {
 		data := make(JSONElement)
 		data["msg"] = err.Error()
 		FormJSONResponse(data, PaymentIDParseError, &rw)
 		return
-	}
-
-	// @todo Add here actual logic for creating txs.
-	// if txSendMock%2 != 0 {
-	// 	FormJSONResponse(nil, ErrorDuringSendingTx, &rw)
-	// 	txSendMock++
-	// 	return
-	// }
-	// txSendMock++
+	}*/
 
 	data := make(JSONElement)
 	destAddress, err := account.FromBase58(rqData.Destination)
@@ -287,7 +272,7 @@ func (w *WalletRPC) TransactionCash(rw http.ResponseWriter, r *http.Request) {
 		priority = rqData.priority
 	}
 
-	ptxs, err := w.wallet.TxCreateCash([]chain.DestinationEntry{chain.DestinationEntry{rqData.Amount, 0, *destAddress, false, false}}, fakeOutsCount, unlockTime, priority, rqData.extra, false)
+	ptxs, err := w.wallet.TxCreateCash([]chain.DestinationEntry{chain.DestinationEntry{rqData.Amount, 0, *destAddress, false, false, false, safex.OutCash, ""}}, fakeOutsCount, unlockTime, priority, rqData.extra, false)
 	if err != nil {
 		data["msg"] = err.Error()
 		FormJSONResponse(data, FailedToCreateTransaction, &rw)
@@ -364,14 +349,6 @@ func (w *WalletRPC) TransactionToken(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// @todo Add here actual logic for creating txs.
-	// if txSendMock%2 != 0 {
-	// 	FormJSONResponse(nil, ErrorDuringSendingTx, &rw)
-	// 	txSendMock++
-	// 	return
-	// }
-	// txSendMock++
-
 	data := make(JSONElement)
 	destAddress, err := account.FromBase58(rqData.Destination)
 
@@ -381,7 +358,7 @@ func (w *WalletRPC) TransactionToken(rw http.ResponseWriter, r *http.Request) {
 		fakeOutsCount = int(rqData.fakeOutsCount)
 	}
 
-	ptxs, err := w.wallet.TxCreateToken([]chain.DestinationEntry{chain.DestinationEntry{0, rqData.Amount, *destAddress, false, true}}, fakeOutsCount, rqData.fakeOutsCount, rqData.unlockTime, rqData.extra, false)
+	ptxs, err := w.wallet.TxCreateToken([]chain.DestinationEntry{chain.DestinationEntry{0, rqData.Amount, *destAddress, false, true, false, safex.OutToken, ""}}, fakeOutsCount, rqData.fakeOutsCount, uint32(rqData.unlockTime), rqData.extra, false)
 	if err != nil {
 		data["msg"] = err.Error()
 		FormJSONResponse(data, FailedToCreateTransaction, &rw)
@@ -416,38 +393,4 @@ func (w *WalletRPC) TransactionToken(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	FormJSONResponse(data, retInt, &rw)
-}
-
-func (w *WalletRPC) TransactionCommit(rw http.ResponseWriter, r *http.Request) {
-	w.logger.Infof("[RPC] Committing transaction")
-	var rqData TransactionRq
-	if !transactionGetData(&rw, r, &rqData) {
-		// Error response already handled
-		return
-	}
-
-	if rqData.TxAsHex == nil {
-		data := make(JSONElement)
-		data["msg"] = "Missing tx data!!"
-		FormJSONResponse(nil, JSONRqMalformed, &rw)
-		return
-	}
-
-	for _, val := range rqData.TxAsHex {
-		// @todo aggregate data
-		fmt.Println("val: ", val)
-	}
-
-	// @todo convert it to txs
-	// @todo Try to send it.
-	// @todo Check results.
-	data := make(JSONElement)
-	data["status"] = "ALL OK"
-	data["txids"] = make(JSONElement, 0)
-	data["txids"] = append(data["txids"].([]interface{}), "e8cae985315e43ded87c33185716366486d0af8cda9d276ec03d9301ed70e634")
-	data["txids"] = append(data["txids"].([]interface{}), "dfb06134cfd5c526392f4466c30951a8a0b2ddfba6f6fe242664bc507900693f")
-	data["txids"] = append(data["txids"].([]interface{}), "b2c4f6dcff66d272160bdcbd4b374822b94527f403cd2931ab81a2b0f70b859a")
-	data["txids"] = append(data["txids"].([]interface{}), "c959b344ab3d7696bbb822ea89259103291e5fa47084a5db27e981d12b488110")
-
-	FormJSONResponse(data, EverythingOK, &rw)
 }

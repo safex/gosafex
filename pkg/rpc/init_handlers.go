@@ -95,6 +95,7 @@ func (w *WalletRPC) OpenExisting(rw http.ResponseWriter, r *http.Request) {
 
 	err := w.wallet.OpenFile(rqData.Path, rqData.Password, !w.mainnet, w.logger)
 	if err != nil {
+		w.wallet.Close()
 		data["msg"] = err.Error()
 		FormJSONResponse(data, FailedToOpen, &rw)
 		return
@@ -109,7 +110,6 @@ func (w *WalletRPC) OpenExisting(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	FormJSONResponse(data, EverythingOK, &rw)
-
 }
 
 func (w *WalletRPC) CreateNew(rw http.ResponseWriter, r *http.Request) {
@@ -142,7 +142,7 @@ func (w *WalletRPC) CreateNew(rw http.ResponseWriter, r *http.Request) {
 		accountName = "primary"
 	}
 
-	err = w.wallet.OpenAndCreate(accountName, rqData.Path, rqData.Password, w.mainnet, w.logger)
+	err = w.wallet.OpenAndCreate(accountName, rqData.Path, rqData.Password, !w.mainnet, w.logger)
 
 	if err != nil {
 		data["msg"] = err.Error()

@@ -61,8 +61,8 @@ func (w *FileWallet) GetTransactionInfosFromBlockHeight(blockHeight uint64) ([]*
 }
 
 //PutTransactionInfo Inserts a new TransactionInfo
-func (w *FileWallet) PutTransactionInfo(txInfo *TransactionInfo, blockHash string) error {
-	if w.CheckIfTransactionInfoExists(txInfo.TxHash) >= 0 {
+func (w *FileWallet) PutTransactionInfo(txInfo *TransactionInfo, blockHash string, overwrite bool) error {
+	if w.CheckIfTransactionInfoExists(txInfo.TxHash) >= 0 && !overwrite {
 		w.logger.Errorf("[FileWallet] %s", ErrTxInfoNotPresent)
 		return ErrTxInfoPresent
 	}

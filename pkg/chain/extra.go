@@ -37,29 +37,41 @@ func checkForError(err error, msg string) (r bool) {
 	return false
 }
 
+func getIntegratedAddressAsString (nonce [8]byte){
+	
+}
+
 func getNonce(extraMap ExtraMap) []byte {
 	buf := bytes.NewBuffer(nil)
 
 	// if payment id are set, they replace nonce
 	// first place unencrypted payment id
 	if _, ok := extraMap[TX_EXTRA_NONCE_PAYMENT_ID]; ok {
-		dataBytes := extraMap[TX_EXTRA_NONCE_PAYMENT_ID].([]byte)
-		if len(dataBytes) == 32 { // payment id is valid
+		if dataBytes, ok := extraMap[TX_EXTRA_NONCE_PAYMENT_ID].([]byte); ok {
+			if len(dataBytes) < 32 {
+				generalLogger.Errorf("[Utility] Error in deserializing payment id")
+				return nil
+			}
 			buf.WriteByte(0x00)
-			buf.Write(dataBytes)
-		} else {
-			generalLogger.Println("[Chain] unencrypted payment id size mismatch expected")
+			buf.Write(dataBytes[:32])
+		} else if dataBytes, ok := extraMap[TX_EXTRA_NONCE_PAYMENT_ID].([32]byte); ok {
+			buf.WriteByte(0x00)
+			buf.Write(dataBytes[:32])
 		}
 	}
 
 	// if encrypted nonce is provide, it will overwrite 32 byte nonce
 	if _, ok := extraMap[TX_EXTRA_NONCE_ENCRYPTED_PAYMENT_ID]; ok {
-		dataBytes := extraMap[TX_EXTRA_NONCE_ENCRYPTED_PAYMENT_ID].([]byte)
-		if len(dataBytes) == 8 { // payment id is valid
+		if dataBytes, ok := extraMap[TX_EXTRA_NONCE_ENCRYPTED_PAYMENT_ID].([]byte); ok {
+			if len(dataBytes) < 8 {
+				generalLogger.Errorf("[Utility] Error in deserializing encrypted payment id")
+				return nil
+			}
 			buf.WriteByte(0x01)
 			buf.Write(dataBytes)
-		} else {
-			generalLogger.Println("[Chain] encrypted payment id size mismatch expected")
+		} else if dataBytes, ok := extraMap[TX_EXTRA_NONCE_PAYMENT_ID].([32]byte); ok {
+			buf.WriteByte(0x01)
+			buf.Write(dataBytes[:8])
 		}
 	}
 

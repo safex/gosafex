@@ -31,6 +31,7 @@ func (w *Wallet) rescanBlocks(accountName string, start uint64, step uint64) (er
 	if w.wallet.AccountExists(accountName) == false {
 		return errors.New("Account doesn't exist"), 0
 	}
+	w.resetBalance()
 	var target uint64
 	max := w.GetLatestLoadedBlockHeight()
 	if start+step < max {
@@ -94,7 +95,6 @@ func (w *Wallet) updateBlocks(nblocks uint64) error {
 }
 
 func (w *Wallet) IsOpen() bool {
-
 	if w.wallet == nil {
 		return false
 	}
@@ -323,10 +323,7 @@ func (w *Wallet) DaemonInfo() (*safex.DaemonInfo, error) {
 		w.logger.Errorf("[Wallet] %s", ErrFilewalletNotOpen)
 		return nil, ErrFilewalletNotOpen
 	}
-	if w.syncing {
-		w.logger.Errorf("[Wallet] %s", ErrSyncing)
-		return nil, ErrSyncing
-	}
+
 	w.working = true
 	defer func() { w.working = false }()
 
@@ -622,4 +619,5 @@ func New(prevLog *log.Logger) *Wallet {
 func (w *Wallet) Close() {
 	w.KillUpdating()
 	w.wallet.Close()
+	w.wallet = nil
 }

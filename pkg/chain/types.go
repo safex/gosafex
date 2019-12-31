@@ -60,11 +60,13 @@ type TxInputV = safex.TxinV
 // TxOut is the alias to safex.Txout.
 type TxOut = safex.Txout
 
+const SAFEX_TOKEN_DECIMAL uint64 = uint64(10000000000)
+
 const lockedStatus = filewallet.LockedStatus
 
 const blockInterval = 100
 
-const createAccountToken = 100
+const createAccountToken = 100 * SAFEX_TOKEN_DECIMAL
 
 var generalLogger *log.Logger
 

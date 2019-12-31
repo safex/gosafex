@@ -31,10 +31,16 @@ func hashToEC(data []byte) (result *ExtendedGroupElement) {
 	result = new(ExtendedGroupElement)
 	p1 := new(ProjectiveGroupElement)
 	p2 := new(CompletedGroupElement)
-	keyBuf := new(Key)
 
-	copy(keyBuf[:], data[:KeyLength]) // TODO: remove key copying.
+	hashBuf := hash.Keccak256(data)
+	buf := make([]byte, 32)
+	for h := 0; h < 32; h++ {
+		buf[h] = hashBuf[h]
+	}
+	keyBuf, _ := NewFromBytes(buf)
+
 	p1.fromBytes(keyBuf)
+
 	GeMul8(p2, p1)
 
 	p2.toExtended(result)
